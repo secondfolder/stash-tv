@@ -2,6 +2,8 @@ name: Verify and publish if needed
 
 on:
   push:
+    branches:
+      - '**'
   pull_request: # We also run on PRs to verify the commit messages of all commits in the PR
   workflow_call:
 
