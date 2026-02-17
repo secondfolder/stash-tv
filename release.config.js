@@ -28,7 +28,7 @@ export default {
     [
       "@semantic-release/exec",
       {
-        prepareCmd: "yq -i '.version = \"${nextRelease.version}\"' packages/tv-plugin/dist/stash-tv.yml",
+        prepareCmd: "jq '.version = \"${nextRelease.version}\"' package.json > package.json.tmp && mv package.json.tmp package.json && yq -i '.version = \"${nextRelease.version}\"' packages/tv-plugin/dist/stash-tv.yml",
         successCmd: "./scripts/deploy-to-stash-plugins.sh ${nextRelease.version}",
       },
     ],
