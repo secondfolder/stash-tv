@@ -25,6 +25,7 @@ import { DeleteScenesDialog } from "stash-ui/dist/src/components/Scenes/DeleteSc
 import { DeleteSceneMarkersDialog } from "stash-ui/dist/src/components/Scenes/DeleteSceneMarkersDialog";
 import { UAParser } from "ua-parser-js";
 import Slider from "../../controls/slider";
+import { Button } from "react-bootstrap";
 
 const logger = getLogger(["stash-tv", "ActionButtons"]);
 
@@ -98,6 +99,9 @@ export const deleteMediaItemActionButtonSchema = sharedActionButtonSchema.shape(
 export const setOrganizedActionButtonSchema = sharedActionButtonSchema.shape({
   type: yup.string().oneOf(["set-organized"]).required(),
 })
+export const playbackRateActionButtonSchema = sharedActionButtonSchema.shape({
+  type: yup.string().oneOf(["playback-rate"]).required(),
+})
 
 export type ActionButtonConfig =
   | yup.InferType<typeof uiVisibilityActionButtonSchema>
@@ -116,6 +120,7 @@ export type ActionButtonConfig =
   | yup.InferType<typeof createMarkerActionButtonSchema>
   | yup.InferType<typeof deleteMediaItemActionButtonSchema>
   | yup.InferType<typeof setOrganizedActionButtonSchema>
+  | yup.InferType<typeof playbackRateActionButtonSchema>
 
 export const createNewActionButtonConfig = <ButtonType extends ActionButtonConfig["type"]>(
   type: ButtonType,
@@ -172,8 +177,8 @@ export function ActionButtons({mediaItem, sceneInfoOpen, setSceneInfoOpen, playe
   const stackScrollClasses = useOverflowIndicators(stackElmRef);
 
   function renderActionButton(buttonConfig: ActionButtonConfig) {
-    const { type } = buttonConfig;
-    switch (type) {
+    const { type: buttonType } = buttonConfig;
+    switch (buttonType) {
       case "settings":
         return <SettingsActionButton buttonConfig={buttonConfig} />
       case "show-scene-info":
@@ -206,8 +211,11 @@ export function ActionButtons({mediaItem, sceneInfoOpen, setSceneInfoOpen, playe
         return <DeleteMediaItemActionButton mediaItem={mediaItem} buttonConfig={buttonConfig} />
       case "set-organized":
         return <SetOrganizedActionButton mediaItem={mediaItem} buttonConfig={buttonConfig} />
+      case "playback-rate":
+        return <PlaybackRateActionButton buttonConfig={buttonConfig} playerRef={playerRef} />
       default:
-        logger.error(`Unknown action button type: ${type}`)
+        buttonType satisfies never
+        logger.error(`Unknown action button type: ${buttonType}`)
         return <>?</>
     }
   }
@@ -675,6 +683,45 @@ function SetOrganizedActionButton(
       {...getActionButtonDetails(buttonConfig).props}
       active={scene.organized}
       onClick={() => setOrganized(!scene.organized)}
+    />
+  )
+}
+
+function PlaybackRateActionButton(
+  {buttonConfig, playerRef}:
+  {
+    buttonConfig: Extract<ActionButtonConfig, { type: "playback-rate" }>,
+    playerRef: React.RefObject<VideoJsPlayer>
+  }
+) {
+  const {playbackRate: desiredPlaybackRate} = useAppStateStore();
+  const [playbackRate, setPlaybackRate] = useState(desiredPlaybackRate);
+  const active = useMemo(() => playbackRate !== 1, [playbackRate])
+  useEffect(() => {
+    if (!playerRef.current) return
+    playerRef.current.on("ratechange", () => {
+      const currentRate = playerRef.current?.playbackRate();
+      if (currentRate !== undefined) setPlaybackRate(currentRate);
+    });
+  }, [playerRef.current, setPlaybackRate])
+  const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2, 4, 8];
+  return (
+    <ActionButton
+      {...getActionButtonDetails(buttonConfig).props}
+      active={active}
+      className="playback-rate hide-on-ui-hide"
+      sidePanel={<>
+        {speeds.map(speed => (
+          <Button
+            key={speed}
+            variant="link"
+            className={cx("current", {active: playbackRate === speed})}
+            onClick={() => playerRef.current?.playbackRate(speed)}
+          >
+            {speed}x
+          </Button>
+        ))}
+      </>}
     />
   )
 }

@@ -134,11 +134,12 @@ export type ScenePlayerProps = Omit<React.ComponentProps<typeof ScenePlayerOrigi
     hideProgressBar?: boolean;
     onClick?: (event: MouseEvent) => void;
     onPointerUp?: (event: PointerEvent) => void;
-    onVideojsPlayerReady?: (player: VideoJsPlayer) => void;
+    onVideojsPlayerCreated?: (player: VideoJsPlayer) => void;
     optionsToMerge?: VideoJsPlayerOptions;
     scene: GQL.TvSceneDataFragment;
     muted?: boolean;
     volume?: number;
+    playbackRate?: number;
     loop?: boolean;
     trackActivity?: boolean;
     scrubberThumbnail?: boolean;
@@ -161,10 +162,11 @@ const ScenePlayer = forwardRef<
     onClick,
     onPointerUp,
     onEnded,
-    onVideojsPlayerReady,
+    onVideojsPlayerCreated,
     optionsToMerge,
     muted,
     volume,
+    playbackRate,
     loop,
     trackActivity = true,
     scrubberThumbnail = true,
@@ -316,6 +318,12 @@ const ScenePlayer = forwardRef<
     // Code to be run when wrapped ScenePlayer's Video.js player has been created
     videoJsSetupCallbacks[playerId] = (player) => {
       if (volume !== undefined) player.volume(volume);
+      if (playbackRate !== undefined) {
+        player.defaultPlaybackRate(playbackRate);
+        // @ts-expect-error - This version of video.js doesn't seem to correctly set the cached playback rate value if
+        // set before the video is ready. So we have to manually set it.
+        player.cache_.lastPlaybackRate = playbackRate;
+      }
 
       for (const eventName of videoJsEventsToLog) {
         player.on(eventName, logVideoJsEvent)
@@ -327,7 +335,7 @@ const ScenePlayer = forwardRef<
       }
       addWrapperToRevertPreviewUrlChange(player);
       disableBuggyOnEndHandling(player);
-      onVideojsPlayerReady?.(player);
+      onVideojsPlayerCreated?.(player);
       videojsPlayerRef.current = player;
       setVideojsPlayer(player);
 
@@ -368,21 +376,28 @@ const ScenePlayer = forwardRef<
     // On muted prop change update Video.js player state. We also set muted on player creation via the options.
     useEffect(() => {
         const player = videojsPlayerRef.current
-        if (muted === undefined || !player || player.isDisposed()) return;
+        if (muted === undefined || !player || player.isDisposed() || muted === player.muted()) return;
         player.muted(muted);
     }, [muted]);
 
     // On volume prop change update Video.js player state. We also set volume on player creation via videoJsSetupCallback.
     useEffect(() => {
         const player = videojsPlayerRef.current
-        if (volume === undefined || !player || player.isDisposed()) return;
+        if (volume === undefined || !player || player.isDisposed() || volume === player.volume()) return;
         player.volume(volume);
     }, [volume]);
 
-    // On loop prop change update Video.js player state. We also set muted on player creation via the options.
+    // On playbackRate prop change update Video.js player state. We also set playbackRate on player creation via videoJsSetupCallback.
     useEffect(() => {
         const player = videojsPlayerRef.current
-        if (loop === undefined || !player || player.isDisposed()) return;
+        if (playbackRate === undefined || !player || player.isDisposed() || playbackRate === player.playbackRate()) return;
+        player.playbackRate(playbackRate);
+    }, [playbackRate]);
+
+    // On loop prop change update Video.js player state. We also set loop on player creation via the options.
+    useEffect(() => {
+        const player = videojsPlayerRef.current
+        if (loop === undefined || !player || player.isDisposed() || loop === player.loop()) return;
         player.loop(loop);
     }, [loop]);
 

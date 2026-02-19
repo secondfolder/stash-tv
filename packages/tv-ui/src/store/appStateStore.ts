@@ -43,6 +43,7 @@ type AppState = {
   loggersToHide: (readonly string[])[];
   showDebuggingInfo: (DebuggingInfo)[];
   videoJsEventsToLog: readonly string[];
+  playbackRate: number;
 }
 
 type AppAction = {
@@ -90,6 +91,7 @@ const defaults = {
     {id: "10", type: "loop", pinned: false},
     {id: "11", type: "subtitles", pinned: false},
   ],
+  playbackRate: 1,
 } satisfies AppState;
 
 const nonPersistentKeys: (keyof AppState)[] = [

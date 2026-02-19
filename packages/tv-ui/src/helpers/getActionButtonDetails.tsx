@@ -111,6 +111,8 @@ import {
   TagFill,
   TagsFill,
   Tags,
+  FastForward,
+  FastForwardFill,
 } from "react-bootstrap-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import cx from "classnames";
@@ -462,6 +464,12 @@ export const actionButtonsDetails: Record<ActionButtonConfig["type"], ActionButt
     inactiveIcon: actionButtonIcons["archive"].inactive,
     activeText: "Mark as unorganized",
     inactiveText: "Mark as organized",
+  },
+  "playback-rate": {
+    activeIcon: (props: IconProps) => renderIcon(FastForwardFill, props),
+    inactiveIcon: (props: IconProps) => renderIcon(FastForward, props),
+    activeText: "Set playback rate",
+    inactiveText: "Set playback rate",
   },
 }
 export type ActionButtonIcons = keyof typeof actionButtonIcons

@@ -56,6 +56,7 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
     letterboxing,
     forceLandscape,
     volume,
+    playbackRate,
     looping,
     showSubtitles,
     crtEffect,
@@ -117,8 +118,9 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
   // Currently hardcoded but could be made configurable later
   const autoplay = globalAutoPlay && isCurrentVideo && !showGuideOverlay;
 
-  function handleVideojsPlayerReady(player: VideoJsPlayer) {
+  function handleVideojsPlayerCreated(player: VideoJsPlayer) {
     videojsPlayerRef.current = player;
+
     const getPlayerVolume = () => videojsPlayerRef.current?.muted() ? 0 : videojsPlayerRef.current?.volume() || 0;
     player.on("volumechange", () => {
       logger.info(`Video.js player volumechange event - player volume is ${getPlayerVolume() * 100}%`);
@@ -131,6 +133,12 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
       logger.info(`Video.js player loaded - player volume is ${getPlayerVolume() * 100}%`);
       setAppSetting("volume", getPlayerVolume());
     }
+
+    player.on("ratechange", () => {
+      logger.info(`Video.js player ratechange event - player playback rate is ${player.playbackRate()}`);
+      setAppSetting("playbackRate", player.playbackRate());
+    });
+
     // We resort to `any` here because the types for videojs are incomplete
     ;(player.getChild('ControlBar') as any)?.progressControl?.el().addEventListener('pointermove', (event: MouseEvent) => {
       // Stop event propagation so pointermove event doesn't make it to window and trigger a sidebar drag when we're
@@ -673,6 +681,7 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
           hideScrubberOverride={true}
           muted={!volume}
           volume={volume}
+          playbackRate={playbackRate}
           autoplay={autoplay}
           loop={looping}
           initialTimestamp={initialTimestamp}
@@ -681,7 +690,7 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
           onPrevious={() => {}}
           refVideo={videoRef}
           onEnded={handleOnEnded}
-          onVideojsPlayerReady={handleVideojsPlayerReady}
+          onVideojsPlayerCreated={handleVideojsPlayerCreated}
           trackActivity={!scenePreviewOnly && props.mediaItem.entityType !== "marker"}
           scrubberThumbnail={!scenePreviewOnly && props.mediaItem.entityType !== "marker"}
           markers={!scenePreviewOnly}
