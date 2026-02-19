@@ -9,7 +9,7 @@ export type DebuggingInfo = "render-debugging" | "onscreen-info" | "virtualizer-
 export const appStateStorageKey = 'app-state';
 
 type AppState = {
-  audioMuted: boolean;
+  volume: number;
   showSubtitles: boolean;
   letterboxing: boolean;
   looping: boolean;
@@ -53,7 +53,7 @@ type AppAction = {
 
 const defaults = {
   showSettings: false,
-  audioMuted: true,
+  volume: 0,
   showSubtitles: false,
   fullscreen: false,
   letterboxing: false,
@@ -85,7 +85,7 @@ const defaults = {
     {id: "5", type: "o-counter", pinned: false},
     {id: "6", type: "force-landscape", pinned: false},
     {id: "7", type: "fullscreen", pinned: false},
-    {id: "8", type: "mute", pinned: false},
+    {id: "8", type: "volume", pinned: false},
     {id: "9", type: "letterboxing", pinned: false},
     {id: "10", type: "loop", pinned: false},
     {id: "11", type: "subtitles", pinned: false},
@@ -217,6 +217,24 @@ export const useAppStateStore = create<AppState & AppAction>()(
       storage: createJSONStorage(() => createHybridStorage()),
       onRehydrateStorage: (state) => {
         return () => state.set("storeLoaded", true)
+      },
+      version: 1,
+      migrate: (persistedState, version) => {
+        if (version === 0 && persistedState && typeof persistedState === "object") {
+          if ('audioMuted' in persistedState) {
+            // @ts-expect-error -- we're going to add the volume property
+            persistedState.volume = persistedState.audioMuted ? 0 : 1;
+            delete persistedState.audioMuted;
+          }
+          if ('actionButtonsConfig' in persistedState && Array.isArray(persistedState.actionButtonsConfig)) {
+            for (const button of persistedState.actionButtonsConfig) {
+              if (button.type === "mute") {
+                button.type = "volume";
+              }
+            }
+          }
+        }
+        return persistedState
       }
     }
   )

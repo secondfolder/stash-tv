@@ -138,6 +138,7 @@ export type ScenePlayerProps = Omit<React.ComponentProps<typeof ScenePlayerOrigi
     optionsToMerge?: VideoJsPlayerOptions;
     scene: GQL.TvSceneDataFragment;
     muted?: boolean;
+    volume?: number;
     loop?: boolean;
     trackActivity?: boolean;
     scrubberThumbnail?: boolean;
@@ -163,6 +164,7 @@ const ScenePlayer = forwardRef<
     onVideojsPlayerReady,
     optionsToMerge,
     muted,
+    volume,
     loop,
     trackActivity = true,
     scrubberThumbnail = true,
@@ -313,27 +315,29 @@ const ScenePlayer = forwardRef<
 
     // Code to be run when wrapped ScenePlayer's Video.js player has been created
     videoJsSetupCallbacks[playerId] = (player) => {
-        for (const eventName of videoJsEventsToLog) {
-          player.on(eventName, logVideoJsEvent)
-          videoJsEventsToLogAttached.current[eventName] = true;
-        }
-        if (loop !== undefined) {
-            // Ideally we wouldn't need this. See comment for "loop" in videoJsOptionsOverride
-            setTimeout(() => !player.isDisposed() && player.loop(loop), 100);
-        }
-        addWrapperToRevertPreviewUrlChange(player);
-        disableBuggyOnEndHandling(player);
-        onVideojsPlayerReady?.(player);
-        videojsPlayerRef.current = player;
-        setVideojsPlayer(player);
+      if (volume !== undefined) player.volume(volume);
 
-        const videoElm = player.el()?.querySelector('video')
-        if (!videoElm) {
-            console.warn("ScenePlayer: No video element found in container");
-            return;
-        }
+      for (const eventName of videoJsEventsToLog) {
+        player.on(eventName, logVideoJsEvent)
+        videoJsEventsToLogAttached.current[eventName] = true;
+      }
+      if (loop !== undefined) {
+        // Ideally we wouldn't need this. See comment for "loop" in videoJsOptionsOverride
+        setTimeout(() => !player.isDisposed() && player.loop(loop), 100);
+      }
+      addWrapperToRevertPreviewUrlChange(player);
+      disableBuggyOnEndHandling(player);
+      onVideojsPlayerReady?.(player);
+      videojsPlayerRef.current = player;
+      setVideojsPlayer(player);
 
-        setVideoElm(videoElm);
+      const videoElm = player.el()?.querySelector('video')
+      if (!videoElm) {
+        console.warn("ScenePlayer: No video element found in container");
+        return;
+      }
+
+      setVideoElm(videoElm);
     }
 
     /* Very annoyingly the wrapped ScenePlayer component will autoplay even if the autoplay prop is set to false, when
@@ -361,14 +365,21 @@ const ScenePlayer = forwardRef<
       },
     }
 
-    // Pass muted prop to Video.js player
+    // On muted prop change update Video.js player state. We also set muted on player creation via the options.
     useEffect(() => {
         const player = videojsPlayerRef.current
         if (muted === undefined || !player || player.isDisposed()) return;
         player.muted(muted);
     }, [muted]);
 
-    // Pass loop prop to Video.js player
+    // On volume prop change update Video.js player state. We also set volume on player creation via videoJsSetupCallback.
+    useEffect(() => {
+        const player = videojsPlayerRef.current
+        if (volume === undefined || !player || player.isDisposed()) return;
+        player.volume(volume);
+    }, [volume]);
+
+    // On loop prop change update Video.js player state. We also set muted on player creation via the options.
     useEffect(() => {
         const player = videojsPlayerRef.current
         if (loop === undefined || !player || player.isDisposed()) return;

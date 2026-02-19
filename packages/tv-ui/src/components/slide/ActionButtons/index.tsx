@@ -23,6 +23,8 @@ import { MediaItem } from "../../../hooks/useMediaItems";
 import { useMediaItemTags } from "../../../hooks/useMediaItemTags";
 import { DeleteScenesDialog } from "stash-ui/dist/src/components/Scenes/DeleteScenesDialog";
 import { DeleteSceneMarkersDialog } from "stash-ui/dist/src/components/Scenes/DeleteSceneMarkersDialog";
+import { UAParser } from "ua-parser-js";
+import Slider from "../../controls/slider";
 
 const logger = getLogger(["stash-tv", "ActionButtons"]);
 
@@ -59,8 +61,9 @@ export const forceLandscapeActionButtonSchema = sharedActionButtonSchema.shape({
 export const fullscreenActionButtonSchema = sharedActionButtonSchema.shape({
   type: yup.string().oneOf(["fullscreen"]).required(),
 })
-export const muteActionButtonSchema = sharedActionButtonSchema.shape({
-  type: yup.string().oneOf(["mute"]).required(),
+export const volumeActionButtonSchema = sharedActionButtonSchema.shape({
+  type: yup.string().oneOf(["volume"]).required(),
+  fullControl: yup.boolean().optional(),
 })
 export const letterboxingActionButtonSchema = sharedActionButtonSchema.shape({
   type: yup.string().oneOf(["letterboxing"]).required(),
@@ -104,7 +107,7 @@ export type ActionButtonConfig =
   | yup.InferType<typeof oCounterActionButtonSchema>
   | yup.InferType<typeof forceLandscapeActionButtonSchema>
   | yup.InferType<typeof fullscreenActionButtonSchema>
-  | yup.InferType<typeof muteActionButtonSchema>
+  | yup.InferType<typeof volumeActionButtonSchema>
   | yup.InferType<typeof letterboxingActionButtonSchema>
   | yup.InferType<typeof loopActionButtonSchema>
   | yup.InferType<typeof subtitlesActionButtonSchema>
@@ -183,8 +186,8 @@ export function ActionButtons({mediaItem, sceneInfoOpen, setSceneInfoOpen, playe
         return <ForceLandscapeActionButton buttonConfig={buttonConfig} />
       case "fullscreen":
         return <FullscreenActionButton buttonConfig={buttonConfig} />
-      case "mute":
-        return <MuteActionButton buttonConfig={buttonConfig} />
+      case "volume":
+        return <VolumeActionButton buttonConfig={buttonConfig} />
       case "letterboxing":
         return <LetterboxingActionButton buttonConfig={buttonConfig} />
       case "loop":
@@ -366,14 +369,33 @@ function FullscreenActionButton({buttonConfig}: {buttonConfig: ActionButtonConfi
   />
 }
 
-function MuteActionButton({buttonConfig}: {buttonConfig: ActionButtonConfig}) {
-  const { audioMuted, set: setAppSetting } = useAppStateStore();
+function VolumeActionButton({buttonConfig}: {buttonConfig: Extract<ActionButtonConfig, { type: "volume" }>}) {
+  const { volume, set: setAppSetting } = useAppStateStore();
+  let clickHandler
+  let sidePanel
+  // iOS does not let us control a video's volume programmatically, just mute toggling
+  if (buttonConfig.fullControl && !UAParser().os.name?.includes("iOS")) {
+    sidePanel = (
+      <Slider
+        min={0}
+        max={100}
+        value={[volume * 100]}
+        onValueChange={e => setAppSetting("volume", Number(e[0]) / 100)}
+      />
+    );
+    clickHandler = undefined;
+  } else {
+    sidePanel = undefined;
+    clickHandler = () => setAppSetting("volume", (prev) => prev ? 0 : 1);
+  }
+
   return <ActionButton
     {...getActionButtonDetails(buttonConfig).props}
     className="mute hide-on-ui-hide"
-    active={!audioMuted}
+    active={Boolean(volume)}
     data-testid="MediaSlide--muteButton"
-    onClick={() => setAppSetting("audioMuted", (prev) => !prev)}
+    onClick={clickHandler}
+    sidePanel={sidePanel}
   />
 }
 

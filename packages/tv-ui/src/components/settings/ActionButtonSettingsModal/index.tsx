@@ -1,6 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Button, Modal } from "react-bootstrap";
-import { ActionButtonConfig, editTagsActionButtonSchema, createMarkerActionButtonSchema, quickTagActionButtonSchema, createNewActionButtonConfig } from "../../slide/ActionButtons";
+import {
+  ActionButtonConfig,
+  editTagsActionButtonSchema,
+  createMarkerActionButtonSchema,
+  quickTagActionButtonSchema,
+  createNewActionButtonConfig,
+  volumeActionButtonSchema
+} from "../../slide/ActionButtons";
 import { ActionButtonIcons, actionButtonIcons, getActionButtonDetails } from "../../../helpers/getActionButtonDetails";
 import { Tag } from "stash-ui/wrappers/components/TagSelect";
 import { TagIdSelect } from "stash-ui/wrappers/components/TagIdSelect";
@@ -71,6 +78,14 @@ export const ActionButtonSettingsModal = ({ initialActionButtonConfig, onClose, 
       onSubmit: (values) => onSave(createMarkerActionButtonSchema.cast(values)),
     });
     form = <CreateMarkerForm formik={formik} />
+  } else if (initialActionButtonConfig.type === "volume") {
+    formik = useFormik<yup.InferType<typeof volumeActionButtonSchema>>({
+      initialValues: initialActionButtonConfig,
+      enableReinitialize: true,
+      validate: yupFormikValidate(volumeActionButtonSchema),
+      onSubmit: (values) => onSave(volumeActionButtonSchema.cast(values)),
+    });
+    form = <VolumeForm formik={formik} />
   } else {
     throw new Error(`Unknown action button type: ${initialActionButtonConfig.type}`)
   }
@@ -314,6 +329,38 @@ function CreateMarkerQuickAddForm({formik}: { formik: ReturnType<typeof useFormi
       {formik.touched.iconId && (
         <Form.Control.Feedback type="invalid">
           {iconIdError}
+        </Form.Control.Feedback>
+      )}
+    </Form.Group>
+    {Object.keys(otherErrors).length > 0 && (
+      <Form.Control.Feedback type="invalid">
+        <ul>
+          {Object.entries(otherErrors).map(([key, error]) => (
+            <li key={key}>{error}</li>
+          ))}
+        </ul>
+      </Form.Control.Feedback>
+    )}
+  </>
+}
+
+function VolumeForm({formik}: { formik: ReturnType<typeof useFormik<yup.InferType<typeof volumeActionButtonSchema>>> }) {
+  const { fullControl: fullControlError, ...otherErrors } = formik.errors
+  return <>
+    <Form.Group>
+      <Switch
+        id="full-control"
+        checked={Boolean(formik.values.fullControl)}
+        label="Full volume control"
+        onChange={event => formik.setFieldValue("fullControl", event.target.checked)}
+      />
+      <Form.Text className="text-muted">
+        Enable full volume control rather than just mute/unmute. Note that this does not work on iOS devices due to
+        platform limitations.
+      </Form.Text>
+      {formik.touched.fullControl && fullControlError && (
+        <Form.Control.Feedback type="invalid">
+          {fullControlError}
         </Form.Control.Feedback>
       )}
     </Form.Group>

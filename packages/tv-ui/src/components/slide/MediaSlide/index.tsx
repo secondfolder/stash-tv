@@ -55,7 +55,7 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
   const {
     letterboxing,
     forceLandscape,
-    audioMuted,
+    volume,
     looping,
     showSubtitles,
     crtEffect,
@@ -119,13 +119,17 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
 
   function handleVideojsPlayerReady(player: VideoJsPlayer) {
     videojsPlayerRef.current = player;
+    const getPlayerVolume = () => videojsPlayerRef.current?.muted() ? 0 : videojsPlayerRef.current?.volume() || 0;
     player.on("volumechange", () => {
-      logger.info(`Video.js player volumechange event - player ${player.muted() ? "" : "not"} muted`);
-      setAppSetting("audioMuted", player.muted());
+      logger.info(`Video.js player volumechange event - player volume is ${getPlayerVolume() * 100}%`);
+      setAppSetting("volume", getPlayerVolume());
     });
-    if (audioMuted !== player.muted()) {
-      logger.info(`Video.js player loaded - volume player ${player.muted() ? "" : "not"} muted`);
-      setAppSetting("audioMuted", player.muted());
+    // Should ideally not be used since we set the video volume to `volume` on player creation but if for some reason
+    // the player doesn't get set correctly it's better to update our volume setting so the UI shows the actual player
+    // volume not what we want it to be but isn't.
+    if (volume !== getPlayerVolume()) {
+      logger.info(`Video.js player loaded - player volume is ${getPlayerVolume() * 100}%`);
+      setAppSetting("volume", getPlayerVolume());
     }
     // We resort to `any` here because the types for videojs are incomplete
     ;(player.getChild('ControlBar') as any)?.progressControl?.el().addEventListener('pointermove', (event: MouseEvent) => {
@@ -667,7 +671,8 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
             },
           }}
           hideScrubberOverride={true}
-          muted={audioMuted}
+          muted={!volume}
+          volume={volume}
           autoplay={autoplay}
           loop={looping}
           initialTimestamp={initialTimestamp}

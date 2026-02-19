@@ -403,11 +403,12 @@ export const actionButtonsDetails: Record<ActionButtonConfig["type"], ActionButt
     activeText: "Close fullscreen",
     inactiveText: "Open fullscreen"
   },
-  "mute": {
+  "volume": {
     activeIcon: (props: IconProps) => renderIcon(faVolume, props),
     inactiveIcon: (props: IconProps) => renderIcon(VolumeMuteOutlineIcon, props),
-    activeText: "Mute",
-    inactiveText: "Unmute"
+    activeText: "Volume",
+    inactiveText: "Volume",
+    hasSettings: true,
   },
   "letterboxing": {
     activeIcon: (props: IconProps) => renderIcon(ContainIcon, props),

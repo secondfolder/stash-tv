@@ -109,6 +109,8 @@
   border: 0;
   border-radius: 0.5em;
   font-size: unset;
+  margin: 0.7rem;
+
   &:not(.left-handed) {
     translate: calc(var(--safe-inset-right) * -1) 0 !important;
   }
