@@ -1,5 +1,5 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faChevronLeft, faCirclePlay, faLocationDot, faGripVertical, faThumbtack, faAdd, faTrashCan, faPenToSquare } from "@fortawesome/free-solid-svg-icons";
+import { faChevronLeft, faCirclePlay, faLocationDot, faGripVertical, faThumbtack, faAdd, faTrashCan, faPenToSquare, faHeart } from "@fortawesome/free-solid-svg-icons";
 import ISO6391 from "iso-639-1";
 import React, { memo, useContext, useEffect, useMemo, useState } from "react";
 import Select from "../Select";
@@ -700,7 +700,7 @@ const SettingsTab = memo(() => {
         </>
       </Accordion.Collapse>
       <AccordionToggle eventKey="3">
-        Help
+        Help / Info
       </AccordionToggle>
       <Accordion.Collapse eventKey="3">
         <>
@@ -714,6 +714,14 @@ const SettingsTab = memo(() => {
           </Form.Group>
           <Form.Group>
             <strong>Version:</strong> {import.meta.env.VITE_STASH_TV_VERSION}
+          </Form.Group>
+          <Form.Group className="inline">
+            <div>
+              What to support Stash TV's development?
+              You can donate via <a href="https://ko-fi.com/secondfolder" target="_blank" rel="noopener noreferrer">Ko-Fi</a>
+              {" "}or <a href="https://github.com/sponsors/secondfolder" target="_blank" rel="noopener noreferrer">GitHub Sponsors</a>. Thanks!
+            </div>
+            <FontAwesomeIcon icon={faHeart} className="accent-icon" />
           </Form.Group>
         </>
       </Accordion.Collapse>
