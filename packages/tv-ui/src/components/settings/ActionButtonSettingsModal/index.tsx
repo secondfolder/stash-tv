@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Button, Modal } from "react-bootstrap";
+import { Modal } from "../../containers/Modal";
+import { Button } from "react-bootstrap";
 import {
   ActionButtonConfig,
   editTagsActionButtonSchema,
@@ -16,7 +17,6 @@ import { queryFindTagsByIDForSelect } from "stash-ui/dist/src/core/StashService"
 import { yupFormikValidate } from "stash-ui/dist/src/utils/yup";
 import { MarkerTitleSuggest } from "stash-ui/dist/src/components/Shared/Select";
 import { Form } from "react-bootstrap";
-import { ModalHeaderProps } from "react-bootstrap/esm/ModalHeader";
 import ActionButton from "../../slide/ActionButton";
 import { getLogger } from "@logtape/logtape";
 import { IconSelect } from "../IconSelect";
@@ -49,8 +49,6 @@ export const ActionButtonSettingsModal = ({ initialActionButtonConfig, onClose, 
     () => getActionButtonDetails(initialConfig, { tagName: initialTagName }),
     [initialConfig.id, initialTagName]
   )
-
-  const ModalHeader = Modal.Header as React.ForwardRefExoticComponent<ModalHeaderProps & React.RefAttributes<HTMLDivElement>>
 
   let formik
   let form
@@ -99,7 +97,7 @@ export const ActionButtonSettingsModal = ({ initialActionButtonConfig, onClose, 
 
   return (
     <Modal show onHide={() => onClose()} title="" className="ActionButtonSettingsModal">
-      <ModalHeader>
+      <Modal.Header>
         <ActionButton
           {...initialDetails.props}
           active={false}
@@ -111,7 +109,7 @@ export const ActionButtonSettingsModal = ({ initialActionButtonConfig, onClose, 
           <em>{initialDetails.inactiveText}</em>{" "}
           Action Button
         </span>
-      </ModalHeader>
+      </Modal.Header>
       <Modal.Body>
         <div className="dialog-content">
           {form}

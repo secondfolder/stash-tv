@@ -1,17 +1,6 @@
 .ActionButtonSettingsModal {
   .modal-dialog {
-    top: var(--safe-inset-top);
-
-    .modal-header {
-      display: flex;
-      align-items: center;
-      justify-content: start;
-      gap: 0.5em;
-    }
-
     .modal-body {
-      overflow: initial;
-
       #filter {
         caret-color: transparent;
       }
