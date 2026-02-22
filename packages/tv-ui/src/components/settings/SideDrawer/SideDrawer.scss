@@ -98,4 +98,5 @@
   background-color: rgba(0, 0, 0, 0.5);
   cursor: pointer;
   touch-action: none; /* Disable scrolling videos when side drawer is open */
+  transition: opacity 50ms ease;
 }

@@ -1,11 +1,27 @@
 .CrtEffect {
-  --enable-transition: 1000ms;
+  --turn-on-time: calc(0.3s + (0.7s * var(--strength)));
+  --crt-inset-top: 0%;
+  --crt-inset-bottom: 0%;
+  --crt-inset-left: 0%;
+  --crt-inset-right: 0%;
+  overflow: hidden;
 
+  &.disabled {
+    overflow: unset;
+  }
+
+
+  /*****************/
+  //  Shared styles
+  /*****************/
   &,
-  > canvas,
-  > .content,
-  > .background,
-  &::before,
+  > .pixel-matrix,
+  > .pixel-matrix > .signal,
+  > .pixel-matrix > .signal > .content,
+  > .pixel-matrix > .signal > .noise,
+  > .physical-screen,
+  > .pixel-matrix::before,
+  > .pixel-matrix::after,
   &::after {
     position: absolute;
     width: 100%;
@@ -14,106 +30,83 @@
     left: 0;
   }
 
-  > .text,
-  > .content {
-    transition: opacity var(--enable-transition) ease 0ms;
+
+  /************************************************************************/
+  //  The pixel grid/matrix layer that the video signal is projected on to
+  /************************************************************************/
+  > .pixel-matrix {
+    filter: brightness(calc(1.15 + (0.15 * var(--strength))));
+    z-index: 1;
+  }
+  &.disabled > .pixel-matrix {
+    filter: unset;
   }
 
-  // TV frame
-  &::after {
-    background-image: url('./crt-frame.png');
-    background-repeat: no-repeat;
-    background-size: 100% 100%;
-    z-index: 3;
+  > .pixel-matrix::after {
+    content: " ";
+    background:
+      linear-gradient(
+        rgb(0, 0, 0),
+        transparent,
+      ),
+      linear-gradient(
+        90deg,
+        rgb(255 0 0) 1px,
+        rgb(0 255 0) 1px,
+        rgb(0 255 0) 2px,
+        rgb(0 0 255) 2px,
+      );
+    z-index: 200;
+    background-size: 100% 2px, 3px 100%;
     pointer-events: none;
-    content: "";
-    background-position: center;
-    transition: background-size var(--enable-transition) ease 0ms;
+    opacity: calc(0.15 + (0.15 * var(--strength)));
+    mix-blend-mode: multiply;
   }
 
-  &.disabled {
-    > canvas,
-    > .text,
-    > .background {
-      display: none;
-    }
-    &::after {
-      background-size: 110% 110%;
-    }
+  &.strength-5 > .pixel-matrix::after,
+  &.strength-4 > .pixel-matrix::after {
+    background-size: 100% 3px, 3px 100%;
+  }
+  &.disabled > .pixel-matrix::after {
+    display: none;
   }
 
-  &:not(.disabled) {
-    overflow: hidden;
 
-    // Background when TV is off
-    > .background {
-      background: transparent
-        linear-gradient(to bottom, #85908c 0%, #323431 100%)
-        repeat
-        scroll
-        0
-        0;
-      content: "";
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-    }
+  /**********************************************************/
+  //  The video signal being projected on to the pixel matrix
+  /**********************************************************/
 
-    // Pixel grid
-    &::before {
-      --screen-background: rgba(18, 16, 16);
-      content: " ";
-      background: linear-gradient(
-          color-mix(
-            in srgb,
-            var(--screen-background),
-            transparent 100%
-          ) 50%,
-          color-mix(
-            in srgb,
-            color-mix(in srgb, var(--screen-background), black 10%),
-            transparent 75%
-          ) 50%
-        ),
-        linear-gradient(
-          90deg,
-          rgb(255 0 0 / 6%),
-          rgb(0 255 0 / 2%),
-          rgb(0 0 255 / 6%),
-        );
-      z-index: 2;
-      background-size: 100% 2px, 3px 100%;
-      pointer-events: none;
-    }
+  > .pixel-matrix > .signal {
+    filter: url(#lineShift) brightness(1); // No idea why brightness is nessary here but if strength is less that 0.8 the signal is hidden for some reason
+    z-index: 1;
+    transition: opacity var(--turn-on-time) ease 0ms;
+  }
 
-    > canvas {
-      height: 100vh;
-      overflow: hidden;
-      width: 100vw;
-      z-index: 2;
-      transform: scale(0, 0);
-      background: transparent
-        linear-gradient(to bottom, #85908c 0%, #323431 100%)
-        repeat
-        scroll
-        0
-        0;
-      position: relative;
-      pointer-events: none;
+  &.tv-on,
+  &.tv-turning-on {
+    > .pixel-matrix > .signal {
+      --turn-on-animation: calc(1s + (2s * var(--strength))) linear var(--turn-on-time) normal both 1 running turn-on-signal;
+      animation: var(--turn-on-animation);
     }
+  }
+  &.strength-5 > .pixel-matrix > .signal {
+    animation:
+      var(--turn-on-animation),
+      5s 8s ease normal both infinite glitch-periodic-skew,
+      100ms infinite alternate glitch-jerk-up-small;
+  }
+  &.strength-4 > .pixel-matrix > .signal {
+    animation:
+      var(--turn-on-animation),
+      500ms infinite alternate glitch-jerk-up-small;
+  }
 
-    > .content {
-      animation-composition: add;
-      filter: blur(1px);
-      animation: glitch-jerk-up-small 100ms infinite;
-      z-index: 1;
-    }
+  &.disabled > .pixel-matrix > .signal {
+    filter: unset;
+  }
 
-    &.tv-on > canvas {
-      animation: 3000ms linear var(--enable-transition) normal forwards 1 running turn-on, 3000ms linear var(--enable-transition) normal forwards 1 running turn-on-snow;
-    }
-    &.tv-turning-off > canvas,
-    &.tv-turning-off > .content {
+  &.tv-turning-off {
+    > .pixel-matrix > .signal {
       animation: 750ms
         cubic-bezier(0.230, 1.000, 0.320, 1.000)
         0ms
@@ -121,241 +114,329 @@
         forwards
         1
         running
-        turn-off;
+        turn-off-signal;
     }
+  }
 
-    $delay: 2000ms;
 
-    .text {
+  @keyframes turn-on-signal {
+    0% {
+      opacity: 0;
+    }
+    0.1% {
+      transform: scale(1, 0.8) translate3d(0, 0, 0)  skew(0, -5deg);
       opacity: 1;
-      color: lime;
-      content: "AV-1";
-      opacity: 0;
-      filter: blur(0.5px);
-      font-family: Sys;
-      font-size: min(6vmin, 3.5em);
-      left: max(5%, 1.5em);
-      position: absolute;
-      text-shadow: 0 0 3px lime;
-      top: 10%;
-      z-index: 5;
-      transform: skewY(-1.5deg);
-      animation-composition: add;
-
-      span {
-        filter: blur(1px);
-        animation: blur 30ms infinite, glitch-jerk-right-small 50ms infinite;
-        white-space: nowrap;
-
-        &:not(:first-child) {
-          position: absolute;
-          top: 0;
-          left: 0;
-        }
-        &:nth-child(1) {
-          color: red;
-          margin-left: -2px;
-          filter: blur(2px);
-          animation: glitch-jerk-up-small 1s infinite;
-        }
-        &:nth-child(2) {
-          color: lime;
-          margin-left: 2px;
-          filter: blur(2px);
-          animation: glitch-jerk-left 1s infinite;
-        }
-        &:nth-child(3) {
-          color: blue;
-          position: 20px 0;
-          filter: blur(1px);
-          animation: glitch-jerk-right 1s infinite;
-        }
-        &:nth-child(4) {
-          color: #fff;
-          filter: blur(1px);
-          text-shadow: 0 0 50px rgba(255, 255, 255, 0.4);
-        }
-        &:nth-child(5) {
-          color: rgba(255, 255, 255, 0.1);
-          filter: blur(15px);
-        }
-      }
     }
-
-    > .text,
-    > .content {
+    3.5% {
+      transform: scale(1, 0.8) translate3d(0, 100%, 0)  skew(0, -5deg);
+    }
+    3.6% {
+      transform: scale(1, 0.8) translate3d(0, -100%, 0)  skew(0, -5deg);
+      opacity: 1;
+    }
+    9% {
+      transform: scale(1.3, 0.6) translate3d(0, 100%, 0)  skew(0, -5deg);
       opacity: 0;
     }
+    11% {
+      transform: scale(1, 1) translate3d(0, 0, 0);
+      opacity: 1;
+    }
+    12% {
+      opacity: 0.8;
+    }
+    100% {
+      background: transparent;
+      transform: scale(1, 1) translate3d(0, 0, 0);
+      opacity: 1;
+    }
+  }
+  @keyframes turn-off-signal {
+    0% {
+      transform: scale(1, 1);
+      filter: brightness(1);
+    }
+    40% {
+      transform: scale(1, 0.005);
+      filter: contrast(0.3) brightness(4);
+    }
+    70% {
+      transform: scale(1, 0.002);
+    }
+    90% {
+      transform: scale(0.002, 0.002);
+    }
+    100% {
+      transform: scale(0, 0);
+      filter: contrast(0.3) brightness(4);
+    }
+  }
+  @keyframes glitch-periodic-skew {
+    30% {
+    }
+    40% {
+      transform: scale(1, 1) skew(0, 0);
+    }
+    40.5% {
+      transform: scale(1, 1.01) skew(1deg, 0);
+    }
+    41% {
+      transform: scale(1, 1.01) skew(-0.5deg, 0);
+    }
+    41.5% {
+      transform: scale(1, 1) skew(0, 0);
+    }
+    65% {
+    }
+  }
 
-    &.tv-on {
-      > .text,
-      > .content {
-        animation: 5s ease calc(var(--enable-transition) + 1050ms) normal none infinite running glitch-periodic-skew, 300ms linear calc(var(--enable-transition) + 750ms) normal forwards 1 running turn-on;
-      }
+
+  /*********************************/
+  //  The video content to be shown
+  /*********************************/
+  > .pixel-matrix > .signal > .content {
+    filter: blur(calc(0.5px + (0.5px * var(--strength))));
+    opacity: 0;
+    animation: 0s linear 2s forwards appear;
+  }
+  &.disabled > .pixel-matrix > .signal > .content {
+    filter: unset;
+  }
+
+
+  /**************************************************************/
+  //  Static noise layer that is mixed in with the video content
+  /**************************************************************/
+  > .pixel-matrix > .signal > .noise {
+    overflow: hidden;
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  &.disabled > .pixel-matrix > .signal > .noise {
+    display: none;
+  }
+
+  &.tv-turning-on,
+  &.tv-on {
+    > .pixel-matrix > .signal > .noise {
+      animation:
+        calc(1s + (2s * var(--strength))) linear var(--turn-on-time) normal both 1 running turn-on-snow;
+    }
+  }
+  @keyframes turn-on-snow {
+    0.1% {
+      background: transparent
+        linear-gradient(to bottom, #85908c 0%, #323431 100%)
+        repeat
+        scroll
+        0
+        0;
+      filter: brightness(4);
     }
 
-    @keyframes turn-on {
-      0% {
-        transform: scale(1, 0.8) translate3d(0, 0, 0);
-        filter: brightness(4);
-        opacity: 1;
-      }
-      3.5% {
-        transform: scale(1, 0.8) translate3d(0, 100%, 0);
-      }
-
-      3.6% {
-        transform: scale(1, 0.8) translate3d(0, -100%, 0);
-        opacity: 1;
-      }
-
-      9% {
-        transform: scale(1.3, 0.6) translate3d(0, 100%, 0);
-        filter: brightness(4);
-        opacity: 0;
-      }
-
-      11% {
-        transform: scale(1, 1) translate3d(0, 0, 0);
-        filter: contrast(0) brightness(0);
-        opacity: 0;
-      }
-
-      100% {
-        transform: scale(1, 1) translate3d(0, 0, 0);
-        filter: contrast(1) brightness(1.2) saturate(1.3);
-        opacity: 1;
-      }
+    11% {
+      filter: brightness(4) ;
+      mix-blend-mode: initial;
     }
-    @keyframes turn-on-snow {
-      0% {
-        opacity: 1;
-      }
 
-      11% {
-        opacity: 1;
-        mix-blend-mode: initial;
-      }
-
-      12% {
-        opacity: 0;
-        mix-blend-mode: soft-light;
-      }
-
-      100% {
-        opacity: 0.1;
-      }
+    12% {
+      mix-blend-mode: soft-light;
+      background: transparent
+        linear-gradient(to bottom, #85908c 0%, #323431 100%)
+        repeat
+        scroll
+        0
+        0;
+      opacity: 0.3;
     }
-    @keyframes turn-off {
-      0% {
-        transform: scale(1, 1);
-        filter: brightness(1);
-      }
-      40% {
-        transform: scale(1, 0.005);
-        filter: brightness(100);
-      }
-      70% {
-        transform: scale(1, 0.005);
-      }
-      90% {
-        transform: scale(0.005, 0.005);
-      }
-      100% {
-        transform: scale(0, 0);
-      }
+
+    100% {
+      opacity: calc(0.05 * var(--strength));
     }
-    @keyframes blur {
-      0% {
+  }
+
+  /***********************/
+  //  The OSD info text
+  /***********************/
+  .text {
+    color: lime;
+    content: "AV-1";
+    filter: blur(0.5px);
+    font-family: Sys;
+    font-size: min(6vmin, 3.5em);
+    left: max(5%, 1.5em);
+    position: absolute;
+    text-shadow: 0 0 3px lime;
+    top: 10%;
+    z-index: 20;
+    transform: skewY(-1.5deg);
+    opacity: 0;
+    animation: 6s 1s linear appear;
+
+    span {
+      filter: blur(1px);
+      animation: blur 30ms infinite, glitch-jerk-right-small 50ms infinite;
+      white-space: nowrap;
+
+      &:not(:first-child) {
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+      &:nth-child(1) {
+        color: red;
+        margin-left: -2px;
+        filter: blur(2px);
+        animation: glitch-jerk-up-small 1s infinite;
+      }
+      &:nth-child(2) {
+        color: lime;
+        margin-left: 2px;
+        filter: blur(2px);
+        animation: glitch-jerk-left 1s infinite;
+      }
+      &:nth-child(3) {
+        color: blue;
+        position: 20px 0;
         filter: blur(1px);
-        opacity: 0.8;
+        animation: glitch-jerk-right 1s infinite;
       }
-      50% {
+      &:nth-child(4) {
+        color: #fff;
         filter: blur(1px);
-        opacity: 1;
+        text-shadow: 0 0 50px rgba(255, 255, 255, 0.4);
       }
-      100% {
-        filter: blur(1px);
-        opacity: 0.8;
-      }
-    }
-    @keyframes glitch-jerk-right {
-      0% {
-        transform: translateX(0);
-      }
-      30% {
-        transform: translateX(0);
-      }
-      31% {
-        transform: translateX(10px);
-      }
-      32% {
-        transform: translateX(0);
-      }
-      98% {
-        transform: translateX(0);
-      }
-      100% {
-        transform: translateX(10px);
+      &:nth-child(5) {
+        color: rgba(255, 255, 255, 0.1);
+        filter: blur(15px);
       }
     }
-    @keyframes glitch-jerk-right-small {
-      50% {
-        transform: translateX(1px);
-      }
-      51% {
-        transform: translateX(0);
-      }
+  }
+
+  &.strength-5 > .pixel-matrix > .signal > .text {
+    // Keep on screen forever if strength is at max
+    animation-fill-mode: forwards;
+  }
+  :not(&.strength-5):not(&.strength-4) {
+    > .pixel-matrix > .signal > .text {
+      display: none;
     }
-    @keyframes glitch-jerk-left {
-      0% {
-        transform: translateX(0);
-      }
-      30% {
-        transform: translateX(0);
-      }
-      31% {
-        transform: translateX(-10px);
-      }
-      32% {
-        transform: translateX(0);
-      }
-      98% {
-        transform: translateX(0);
-      }
-      100% {
-        transform: translateX(-10px);
-      }
+  }
+
+  &.disabled > .pixel-matrix > .signal > .text {
+    display: none;
+  }
+
+  @keyframes glitch-jerk-right {
+    0% {
+      transform: translateX(0);
     }
-    @keyframes glitch-jerk-up-small {
-      0% {
-        transform: translateY(1px);
-      }
-      100% {
-        transform: translateY(0);
-      }
+    30% {
+      transform: translateX(0);
     }
-    @keyframes glitch-periodic-skew {
-      30% {
-      }
-      40% {
-        opacity: 1;
-        transform: scale(1, 1) skew(0, 0);
-      }
-      41% {
-        opacity: 0.8;
-        transform: scale(1, 1.05) skew(80deg, 0);
-      }
-      42% {
-        opacity: 0.8;
-        transform: scale(1, 1.05) skew(-50deg, 0);
-      }
-      43% {
-        opacity: 1;
-        transform: scale(1, 1) skew(0, 0);
-      }
-      65% {
-      }
+    31% {
+      transform: translateX(calc(5px * var(--strength)));
+    }
+    32% {
+      transform: translateX(0);
+    }
+    98% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(calc(5px * var(--strength)));
+    }
+  }
+  @keyframes glitch-jerk-right-small {
+    50% {
+      transform: translateX(1px);
+    }
+    51% {
+      transform: translateX(0);
+    }
+  }
+  @keyframes glitch-jerk-left {
+    0% {
+      transform: translateX(0);
+    }
+    30% {
+      transform: translateX(0);
+    }
+    31% {
+      transform: translateX(calc(-5px * var(--strength)));
+    }
+    32% {
+      transform: translateX(0);
+    }
+    98% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(calc(-5px * var(--strength)));
+    }
+  }
+
+
+  /*******************************************************************************************/
+  //  The physical display mimics the look of the screen when no signal is projected on to it
+  /*******************************************************************************************/
+  > .physical-screen {
+    // This mimics the look of the screen when no signal is projected on to it
+    background: transparent
+      linear-gradient(to bottom, #85908c 0%, #323431 100%)
+      repeat
+      scroll
+      0
+      0;
+    content: "";
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  &.disabled > .physical-screen {
+    display: none;
+  }
+
+
+  /************/
+  //  TV bezel
+  /************/
+  &::after {
+    background-image: url('./crt-frame.png');
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    z-index: 100;
+    pointer-events: none;
+    content: "";
+    background-position: center;
+    transition: background-size var(--turn-on-time) ease 0ms;
+    background-size:  calc(100% + (2% - (var(--strength) * 2%))) calc(100% + (2% - (var(--strength) * 2%)));
+  }
+
+  &.disabled::after {
+    background-size: 110% 110%;
+  }
+
+
+  /*******************************************************************************************/
+  //  Shared animation keyframes
+  /*******************************************************************************************/
+  @keyframes appear {
+    0% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+  @keyframes glitch-jerk-up-small {
+    0% {
+      translate: 0 1px;
+    }
+    100% {
+      translate: 0 0px;
     }
   }
 

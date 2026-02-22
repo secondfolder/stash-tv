@@ -1,10 +1,11 @@
 .ActionButtons {
   --bottom-offset: 1.1em;
+  --side-offset: calc(0.8em + (var(--crt-inset-right) / 2) );
   position: absolute;
-  bottom: calc(var(--y-dynamic-diff) + var(--bottom-offset));
-  padding-top: var(--safe-inset-top);
-  padding-right: var(--safe-inset-right);
-  right: 0.6em;
+  bottom: calc(var(--y-dynamic-diff) + var(--crt-inset-bottom) + var(--bottom-offset));
+  padding-top: calc(var(--safe-inset-top) + var(--crt-inset-top));
+  padding-right: calc(var(--safe-inset-right) + (var(--crt-inset-right) / 2));
+  right: var(--side-offset);
 
   display: flex;
   flex-direction: column;
@@ -14,10 +15,11 @@
   max-height: calc(var(--y-unit-small) * 100 - var(--bottom-offset));
 
   &.left-handed {
+    --side-offset: calc(0.8em + (var(--crt-inset-right) / 2));
     right: unset;
-    left: 0.6em;
+    left: var(--side-offset);
     padding-right: unset;
-    padding-left: var(--safe-inset-left);
+    padding-left: calc(var(--safe-inset-left) + (var(--crt-inset-left) / 2));
     align-items: start;
   }
 
@@ -30,9 +32,9 @@ overflow-x to visible. So we hide it instead to avoid horizontal scrollbars appe
     overflow-x: hidden;
 
     /* To avoid the drop shadows of the buttons being clipped we add some padding */
-    min-width: calc(40px + (0.6em * 3)); /* Button width + padding on either side + extra for scroll bar */
-    padding-right: 0.6em;
-    translate: 0.6em 0;
+    min-width: calc(40px + (var(--side-offset) * 3)); /* Button width + padding on either side + extra for scroll bar */
+    padding-right: var(--side-offset);
+    translate: var(--side-offset) 0;
 
     --additional-transitions: var(--overflow-indicators-transition);
   }
@@ -44,9 +46,9 @@ overflow-x to visible. So we hide it instead to avoid horizontal scrollbars appe
   }
 
   &.left-handed .stack {
-    translate: -0.6em 0;
+    translate: calc(var(--side-offset) * -1) 0;
     padding-right: unset;
-    padding-left: 0.6em;
+    padding-left: var(--side-offset);
   }
 
   .toggle-ui {

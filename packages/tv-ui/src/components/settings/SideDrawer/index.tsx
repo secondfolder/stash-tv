@@ -14,9 +14,10 @@ type Props = {
   title?: string | React.ReactNode,
   closeDisabled?: boolean | "because loading",
   className?: string
+  visibleBackdrop?: boolean
 }
 
-export default function SideDrawer({children, title, closeDisabled, className}: Props) {
+export default function SideDrawer({children, title, closeDisabled, className, visibleBackdrop = true}: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -97,7 +98,7 @@ export default function SideDrawer({children, title, closeDisabled, className}: 
   }, [api, closeDisabled]);
 
 
-  const overlayOpacity = x.to((px) => Math.min(sidebarWidth, (px / sidebarWidth)))
+  const overlayOpacity = x.to((px) => visibleBackdrop ? 0.2 * (px / sidebarWidth) : 0)
   const overlayDisplay = x.to((px) => px > 0 ? 'block' : 'none')
 
   let closeButton = null;
@@ -126,7 +127,7 @@ export default function SideDrawer({children, title, closeDisabled, className}: 
   return <>
     <AnimatedDivPure
       className={cx("settings-overlay")}
-      style={useMemo(() => ({ display: overlayDisplay, opacity: overlayOpacity }), [overlayDisplay.get(), overlayOpacity.get()])}
+      style={useMemo(() => ({ display: overlayDisplay, opacity: overlayOpacity }), [overlayDisplay, overlayOpacity])}
       onClick={useCallback(() => close(), [])}
       ref={overlayRef}
     />
@@ -134,7 +135,7 @@ export default function SideDrawer({children, title, closeDisabled, className}: 
       className={cx("SideDrawer", className, { 'left-handed': leftHandedUi })}
       data-testid="SideDrawer"
       ref={ref}
-      style={useMemo(() => ({ [leftHandedUi ? 'right' : 'left']: x.to(px => `calc(100% - ${px}px)`) }), [x.get(), leftHandedUi])}
+      style={useMemo(() => ({ [leftHandedUi ? 'right' : 'left']: x.to(px => `calc(100% - ${px}px)`) }), [x, leftHandedUi])}
     >
       <div className="content">
         <div className={cx("body", bodyScrollClasses)} ref={bodyRef}>

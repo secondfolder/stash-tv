@@ -16,6 +16,7 @@ type AppState = {
   uiVisible: boolean;
   isRandomised: boolean;
   crtEffect: boolean;
+  crtEffectStrength: number;
   scenePreviewOnly: boolean;
   markerPreviewOnly: boolean;
   onlyShowMatchingOrientation: boolean;
@@ -48,6 +49,7 @@ type AppState = {
 
 type AppAction = {
   set: <PropName extends keyof AppState>(propName: PropName, value: AppState[PropName] | ((prev: AppState[PropName]) => AppState[PropName])) => void;
+  get: <PropName extends keyof AppState>(propName: PropName) => AppState[PropName];
   setToDefault: <PropName extends keyof typeof defaults>(propName: PropName) => void;
   getDefault: <PropName extends keyof typeof defaults>(propName: PropName) => typeof defaults[PropName];
 }
@@ -63,6 +65,7 @@ const defaults = {
   uiVisible: true,
   isRandomised: false,
   crtEffect: false,
+  crtEffectStrength: 1,
   scenePreviewOnly: false,
   markerPreviewOnly: false,
   onlyShowMatchingOrientation: false,
@@ -212,6 +215,9 @@ export const useAppStateStore = create<AppState & AppAction>()(
       },
       getDefault: <PropName extends keyof typeof defaults>(propName: PropName) => {
         return defaults[propName];
+      },
+      get: <PropName extends keyof AppState>(propName: PropName) => {
+        return get()[propName];
       },
     }),
     {

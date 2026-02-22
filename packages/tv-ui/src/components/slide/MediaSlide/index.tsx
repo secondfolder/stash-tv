@@ -60,6 +60,7 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
     looping,
     showSubtitles,
     crtEffect,
+    crtEffectStrength,
     scenePreviewOnly,
     markerPreviewOnly,
     showDevOptions,
@@ -655,7 +656,11 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
       ref={itemRef}
       style={props.style}
     >
-      <CrtEffect enabled={crtEffect}>
+      <CrtEffect
+        enabled={crtEffect}
+        strength={crtEffectStrength}
+        infoText={`STV-${props.index + 1}`}
+      >
         {showDebuggingInfo.includes("onscreen-info") && <>
           <div className="debugStats">
             {props.index} - {scene.id} {loadingDeferred ? "(Loading deferred)" : ""}

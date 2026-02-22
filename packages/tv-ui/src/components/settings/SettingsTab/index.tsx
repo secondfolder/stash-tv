@@ -26,6 +26,7 @@ import { queryFindTagsByIDForSelect } from "stash-ui/dist/src/core/StashService"
 import { FindTagsForSelectQuery } from "stash-ui/dist/src/core/generated-graphql";
 import { objectKeys } from "ts-extras"
 import { getStashOrigin } from "../../../helpers/getStashOrigin";
+import Slider from "../../controls/slider";
 
 const SettingsTab = memo(() => {
   const logger = getLogger(["stash-tv", "SettingsTab"]);
@@ -40,6 +41,7 @@ const SettingsTab = memo(() => {
   const {
     isRandomised,
     crtEffect,
+    crtEffectStrength,
     scenePreviewOnly,
     markerPreviewOnly,
     onlyShowMatchingOrientation,
@@ -557,6 +559,18 @@ const SettingsTab = memo(() => {
               onChange={event => setAppSetting("crtEffect", event.target.checked)}
             />
             <Form.Text className="text-muted">Emulate the visual effects of an old CRT television.</Form.Text>
+            {crtEffect && <Form.Group>
+              <Slider
+                id="crt-effect-strength"
+                min={0}
+                max={1}
+                step={0.2}
+                marks
+                value={[crtEffectStrength]}
+                onValueChange={e => setAppSetting("crtEffectStrength", Number(e[0]))}
+              />
+              <Form.Text className="text-muted">Adjusts how strong the CRT effect is.</Form.Text>
+            </Form.Group>}
           </Form.Group>
         </>
       </Accordion.Collapse>

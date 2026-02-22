@@ -92,6 +92,10 @@
     }
   }
 
+  .Slider {
+    width: 100%;
+  }
+
   .draggable-list {
     --item-padding: 0.3em;
     margin: calc(var(--item-padding) * -1) 0;

@@ -49,8 +49,8 @@
   &.left-handed {
     .video-js {
       .vjs-control-bar {
-        padding-left: calc(var(--safe-inset-right) + 50px);
-        padding-right: unset;
+        padding-left: calc(var(--safe-inset-left) + var(--crt-inset-left) + 50px);
+        padding-right: var(--crt-inset-right);
       }
     }
   }
@@ -60,8 +60,9 @@
 
     .vjs-control-bar {
       height: unset;
-      padding-bottom: var(--y-dynamic-diff);
-      padding-right: calc(var(--safe-inset-right) + 50px);
+      padding-bottom: calc(var(--y-dynamic-diff) + var(--crt-inset-bottom));
+      padding-right: calc(var(--safe-inset-right) + var(--crt-inset-right) + 50px);
+      padding-left: var(--crt-inset-left);
       flex-wrap: wrap;
       column-gap: 1em;
       align-items: center;
