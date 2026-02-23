@@ -14,7 +14,7 @@ import { preventMisclickOnMoveModifier } from "../../../helpers/popper-modifiers
 import { preventChildOverflowModifier } from "../../../helpers/popper-modifiers/preventChildOverflow";
 import { applyArrowHideModifier } from "../../../helpers/popper-modifiers/applyArrowHide";
 
-const useCurrentOpenPopover = create<null | string>(() => (null))
+export const useCurrentOpenPopover = create<null | string>(() => (null))
 
 export type SidePanelContent = React.ReactNode | ((props: {isOpen: boolean, close: () => void}) => React.ReactNode)
 
@@ -146,12 +146,27 @@ const SidePanel = (
   const processedClickEvents = useMemo(() => new WeakSet(), [])
   useEffect(() => {
     if (!isOpen) return;
-    function handleClick(event: Event) {
-      processedClickEvents.add(event)
+    function handleEvent(event: Event) {
+      if (!useCurrentOpenPopover.getState()) return; // The listeners should only be setup if a popover is open but we check to be safe
+      const clickedActionButton = (event.target as HTMLElement).closest(".ActionButton")
+      const clickedSidePanel = (event.target as HTMLElement).closest(".action-button-side-panel")
+      if (useCurrentOpenPopover.getState() && !clickedSidePanel) {
+        if (!clickedActionButton) {
+          // We don't want any non-popover or action button elements receiving mouse/pointer events if the popover is open
+          event.stopImmediatePropagation()
+          event.stopPropagation()
+          event.preventDefault()
+        }
+        if (event.type === "click" || event.type === "tap" || event.type === "touchend") {
+          processedClickEvents.add(event)
+          useCurrentOpenPopover.setState(null)
+        }
+      }
     }
-    window.addEventListener("click", handleClick, {capture: true})
+    const eventTypes = ["click", "mousedown", "mouseup", "pointerdown", "pointerup", "tap", "touchstart", "touchend", "touchcancel"] as const
+    eventTypes.forEach(eventType => window.addEventListener(eventType, handleEvent, {capture: true}))
     return () => {
-      window.removeEventListener("click", handleClick, {capture: true})
+      eventTypes.forEach(eventType => window.removeEventListener(eventType, handleEvent, {capture: true}))
     }
   }, [isOpen])
 
@@ -184,8 +199,6 @@ const SidePanel = (
         </Popover>
       }
       show={isOpen}
-      rootClose={true}
-      rootCloseEvent="click"
       onToggle={(shouldOpen) => {
         // We want to make sure to ignore any calls triggered by a rootClose event if the user has already clicked a
         // different action button and opened a different popover

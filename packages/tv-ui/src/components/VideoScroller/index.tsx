@@ -10,6 +10,7 @@ import { useMediaItems } from "../../hooks/useMediaItems";
 import { useWindowSize } from "../../hooks/useWindowSize";
 import hashObject from 'object-hash';
 import { getLogger } from "@logtape/logtape";
+import { useCurrentOpenPopover } from "../slide/ActionButton";
 
 interface VideoScrollerProps {}
 
@@ -199,6 +200,7 @@ const VideoScroller: React.FC<VideoScrollerProps> = memo(() => {
     if (currentIndex >= mediaItems.length - 5) {
       loadMoreMediaItems();
     }
+    useCurrentOpenPopover.setState(null);
   }, [currentIndex, mediaItems.length]);
 
   const [keysDown] = useState<Set<string>>(new Set());
