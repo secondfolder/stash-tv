@@ -113,9 +113,13 @@ const SidePanel = (
   const { leftHandedUi, forceLandscape } = useAppStateStore();
   const id = `action-button-side-panel-${useUID()}`
   const isOpen = id === currentOpenPopover
+
+  const onSidePanelToggleRef = React.useRef(onSidePanelToggle)
+  onSidePanelToggleRef.current = onSidePanelToggle
+
   useEffect(() => {
-    onSidePanelToggle?.(isOpen)
-  }, [isOpen, onSidePanelToggle])
+    onSidePanelToggleRef.current?.(isOpen)
+  }, [isOpen])
 
   // Without isOpenDelayedClose the popover content will be immediately removed from the DOM immediately where as the
   // popover itself takes a short amount of time to animate out
