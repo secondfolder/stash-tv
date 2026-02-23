@@ -103,6 +103,8 @@
 
   &.disabled > .pixel-matrix > .signal {
     filter: unset;
+    animation: unset;
+    transition: unset;
   }
 
   &.tv-turning-off {
@@ -201,6 +203,8 @@
   }
   &.disabled > .pixel-matrix > .signal > .content {
     filter: unset;
+    animation: unset;
+    opacity: 1;
   }
 
 
