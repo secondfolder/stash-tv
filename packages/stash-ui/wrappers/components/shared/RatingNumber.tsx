@@ -10,12 +10,6 @@ import "./RatingNumber.css"
 export const RatingNumber: React.FC<IRatingNumberProps> = ({onSetRating, value, disabled}) => {
   const textRatingRef = React.useRef<HTMLInputElement | null>(null);
 
-  // Focus on input on load. This should probably be configurable by a prop if this component is to be used in other places
-  useEffect(() => {
-    if (!textRatingRef.current) return;
-    textRatingRef.current.focus()
-  }, [])
-
   const [draftRating, setDraftRating] = React.useState<number | null>(value ?? null);
   useEffect(() => setDraftRating(value ?? null), [value]);
 

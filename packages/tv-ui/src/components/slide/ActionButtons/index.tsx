@@ -315,6 +315,16 @@ function RateSceneActionButton({scene, buttonConfig}: {scene: GQL.SceneDataFragm
         />
       </div>
     }
+    onSidePanelToggle={(isOpen) => {
+      if (!isOpen) return
+      // Popover doesn't seem to be in the DOM at this point so we wait a tick
+      setTimeout(() => {
+        const inputElm = document.querySelector(".action-button-rating-stars input")
+        if (inputElm instanceof HTMLInputElement) {
+          inputElm.focus()
+        }
+      }, 10)
+    }}
     sideInfo={sceneRatingFormatted}
   />
 }
