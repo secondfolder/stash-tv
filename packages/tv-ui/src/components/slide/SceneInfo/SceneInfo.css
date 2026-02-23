@@ -31,5 +31,13 @@
 
   .studio {
     font-size: 0.9rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+
+    .separator {
+      color: var(--text-muted)
+    }
   }
 }
