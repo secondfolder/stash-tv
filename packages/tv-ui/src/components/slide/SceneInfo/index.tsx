@@ -41,8 +41,13 @@ const SceneInfo = forwardRef(({scene, className, style, onExternalLinkClick}: Pr
         if (isOneBeforeLast) suffix += "and ";
       }
       return (
-        <React.Fragment key={i}>
-          <span>{pf.name}</span>
+        <React.Fragment key={pf.id}>
+          <a
+            href={new URL(`/performers/${pf.id}`, import.meta.env.STASH_ADDRESS).toString()}
+            target="_blank"
+          >
+            {pf.name}
+          </a>
           {suffix}
         </React.Fragment>
       );
