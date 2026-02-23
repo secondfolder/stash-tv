@@ -1,6 +1,7 @@
 import { getLogger } from "@logtape/logtape";
 import { MediaItem } from "./useMediaItems";
-import { useSceneMarkerUpdate, useSceneUpdate } from "stash-ui/dist/src/core/StashService";
+import { useSceneMarkerUpdate } from "stash-ui/dist/src/core/StashService";
+import { useSceneUpdate } from "./useSceneUpdate";
 import { SlimTag } from "../components/EditTagSelectionForm";
 
 
@@ -15,7 +16,7 @@ export function useMediaItemTags(mediaItem: MediaItem) {
   if (mediaItem.entityType === "scene") {
     const scene = mediaItem.entity
     tags = scene.tags
-    const [updateScene] = useSceneUpdate();
+    const [updateScene] = useSceneUpdate(scene);
     addTag = (tagOrTagId: SlimTag | string) => {
       const tagId = typeof tagOrTagId === "string" ? tagOrTagId : tagOrTagId.id;
       if (scene.tags.some(t => t.id === tagId)) return;

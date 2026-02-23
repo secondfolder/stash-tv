@@ -12,7 +12,8 @@ import useOverflowIndicators from "../../../hooks/useOverflowIndicators";
 import { defaultRatingSystemOptions, RatingSystemType } from "stash-ui/dist/src/utils/rating";
 import { ConfigurationContext } from "stash-ui/dist/src/hooks/Config";
 import { RatingSystem } from "stash-ui/wrappers/components/shared/RatingSystem";
-import { queryFindTagsByIDForSelect, useSceneDecrementO, useSceneIncrementO, useSceneMarkerCreate, useSceneUpdate } from "stash-ui/dist/src/core/StashService";
+import { queryFindTagsByIDForSelect, useSceneDecrementO, useSceneIncrementO, useSceneMarkerCreate } from "stash-ui/dist/src/core/StashService";
+import { useSceneUpdate } from "../../../hooks/useSceneUpdate";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { getActionButtonDetails, ActionButtonIcons } from "../../../helpers/getActionButtonDetails";
 import { SceneMarkerForm } from "stash-ui/wrappers/components/SceneMarkerForm";
@@ -288,7 +289,7 @@ function RateSceneActionButton({scene, buttonConfig}: {scene: GQL.SceneDataFragm
     }
   }
 
-  const [updateScene] = useSceneUpdate();
+  const [updateScene] = useSceneUpdate(scene);
   function setRating(newRating: number | null) {
     updateScene({
       variables: {
@@ -666,7 +667,7 @@ function SetOrganizedActionButton(
 ) {
   if (mediaItem.entityType !== "scene") return null
   const scene = mediaItem.entity
-  const [updateScene] = useSceneUpdate();
+  const [updateScene] = useSceneUpdate(scene);
   function setOrganized(newOrganized: boolean) {
     updateScene({
       variables: {
