@@ -310,8 +310,7 @@ function RateSceneActionButton({scene, buttonConfig}: {scene: GQL.TvSceneDataFra
         <RatingSystem
           value={scene.rating100}
           onSetRating={setRating}
-          clickToRate
-          withoutContext
+          clickToRate={false}
         />
       </div>
     }

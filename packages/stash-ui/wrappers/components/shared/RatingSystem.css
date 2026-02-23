@@ -1,0 +1,28 @@
+.rating-system {
+  &.decimal {
+    .text-rating {
+      display: flex;
+      flex-wrap: wrap;
+      font-size: 1rem;
+      align-items: center;
+      justify-content: center;
+
+      .rating-number {
+        &:not(.disabled) {
+          margin-right: 0.5rem;
+        }
+
+        input {
+          width: 4.5em;
+          padding: 0 0.4rem 0 0.4rem;
+        }
+      }
+
+      .clear-rating {
+        padding: 0 0.4rem;
+        margin-left: 0.5em;
+      }
+    }
+  }
+
+}
