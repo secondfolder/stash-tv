@@ -29,11 +29,11 @@ type SavedMediaItemFilter = GQL.SavedFilter
 
 export type SearchableMediaItemFilter = {
   savedFilter?: SavedMediaItemFilter,
-  generalFilter: GQL.FindScenesForTvQueryVariables["filter"],
+  generalFilter: GQL.FindFullScenesQueryVariables["filter"],
   isCurrentFilter: boolean,
 } & (
   {
-    entityFilter: GQL.FindScenesForTvQueryVariables["scene_filter"]
+    entityFilter: GQL.FindFullScenesQueryVariables["scene_filter"]
     entityType: "scene"
   } |
   {
@@ -208,7 +208,7 @@ export function useMediaItemFilters() {
       return updatedFilter;
     }
 
-    function addSceneFiltersMods(sceneFilter: GQL.FindScenesForTvQueryVariables["scene_filter"]) {
+    function addSceneFiltersMods(sceneFilter: GQL.FindFullScenesQueryVariables["scene_filter"]) {
       if (limitOrientation) {
         sceneFilter = sceneFilter || {};
         sceneFilter.orientation = {

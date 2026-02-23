@@ -12,8 +12,6 @@ import { ErrorMessage } from "stash-ui/dist/src/components/Shared/ErrorMessage";
 import cx from "classnames";
 import { SettingsActionButton } from "../../components/slide/ActionButtons";
 
-export type ScenesQueryOptions = Parameters<typeof GQL.useFindScenesForTvQuery>[0]
-
 interface FeedPageProps {
   className?: string;
 }

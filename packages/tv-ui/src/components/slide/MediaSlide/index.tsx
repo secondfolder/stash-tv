@@ -546,7 +546,7 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
         : "disabled";
   }, [showSubtitles]);
 
-  function getRandomPointInScene(scene: GQL.TvSceneDataFragment) {
+  function getRandomPointInScene(scene: GQL.SceneDataFragment) {
     if (scene.scene_markers.length) {
       // Pick a random marker
       const randomMarker = scene.scene_markers[Math.floor(Math.random() * scene.scene_markers.length)];
@@ -596,7 +596,7 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
       throw new Error(`Unknown media item type: ${props.mediaItem}`);
     }
   }
-  const [currentlyPlayingMarkers, setCurrentlyPlayingMarkers] = useState<GQL.FindScenesForTvQuery["findScenes"]["scenes"][number]["scene_markers"][number][]>(findCurrentlyPlayingMarkers(0));
+  const [currentlyPlayingMarkers, setCurrentlyPlayingMarkers] = useState<GQL.SceneDataFragment["scene_markers"][number][]>(findCurrentlyPlayingMarkers(0));
   const currentlyPlayingMarkersDisplayName = useMemo(
     () => {
       if (!currentlyPlayingMarkers) return null;

@@ -136,7 +136,7 @@ export type ScenePlayerProps = Omit<React.ComponentProps<typeof ScenePlayerOrigi
     onPointerUp?: (event: PointerEvent) => void;
     onVideojsPlayerCreated?: (player: VideoJsPlayer) => void;
     optionsToMerge?: VideoJsPlayerOptions;
-    scene: GQL.TvSceneDataFragment;
+    scene: GQL.SceneDataFragment;
     muted?: boolean;
     volume?: number;
     playbackRate?: number;

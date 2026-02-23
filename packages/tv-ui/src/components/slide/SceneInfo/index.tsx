@@ -12,7 +12,7 @@ import { faAngleLeft } from "@fortawesome/free-solid-svg-icons";
 
 export type Props = {
   style?: React.CSSProperties;
-  scene: GQL.TvSceneDataFragment;
+  scene: GQL.SceneDataFragment;
   className?: string;
   onExternalLinkClick?: () => void;
 }
@@ -59,7 +59,7 @@ const SceneInfo = forwardRef(({scene, className, style, onExternalLinkClick}: Pr
 
     /* --------------------------------- Studio --------------------------------- */
 
-    type Studio = Exclude<GQL.TvSceneDataFragment["studio"], null | undefined>
+    type Studio = Exclude<GQL.SceneDataFragment["studio"], null | undefined>
 
     const getStudioOwnershipChain = async (studio: Studio): Promise<Studio[]> => {
       const chain = [studio];

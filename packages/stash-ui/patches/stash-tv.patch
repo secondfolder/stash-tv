@@ -1,10 +1,10 @@
 diff --git a/ui/v2.5/graphql/stash-tv.graphql b/ui/v2.5/graphql/stash-tv.graphql
 new file mode 100644
-index 00000000..9595b15a
+index 00000000..ac806bbb
 --- /dev/null
 +++ b/ui/v2.5/graphql/stash-tv.graphql
-@@ -0,0 +1,130 @@
-+query FindScenesForTv(
+@@ -0,0 +1,53 @@
++query FindFullScenes(
 +  $filter: FindFilterType
 +  $scene_filter: SceneFilterType
 +  $ids: [ID!]
@@ -18,7 +18,7 @@ index 00000000..9595b15a
 +    filesize
 +    duration
 +    scenes {
-+      ...TvSceneData
++      ...SceneData
 +    }
 +  }
 +}
@@ -35,21 +35,9 @@ index 00000000..9595b15a
 +  ) {
 +    count
 +    scene_markers {
-+      id
-+      title
-+      seconds
-+      end_seconds
-+      stream
-+      primary_tag {
-+        id
-+        name
-+      }
-+      tags {
-+        id
-+        name
-+      }
++      ...SceneMarkerData
 +      scene {
-+        ...TvSceneData
++        ...SceneData
 +      }
 +    }
 +  }
@@ -65,71 +53,6 @@ index 00000000..9595b15a
 +    name
 +  }
 +  availableSavedMarkerFilters: findSavedFilters(mode: SCENE_MARKERS) {
-+    id
-+    name
-+  }
-+}
-+
-+fragment TvSceneData on Scene {
-+  id
-+  title
-+  date
-+  files {
-+    duration
-+    height
-+    width
-+    format
-+  }
-+  interactive
-+  performers {
-+    id
-+    name
-+    gender
-+  }
-+  paths {
-+    funscript
-+    vtt
-+    screenshot
-+    stream
-+    caption
-+    preview
-+  }
-+  studio {
-+    id
-+    name
-+    parent_studio {
-+      id
-+    }
-+  }
-+  sceneStreams {
-+    url
-+    mime_type
-+    label
-+  }
-+  captions {
-+    language_code
-+    caption_type
-+  }
-+  rating100
-+  o_counter
-+  o_history
-+  organized
-+  resume_time
-+  scene_markers {
-+    id
-+    title
-+    seconds
-+    end_seconds
-+    primary_tag {
-+      id
-+      name
-+    }
-+    tags {
-+      id
-+      name
-+    }
-+  }
-+  tags {
 +    id
 +    name
 +  }

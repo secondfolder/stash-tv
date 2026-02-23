@@ -6,14 +6,14 @@ import { useAppStateStore } from "../store/appStateStore";
 import hashObject from 'object-hash';
 import { getLogger } from "@logtape/logtape";
 
-export const mediaItemsPerPage = 10
+export const mediaItemsPerPage = 5
 
 export type MediaItem = {
   id: string;
 } & (
   {
     entityType: "scene";
-    entity: GQL.FindScenesForTvQuery["findScenes"]["scenes"][number];
+    entity: GQL.SceneDataFragment;
   } |
   {
     entityType: "marker";
@@ -37,7 +37,7 @@ export function useMediaItems() {
   let response
   let mediaItems: MediaItem[]
   if (!lastLoadedCurrentMediaItemFilter || lastLoadedCurrentMediaItemFilter.entityType === "scene") {
-    const scenesResponse = GQL.useFindScenesForTvQuery({
+    const scenesResponse = GQL.useFindFullScenesQuery({
       variables: {
         filter: {
           ...lastLoadedCurrentMediaItemFilter?.generalFilter,

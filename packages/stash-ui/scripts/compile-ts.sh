@@ -18,8 +18,16 @@ mkdir -p "$BUILD_DIR"
 {
     cd "$STASH_DIR"
     cp "$PACKAGE_DIR/patches/scene-player-utils.ts" src/components/ScenePlayer/util.ts
+    git restore src/core/StashService.ts
+    sed 's/const sceneMutationImpactedTypeFields/export const sceneMutationImpactedTypeFields/' src/core/StashService.ts > src/core/StashService.tmp
+    mv src/core/StashService.tmp src/core/StashService.ts
+    sed 's/const sceneMutationImpactedQueries/export const sceneMutationImpactedQueries/' src/core/StashService.ts > src/core/StashService.tmp
+    mv src/core/StashService.tmp src/core/StashService.ts
+    sed 's/function evictTypeFields/export function evictTypeFields/' src/core/StashService.ts > src/core/StashService.tmp
+    mv src/core/StashService.tmp src/core/StashService.ts
     yarn run tsc --outDir "$BUILD_DIR" --noEmit false --declaration true --rootDir "."
     git restore src/components/ScenePlayer/util.ts
+    git restore src/core/StashService.ts
 };
 
 # Run tsc-alias to replace path aliases and copy in CSS + custom declaration files

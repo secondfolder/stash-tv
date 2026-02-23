@@ -273,7 +273,7 @@ function ShowSceneInfoActionButton({sceneInfoOpen, setSceneInfoOpen, buttonConfi
     />
 }
 
-function RateSceneActionButton({scene, buttonConfig}: {scene: GQL.TvSceneDataFragment, buttonConfig: ActionButtonConfig}) {
+function RateSceneActionButton({scene, buttonConfig}: {scene: GQL.SceneDataFragment, buttonConfig: ActionButtonConfig}) {
   const { configuration: config } = React.useContext(ConfigurationContext);
   const { leftHandedUi } = useAppStateStore();
   const ratingSystemOptions =
@@ -318,7 +318,7 @@ function RateSceneActionButton({scene, buttonConfig}: {scene: GQL.TvSceneDataFra
   />
 }
 
-function OCounterActionButton({scene, buttonConfig}: {scene: GQL.TvSceneDataFragment, buttonConfig: ActionButtonConfig}) {
+function OCounterActionButton({scene, buttonConfig}: {scene: GQL.SceneDataFragment, buttonConfig: ActionButtonConfig}) {
   const [incrementOCount] = useSceneIncrementO(scene.id);
   const [removeOCountTime] = useSceneDecrementO(scene.id);
   const decrementOCount = () => {
@@ -428,7 +428,7 @@ function LoopActionButton({buttonConfig}: {buttonConfig: ActionButtonConfig}) {
   />
 }
 
-function SubtitlesActionButton({scene, buttonConfig}: {scene: GQL.TvSceneDataFragment, buttonConfig: ActionButtonConfig}) {
+function SubtitlesActionButton({scene, buttonConfig}: {scene: GQL.SceneDataFragment, buttonConfig: ActionButtonConfig}) {
   const { showSubtitles, set: setAppSetting } = useAppStateStore();
   const { data: { subtitleLanguage } } = useStashTvConfig()
   /** Only render captions track if available, and it matches the user's chosen
@@ -664,6 +664,8 @@ function SetOrganizedActionButton(
     mediaItem: MediaItem
   }
 ) {
+  if (mediaItem.entityType !== "scene") return null
+  const scene = mediaItem.entity
   const [updateScene] = useSceneUpdate();
   function setOrganized(newOrganized: boolean) {
     updateScene({
@@ -675,8 +677,6 @@ function SetOrganizedActionButton(
       },
     });
   }
-  if (mediaItem.entityType !== "scene") return null
-  const scene = mediaItem.entity
   return (
     <ActionButton
       {...getActionButtonDetails(buttonConfig).props}
