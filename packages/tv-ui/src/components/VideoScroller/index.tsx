@@ -206,6 +206,11 @@ const VideoScroller: React.FC<VideoScrollerProps> = memo(() => {
   const [keysDown] = useState<Set<string>>(new Set());
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement
+        || e.target instanceof HTMLTextAreaElement
+        || (e.target instanceof HTMLElement && e.target.getAttribute("role") === "slider")
+      ) return;
       keysDown.add(e.key);
       const nextKey = isForceLandscape ? "ArrowRight" : "ArrowDown";
       const previousKey = isForceLandscape ? "ArrowLeft" : "ArrowUp";

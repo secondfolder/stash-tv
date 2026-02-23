@@ -16,25 +16,21 @@
       flex-wrap: wrap;
       align-items: center;
       justify-content: center;
+      gap: 0.4rem;
+    }
+
+    .out-of {
+      font-size: 1rem;
     }
 
     .clear-rating {
       padding: 0 0.4rem;
     }
 
-    .rating-number {
-      input {
-        width: 4.5em;
-        padding: 0 0.4rem 0 0.4rem;
-        height: 1.2lh;
-      }
-      &:has(input) {
-        margin-right: 0.5rem;
-      }
+    input {
+      width: 3.8em;
+      padding: 0 0.4rem 0 0.4rem;
+      height: 1.2lh;
     }
-  }
-
-  &:not(.has-rating):not(.editing) .text-rating .rating-number > span {
-    display: none;
   }
 }

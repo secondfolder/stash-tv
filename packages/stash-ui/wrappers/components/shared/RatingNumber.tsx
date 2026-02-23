@@ -1,91 +1,95 @@
-import React, { useEffect, useMemo } from "react";
-import { RatingSystem as StashRatingSystem, IRatingSystemProps } from "stash-ui/dist/src/components/Shared/Rating/RatingSystem";
-import { RatingNumber as StashRatingNumber, IRatingNumberProps } from "stash-ui/dist/src/components/Shared/Rating/RatingNumber";
+import React, { useEffect, useMemo, useRef } from "react";
+import { IRatingNumberProps } from "stash-ui/dist/src/components/Shared/Rating/RatingNumber";
 import "stash-ui/dist/src/components/Shared/Rating/styles.css";
-import { ConfigurationContext } from "../../../dist/src/hooks/Config";
-import { defaultRatingSystemOptions, RatingSystemType } from "../../../dist/src/utils/rating";
 import Slider from "../../../../tv-ui/src/components/controls/slider";
 import "./RatingSystem.css";
 import { Button } from "react-bootstrap";
 import cx from "classnames";
-import { createPortal } from "react-dom";
 import "./RatingNumber.css"
 
-export const RatingNumber: React.FC<IRatingNumberProps> = ({clickToRate = true, ...otherProps}) => {
-  const rootElm = React.useRef<HTMLDivElement | null>(null);
-  const stashRatingNumberRootElm = React.useRef<HTMLDivElement | null>(null);
-  const [rootElmReady, setRootElmReady] = React.useState(false);
-  const [isEditing, setIsEditing] = React.useState(false);
+export const RatingNumber: React.FC<IRatingNumberProps> = ({onSetRating, value, disabled}) => {
+  const textRatingRef = React.useRef<HTMLInputElement | null>(null);
 
-  const [sliderDraftRating, setSliderDraftRating] = React.useState<number | null>(otherProps.value ?? null);
-  useEffect(() => setSliderDraftRating(otherProps.value ?? null), [otherProps.value]);
-
-  const hasRating = useMemo(() =>
-    typeof otherProps.value === "number",
-    [otherProps.value]
-  )
-
+  // Focus on input on load. This should probably be configurable by a prop if this component is to be used in other places
   useEffect(() => {
-    if (!rootElm.current) return
-    stashRatingNumberRootElm.current = rootElm.current.querySelector(".rating-number") as HTMLDivElement | null;
-    if (!stashRatingNumberRootElm.current) return;
-
-    const observer = new MutationObserver((mutations) => {
-      const editButton = mutations
-        .map(
-          mutation => Array.from(mutation.addedNodes)
-            .find(
-              elm => elm instanceof HTMLElement && elm.classList.contains("edit-rating-button")
-            ) as HTMLButtonElement | undefined
-        )
-        .filter(Boolean)[0];
-      if (editButton) {
-        if (clickToRate) {
-          editButton.addEventListener("click", () => setIsEditing(true));
-          setIsEditing(false);
-        } else {
-          editButton.click()
-        }
-
-      }
-    });
-    observer.observe(stashRatingNumberRootElm.current, { childList: true });
-
-    const editButton = stashRatingNumberRootElm.current.querySelector(".edit-rating-button") as HTMLButtonElement | null;
-    if (editButton) {
-      editButton.addEventListener("click", () => setIsEditing(true));
-      if (!clickToRate) {
-        editButton.click()
-      }
-    };
-    return () => observer.disconnect();
+    if (!textRatingRef.current) return;
+    textRatingRef.current.focus()
   }, [])
 
+  const [draftRating, setDraftRating] = React.useState<number | null>(value ?? null);
+  useEffect(() => setDraftRating(value ?? null), [value]);
+
+  const hasRating = useMemo(() =>
+    typeof value === "number",
+    [value]
+  )
+
+
+  const formattedDraftRating = useMemo(() => {
+    if (draftRating === null) return "";
+    return String(draftRating / 10)
+      .replace(/^0*(\d)/, (match, p1) => p1) // Remove leading zeros
+      .replace(/(\.\d)\d+/, (match, p1) => p1); // Limit to 1 decimal place without rounding
+  }, [draftRating]);
+
+  const handleTextRatingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const inputElm = e.target;
+    console.log("change", inputElm.value);
+    if (inputElm.value) {
+      let numericValue = Number(inputElm.value)
+      if (numericValue < 0 || (numericValue > 10 && numericValue < 11)) return
+      if (numericValue > 11) {
+        numericValue = Number(Math.floor(numericValue).toString().at(-1))
+      }
+      setDraftRating(Math.floor(numericValue * 10));
+    } else if (inputElm.validity.valid) {
+      setDraftRating(null);
+    }
+  }
+
+  // Update value on unmount if changed
+  const draftRatingRef = useRef<number | null>(null);
+  const ratingChangedRef = useRef<boolean>(false);
+  useEffect(() => {
+    draftRatingRef.current = draftRating
+    ratingChangedRef.current = draftRating !== value
+  }, [draftRating, value]);
+  useEffect(() => {
+    return () => {
+      if (ratingChangedRef.current) {
+        onSetRating?.(draftRatingRef.current);
+      }
+    }
+  }, [])
+
+  const handleTextRatingBlur = () => {
+    onSetRating?.(draftRating);
+  }
+
   return (
-    <div
-      className={cx("extended-rating-number", {"has-rating": hasRating, "editing": isEditing})}
-      ref={rootElm}
-    >
+    <div className={cx("extended-rating-number")}>
       <div className="text-rating">
         <span>
-          {!hasRating && !isEditing && "No rating set"}
-          <StashRatingNumber
-            {...otherProps}
-            // We force clickToRate since without it RatingNumber will set the rating with every key stroke and that
-            // causes the value passed to it to change which can reformat the number `3` -> `3.0` and that causes the
-            // cursor to jump to the end of the input which is a bad experience when trying to type `3.5`.
-            clickToRate={true}
-            // We set this to slider's draft rating so that we can see the slider value change immediately when dragged. Since
-            // the draft value will be updated when the actual rating value changes, this will still remain in sync if changed
-            // via StashRatingNumber's input field.
-            value={sliderDraftRating}
+          <input
+            ref={textRatingRef}
+            className="text-input form-control"
+            name="ratingnumber"
+            type="number"
+            onChange={handleTextRatingChange}
+            onBlur={handleTextRatingBlur}
+            value={formattedDraftRating}
+            min="0.0"
+            step="0.1"
+            max="10"
+            placeholder="0.0"
+            disabled={disabled}
           />
-          {(hasRating || isEditing) && `of 10.0`}
+          <span className="out-of">of 10</span>
         </span>
-        {(hasRating || typeof sliderDraftRating === "number") && <Button
+        {(hasRating || typeof draftRating === "number") && <Button
           variant="secondary"
           className="clear-rating"
-          onClick={() => otherProps.onSetRating?.(null)}
+          onClick={() => onSetRating?.(null)}
         >
           Clear
         </Button>}
@@ -95,18 +99,10 @@ export const RatingNumber: React.FC<IRatingNumberProps> = ({clickToRate = true, 
           min={0}
           max={100}
           step={1}
-          value={[sliderDraftRating ?? 0]}
-          onValueChange={(value) => {
-            setIsEditing(true);
-            setSliderDraftRating(value[0])
-          }}
-          onValueCommit={(value) => {
-            if (clickToRate) {
-              setIsEditing(false);
-            }
-            otherProps.onSetRating?.(value[0])
-          }}
-          disabled={otherProps.disabled}
+          value={[draftRating ?? 0]}
+          onValueChange={(value) => setDraftRating(value[0])}
+          onValueCommit={(value) => onSetRating?.(value[0])}
+          disabled={disabled}
         />
       </div>
     </div>

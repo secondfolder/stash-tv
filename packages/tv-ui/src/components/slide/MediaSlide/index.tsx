@@ -401,6 +401,11 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
     const seekSpeedUpKey = forceLandscape ? "ArrowLeft" : "ArrowUp";
     const seekSlowDownKey = forceLandscape ? "ArrowRight" : "ArrowDown";
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement
+        || e.target instanceof HTMLTextAreaElement
+        || (e.target instanceof HTMLElement && e.target.getAttribute("role") === "slider")
+      ) return;
       if (e.key === seekBackwardsKey || e.key === seekForwardsKey) {
         if (keyHoldTimer) {
           clearInterval(keyHoldTimer)
@@ -453,6 +458,11 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
       }
     }
     const handleKeyUp = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement
+        || e.target instanceof HTMLTextAreaElement
+        || (e.target instanceof HTMLElement && e.target.getAttribute("role") === "slider")
+      ) return;
       if (!keyHoldTimer && (e.key === seekBackwardsKey || e.key === seekForwardsKey)) {
         seekSpeed = null
         seek(seekSpeed)
