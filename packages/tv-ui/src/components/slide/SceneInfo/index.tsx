@@ -43,7 +43,7 @@ const SceneInfo = forwardRef(({scene, className, style, onExternalLinkClick}: Pr
       return (
         <React.Fragment key={pf.id}>
           <a
-            href={new URL(`/performers/${pf.id}`, import.meta.env.STASH_ADDRESS).toString()}
+            href={getStashUrl(`/performers/${pf.id}`)}
             target="_blank"
           >
             {pf.name}
@@ -95,7 +95,7 @@ const SceneInfo = forwardRef(({scene, className, style, onExternalLinkClick}: Pr
             const renderedStudio = (
               <a
                 key={studio.id}
-                href={new URL(`/studios/${studio.id}`, import.meta.env.STASH_ADDRESS).toString()}
+                href={getStashUrl(`/studios/${studio.id}`)}
                 target="_blank"
               >
                 {studio.name}
@@ -123,7 +123,7 @@ const SceneInfo = forwardRef(({scene, className, style, onExternalLinkClick}: Pr
     let sceneUrl = scene.paths.stream?.split("/stream")[0]?.replace("/scene", "/scenes")
     if (sceneUrl && import.meta.env.STASH_ADDRESS) {
       const scenePath = new URL(sceneUrl).pathname.replace(new RegExp(`^${escapeStringRegexp(proxyPrefix)}`), "");
-      sceneUrl = new URL(scenePath, import.meta.env.STASH_ADDRESS).toString()
+      sceneUrl = getStashUrl(scenePath);
     }
 
     /* -------------------------------- Component ------------------------------- */
@@ -148,3 +148,9 @@ const SceneInfo = forwardRef(({scene, className, style, onExternalLinkClick}: Pr
 );
 
 export default SceneInfo
+
+const getStashUrl = (path: string) => {
+  if (!import.meta.env.STASH_ADDRESS) return path;
+  const url = new URL(path, import.meta.env.STASH_ADDRESS);
+  return url.toString();
+}
