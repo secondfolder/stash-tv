@@ -1,6 +1,17 @@
 .Modal {
+  padding-right: 0 !important; /* Override the padding set on the element with js by Bootstrap library */
   .modal-dialog {
-    top: var(--safe-inset-top);
+    max-width: 600px;
+    --padding: min(
+      calc(var(--x-unit-large) * 3),
+      calc(var(--y-unit-large) * 3)
+    );
+    margin: auto;
+    padding:
+      calc(var(--padding) + var(--safe-inset-top))
+      calc(var(--padding) + var(--safe-inset-right))
+      calc(var(--padding) + var(--safe-inset-bottom))
+      calc(var(--padding) + var(--safe-inset-left));
 
     .modal-header {
       display: flex;
@@ -11,6 +22,20 @@
 
     .modal-body {
       overflow: initial;
+      max-height: unset;
     }
   }
+}
+
+html:not(.force-landscape) {
+  --fixed-right-padding: 0px;
+
+  &:has(body.modal-open) {
+    overflow: hidden;
+  }
+}
+
+.modal-backdrop {
+  width: calc(var(--x-unit-large) * 100);
+  height: calc(var(--y-unit-large) * 100);
 }
