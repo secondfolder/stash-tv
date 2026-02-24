@@ -55,12 +55,25 @@
 
   .inline {
     display: flex;
-    gap: 1em;
+    gap: 0.4em 1em;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
 
     &.text {
       align-items: baseline;
+    }
+
+    p {
+      flex: 1 1 50%;
+    }
+
+    svg {
+      flex: 0 0 auto;
+    }
+
+    .text-muted {
+      flex: 1 1 100px;
     }
   }
 

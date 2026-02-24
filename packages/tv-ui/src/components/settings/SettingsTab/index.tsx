@@ -27,6 +27,7 @@ import { FindTagsForSelectQuery } from "stash-ui/dist/src/core/generated-graphql
 import { objectKeys } from "ts-extras"
 import { getStashOrigin } from "../../../helpers/getStashOrigin";
 import Slider from "../../controls/slider";
+import { KeyboardShortcutsInfo } from "../KeyboardShortcutsInfo";
 
 const SettingsTab = memo(() => {
   const logger = getLogger(["stash-tv", "SettingsTab"]);
@@ -73,6 +74,8 @@ const SettingsTab = memo(() => {
     const hashOptions: objectHash.NormalOption = { excludeKeys: key => ["id"].includes(key) }
     return objectHash(actionButtonsConfig, hashOptions) === objectHash(defaultConfig, hashOptions)
   }, [getDefaultAppSetting, actionButtonsConfig])
+
+  const [displayedModal, setDisplayedModal] = useState<"keyboard-shortcuts" | "action-button-settings" | null>(null);
 
 
   /* ---------------------------------- Forms --------------------------------- */
@@ -232,6 +235,7 @@ const SettingsTab = memo(() => {
   ), []);
 
   const [actionButtonDraft, setActionButtonDraft] = React.useState<ActionButtonConfig | null>(null);
+  useEffect(() => setDisplayedModal(actionButtonDraft ? "action-button-settings" : null), [actionButtonDraft])
 
   const saveActionButtonDraft = (actionButton: ActionButtonConfig) => {
     const existingButtonIndex = actionButtonsConfig.findIndex(button => button.id === actionButton.id);
@@ -296,7 +300,7 @@ const SettingsTab = memo(() => {
     closeDisabled={disableClose}
     className="SettingsTab"
   >
-    {actionButtonDraft && <ActionButtonSettingsModal
+    {displayedModal === "action-button-settings" && actionButtonDraft && <ActionButtonSettingsModal
       initialActionButtonConfig={actionButtonDraft}
       onClose={() => setActionButtonDraft(null)}
       onSave={config => {
@@ -304,6 +308,10 @@ const SettingsTab = memo(() => {
         setActionButtonDraft(null)
       }}
     />}
+    <KeyboardShortcutsInfo
+      show={displayedModal === "keyboard-shortcuts"}
+      onHide={() => setDisplayedModal(null)}
+    />
     <Accordion defaultActiveKey="0">
       <AccordionToggle eventKey="0">
         Media Feed
@@ -712,15 +720,23 @@ const SettingsTab = memo(() => {
             </Button>
             <Form.Text className="text-muted">Show instructions for using Stash TV.</Form.Text>
           </Form.Group>
+          <Form.Group className="inline">
+            <Button
+              onClick={() => setDisplayedModal("keyboard-shortcuts")}
+            >
+              Show Keyboard Shortcuts
+            </Button>
+            <Form.Text className="text-muted">Show keyboard shortcuts for Stash TV.</Form.Text>
+          </Form.Group>
           <Form.Group>
             <strong>Version:</strong> {import.meta.env.VITE_STASH_TV_VERSION}
           </Form.Group>
           <Form.Group className="inline">
-            <div>
+            <p>
               What to support Stash TV's development?
               You can donate via <a href="https://ko-fi.com/secondfolder" target="_blank" rel="noopener noreferrer">Ko-Fi</a>
               {" "}or <a href="https://github.com/sponsors/secondfolder" target="_blank" rel="noopener noreferrer">GitHub Sponsors</a>. Thanks!
-            </div>
+            </p>
             <FontAwesomeIcon icon={faHeart} className="accent-icon" />
           </Form.Group>
         </>
