@@ -47,6 +47,13 @@ jobs:
         working-directory: stash-tv
         run: npx commitlint --from ${{ github.event.pull_request.head.sha }}~${{ github.event.pull_request.commits }} --to ${{ github.event.pull_request.head.sha }} --verbose
 
+      - name: Set version number for release
+        working-directory: stash-tv
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CI_GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: scripts/update-version-number.ts
+
       - name: Build project
         working-directory: stash-tv
         run: yarn build
