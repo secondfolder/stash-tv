@@ -1,5 +1,11 @@
 .CrtEffect {
-  --turn-on-time: calc(0.3s + (0.7s * var(--strength)));
+  --turn-on-time: calc(1s * var(--strength));
+  --turn-off-time: calc(0.75s * var(--strength));
+  &.strength-1,
+  &.strength-0 {
+    --turn-on-time: 0s;
+    --turn-off-time: 0s;
+  }
   --crt-inset-top: 0%;
   --crt-inset-bottom: 0%;
   --crt-inset-left: 0%;
@@ -85,8 +91,17 @@
   &.tv-on,
   &.tv-turning-on {
     > .pixel-matrix > .signal {
-      --turn-on-animation: calc(1s + (2s * var(--strength))) linear var(--turn-on-time) normal both 1 running turn-on-signal;
+      --signal-turn-on-time: calc(3s * var(--strength));
+      --signal-turn-on-delay: var(--turn-on-time);
+      --turn-on-animation: var(--signal-turn-on-time) linear var(--signal-turn-on-delay) normal both 1 running turn-on-signal;
       animation: var(--turn-on-animation);
+    }
+    &.strength-1,
+    &.strength-0 {
+      > .pixel-matrix > .signal {
+        --signal-turn-on-time: 0s;
+        --signal-turn-on-delay: 0s;
+      }
     }
   }
   &.strength-5 > .pixel-matrix > .signal {
@@ -108,15 +123,17 @@
   }
 
   &.tv-turning-off {
-    > .pixel-matrix > .signal {
-      animation: 750ms
-        cubic-bezier(0.230, 1.000, 0.320, 1.000)
-        0ms
-        normal
-        forwards
-        1
-        running
-        turn-off-signal;
+    &:not(.strength-1):not(.strength-0) {
+      > .pixel-matrix > .signal {
+        animation: var(--turn-off-time)
+          cubic-bezier(0.230, 1.000, 0.320, 1.000)
+          0ms
+          normal
+          forwards
+          1
+          running
+          turn-off-signal;
+      }
     }
   }
 
@@ -197,9 +214,16 @@
   //  The video content to be shown
   /*********************************/
   > .pixel-matrix > .signal > .content {
-    filter: blur(calc(0.5px + (0.5px * var(--strength))));
+    filter: blur(calc(0.75px + (0.5px * var(--strength))));
+    --content-turn-on-time: calc(2s * var(--strength));
     opacity: 0;
-    animation: 0s linear 2s forwards appear;
+    animation: 0s linear var(--content-turn-on-time) forwards appear;
+  }
+  &.strength-1,
+  &.strength-0 {
+    > .pixel-matrix > .signal > .content {
+      --content-turn-on-time: 0s;
+    }
   }
   &.disabled > .pixel-matrix > .signal > .content {
     filter: unset;
@@ -225,38 +249,58 @@
   &.tv-on {
     > .pixel-matrix > .signal > .noise {
       animation:
-        calc(1s + (2s * var(--strength))) linear var(--turn-on-time) normal both 1 running turn-on-snow;
+        3s linear var(--turn-on-time) normal both 1 running turn-on-snow;
+    }
+  }
+  &.tv-turning-off {
+    &.strength-1,
+    &.strength-0 {
+      > .pixel-matrix > .signal > .noise {
+        visibility: hidden;
+      }
     }
   }
   @keyframes turn-on-snow {
+    0% {
+      opacity: 0;
+    }
     0.1% {
+      opacity: var(--strength);
       background: transparent
-        linear-gradient(to bottom, #85908c 0%, #323431 100%)
+        linear-gradient(
+          to bottom,
+          color-mix(in oklch, #85908c, transparent calc((1 - var(--strength)) * 100%)) 0%,
+          color-mix(in oklch, #323431, transparent calc((1 - var(--strength)) * 100%)) 100%,
+        )
         repeat
         scroll
         0
         0;
-      filter: brightness(4);
+      filter: brightness(calc(4 * var(--strength)));
     }
 
     11% {
-      filter: brightness(4) ;
+      filter: brightness(calc(4 * var(--strength))) ;
       mix-blend-mode: initial;
     }
 
     12% {
       mix-blend-mode: soft-light;
       background: transparent
-        linear-gradient(to bottom, #85908c 0%, #323431 100%)
+        linear-gradient(
+          to bottom,
+          color-mix(in oklch, #85908c, transparent calc((1 - var(--strength)) * 100%)) 0%,
+          color-mix(in oklch, #323431, transparent calc((1 - var(--strength)) * 100%)) 100%,
+        )
         repeat
         scroll
         0
         0;
-      opacity: 0.3;
+      opacity: calc(0.3 * var(--strength));
     }
 
     100% {
-      opacity: calc(0.05 * var(--strength));
+      opacity: calc(0.06 * var(--strength));
     }
   }
 
@@ -415,7 +459,7 @@
     pointer-events: none;
     content: "";
     background-position: center;
-    transition: background-size var(--turn-on-time) ease 0ms;
+    transition: background-size calc(0.3s + (var(--strength) * 0.3s)) ease 0ms;
     background-size:  calc(100% + (2% - (var(--strength) * 2%))) calc(100% + (2% - (var(--strength) * 2%)));
   }
 

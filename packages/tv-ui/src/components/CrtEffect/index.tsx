@@ -19,15 +19,25 @@ export default function CrtEffect({strength = 1, infoText = "AV-1", ...props}: P
   useEffect(() => {
     if (enabled) {
       if (tvState !== "on") {
-        setTvState("turning-on")
-        const timeoutId = setTimeout(() => setTvState("on"), 1000)
-        return () => clearTimeout(timeoutId)
+        const transitionTime = 1000 * strength
+        if (transitionTime) {
+          setTvState("turning-on")
+          const timeoutId = setTimeout(() => setTvState("on"), transitionTime)
+          return () => clearTimeout(timeoutId)
+        } else {
+          setTvState("on")
+        }
       }
     } else {
       if (tvState !== "off") {
-        setTvState("turning-off")
-        const timeoutId = setTimeout(() => setTvState("off"), 750)
-        return () => clearTimeout(timeoutId)
+        const transitionTime = 750 * strength
+        if (transitionTime) {
+          setTvState("turning-off")
+          const timeoutId = setTimeout(() => setTvState("off"), transitionTime)
+          return () => clearTimeout(timeoutId)
+        } else {
+          setTvState("off")
+        }
       }
     }
   }, [props.enabled])
