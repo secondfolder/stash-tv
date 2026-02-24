@@ -430,11 +430,11 @@ const SettingsTab = memo(() => {
                 checked={markerPreviewOnly}
                 onChange={event => setAppSetting("markerPreviewOnly", event.target.checked)}
               />
-              <Form.Text className="text-muted">Play the low-resolution maker preview which can be useful for low bandwidth situations. (Requires the preview files to have been generated in Stash for a marker otherwise the full-quality video will be shown.)</Form.Text>
+              <Form.Text className="text-muted">Play the low-resolution marker preview which can be useful for low bandwidth situations. (Requires the preview files to have been generated in Stash for a marker otherwise the full-quality video will be shown.)</Form.Text>
             </Form.Group>
           )}
 
-          {selectedFilter?.filterType === "scene" && !scenePreviewOnly && <>
+          {(!selectedFilter || selectedFilter.filterType === "scene") && !scenePreviewOnly && <>
             <Form.Group>
               <label htmlFor="start-position">
                 Start Point

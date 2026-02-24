@@ -448,8 +448,8 @@ export const actionButtonsDetails: Record<ActionButtonConfig["type"], ActionButt
   "create-marker": {
     activeIcon: actionButtonIcons["add-marker"].active,
     inactiveIcon: actionButtonIcons["add-marker"].inactive,
-    activeText: "Create marker",
-    inactiveText: "Create marker",
+    activeText: "Create marker for scene",
+    inactiveText: "Create marker for scene",
     hasSettings: true,
     repeatable: true,
   },
