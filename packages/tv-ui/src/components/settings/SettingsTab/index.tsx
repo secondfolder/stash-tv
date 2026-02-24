@@ -733,7 +733,7 @@ const SettingsTab = memo(() => {
           </Form.Group>
           <Form.Group className="inline">
             <p>
-              What to support Stash TV's development?
+              Want to support Stash TV's development?
               You can donate via <a href="https://ko-fi.com/secondfolder" target="_blank" rel="noopener noreferrer">Ko-Fi</a>
               {" "}or <a href="https://github.com/sponsors/secondfolder" target="_blank" rel="noopener noreferrer">GitHub Sponsors</a>. Thanks!
             </p>
