@@ -433,16 +433,16 @@ export const actionButtonsDetails: Record<ActionButtonConfig["type"], ActionButt
   "quick-tag": {
     activeIcon: actionButtonIcons["add-tag"].active,
     inactiveIcon: actionButtonIcons["add-tag"].inactive,
-    activeText: "Remove single tag",
-    inactiveText: "Add single tag",
+    activeText: "Remove tag from scene/marker",
+    inactiveText: "Add tag to scene/marker",
     repeatable: true,
     hasSettings: true,
   },
   "edit-tags": {
     activeIcon: actionButtonIcons["tags"].active,
     inactiveIcon: actionButtonIcons["tags"].inactive,
-    activeText: "Edit tags",
-    inactiveText: "Edit tags",
+    activeText: "Edit scene/marker tags",
+    inactiveText: "Edit scene/marker tags",
     hasSettings: true,
   },
   "create-marker": {
@@ -505,8 +505,8 @@ export function getActionButtonDetails(config: ActionButtonConfig, options?: { t
   }
   if (config.type === "quick-tag") {
     if (options?.tagName) {
-      details.activeText = `Remove "${options.tagName}" from scene`
-      details.inactiveText = `Add "${options.tagName}" to scene`
+      details.activeText = `Remove "${options.tagName}" from scene/marker`
+      details.inactiveText = `Add "${options.tagName}" to scene/marker`
     }
   }
   if (config.type === "create-marker" && config.markerDefaults) {

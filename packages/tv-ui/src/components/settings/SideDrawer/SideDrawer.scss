@@ -3,7 +3,7 @@
   position: fixed;
   top: var(--safe-inset-top);
   --safe-inset-draw-side: var(--safe-inset-right);
-  width: min(calc(300px + var(--safe-inset-draw-side)), 80%);
+  width: min(calc(400px + var(--safe-inset-draw-side)), 80%);
   --content-padding: 1.5em;
   // Since a safe area inset suggests there is some display in the inset area visually it looks better to have slightly
   // less padding than areas that touch the true edge of the screen.
