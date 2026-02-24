@@ -82,9 +82,9 @@ const ActionButton = (props: Props) => {
         {({onClick: sidePanelClick, ref}) => {
           return (
             <ButtonElement
-              className={cx("button")}
-              type="button"
-              onClick={getOnClickHandler(sidePanelClick)}
+              className={cx("icon-container", {"button": !displayOnly})}
+              type={displayOnly ? undefined : "button"}
+              onClick={displayOnly ? undefined : getOnClickHandler(sidePanelClick)}
               ref={ref}
             >
               <Icon />

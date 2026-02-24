@@ -113,10 +113,13 @@
     --item-padding: 0.3em;
     margin: calc(var(--item-padding) * -1 + 0.3em) 0;
 
-    li:nth-child(odd) {
-      background: rgba(0, 0, 0, 0.15);
+    li {
       margin: 0 calc(var(--content-padding) * -1);
       padding: 0 var(--content-padding);
+
+      &:nth-child(odd) {
+        background: rgba(0, 0, 0, 0.15);
+      }
     }
 
     .draggable-list-item {

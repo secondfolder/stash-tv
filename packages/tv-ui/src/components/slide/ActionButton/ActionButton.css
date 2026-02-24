@@ -35,7 +35,7 @@
     opacity: 0;
   }
 
-  .button {
+  .icon-container {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -49,17 +49,18 @@
       appearance: none;
       border: 0;
       padding: 0;
-    }
 
-    &:not([disabled]) {
-      cursor: pointer;
+      &:not([disabled]) {
+        cursor: pointer;
 
-      &:hover {
-        svg {
-          scale: 1.1;
+        &:hover {
+          svg {
+            scale: 1.1;
+          }
         }
       }
     }
+
 
     svg {
       height: 28px;
