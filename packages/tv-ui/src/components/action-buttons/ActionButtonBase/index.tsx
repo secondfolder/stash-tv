@@ -3,28 +3,30 @@ import React, {
   useMemo,
 } from "react";
 import cx from "classnames";
-import "./ActionButton.css";
+import "./ActionButtonBase.css";
 import { useUID } from "react-uid";
 import { OverlayTrigger, Popover } from "react-bootstrap";
 import { create } from "zustand";
 import { useTvConfig } from "../../../store/tvConfig";
-import { ActionButtonIconComponent } from "../../../helpers/getActionButtonDetails";
 import { OverlayTriggerProps } from "react-bootstrap/esm/OverlayTrigger";
 import { preventMisclickOnMoveModifier } from "../../../helpers/popper-modifiers/preventMisclickOnMove";
 import { preventChildOverflowModifier } from "../../../helpers/popper-modifiers/preventChildOverflow";
 import { applyArrowHideModifier } from "../../../helpers/popper-modifiers/applyArrowHide";
+import { actionButtonIcons, ActionButtonIconSource } from "../icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { getLogger } from "@logtape/logtape";
+
+const logger = getLogger(["stash-tv", "ActionButtonBase"]);
 
 export const useCurrentOpenPopover = create<null | string>(() => (null))
 
 export type SidePanelContent = React.ReactNode | ((props: {isOpen: boolean, close: () => void}) => React.ReactNode)
 
-export type Props = {
+export type ActionButtonBaseProps<State extends string> = {
   /** Indicates if the buttons associated action is active. */
-  active: boolean;
-  activeIcon: ActionButtonIconComponent;
-  activeText: string;
-  inactiveIcon: ActionButtonIconComponent;
-  inactiveText: string;
+  state: State;
+  icon: Record<State, ActionButtonIconSource> | ActionButtonIconSource;
+  title: Record<string, string> | React.FC<{state: string, config?: Record<string, unknown>}> | string;
   sideInfo?: React.ReactNode;
   sidePanel?: SidePanelContent;
   sidePanelClassName?: string;
@@ -33,15 +35,14 @@ export type Props = {
   displayOnly?: boolean;
   className?: string;
   onClick?: () => void;
+  config?: Record<string, unknown>;
 }
 
-const ActionButton = (props: Props) => {
+const ActionButtonBase = <State extends string>(props: ActionButtonBaseProps<State>) => {
   const {
-    active,
-    activeIcon,
-    activeText,
-    inactiveIcon,
-    inactiveText,
+    state,
+    icon,
+    title,
     className,
     sideInfo,
     sidePanel,
@@ -50,12 +51,10 @@ const ActionButton = (props: Props) => {
     onClick,
     onSidePanelToggle,
     sidePanelClassName,
+    config,
   } = props;
-  const Icon = active ? activeIcon : inactiveIcon;
   const ButtonElement = displayOnly ? "div" : "button";
   const { leftHandedUi } = useTvConfig();
-
-  const displayText = active ? activeText : inactiveText
 
   const getOnClickHandler = (sidePanelClick: (event: React.MouseEvent<HTMLElement>) => void) => {
     if (displayOnly) return;
@@ -67,7 +66,7 @@ const ActionButton = (props: Props) => {
 
   return (
     <div
-      className={cx("ActionButton", className, { active, 'left-handed': leftHandedUi, [`size-${size}`]: size })}
+      className={cx("ActionButton", className, { state, 'left-handed': leftHandedUi, [`size-${size}`]: size })}
     >
       {sideInfo && (
         <div className="side-info">
@@ -87,9 +86,9 @@ const ActionButton = (props: Props) => {
               onClick={displayOnly ? undefined : getOnClickHandler(sidePanelClick)}
               ref={ref}
             >
-              <Icon />
+              <ActionButtonIcon iconDefinition={icon} state={state} config={config} />
               <span className="sr-only">
-                {displayText}
+                <ActionButtonTitle title={title} state={state} config={config} />
               </span>
             </ButtonElement>
           )
@@ -236,4 +235,86 @@ const SidePanel = (
   )
 }
 
-export default ActionButton;
+export default ActionButtonBase;
+
+
+export function ActionButtonIcon<State extends string>({
+  iconDefinition,
+  state,
+  size = "standard",
+  config,
+}: {
+  iconDefinition: ActionButtonBaseProps<State>["icon"],
+  state: State,
+  size?: "standard" | "small" | "max"
+  config?: Record<string, unknown>,
+}) {
+  const className = cx("ActionButtonIcon", `size-${size}`)
+
+  let iconSource: ActionButtonIconSource | undefined
+
+  try {
+    if (config && 'iconId' in config && typeof config.iconId === "string" && config.iconId in actionButtonIcons) {
+      iconSource = actionButtonIcons[config.iconId as keyof typeof actionButtonIcons].states[state]
+    } else if (typeof iconDefinition === "function") {
+      iconSource = iconDefinition
+    } else if ('icon' in iconDefinition && 'iconName' in iconDefinition) {
+      iconSource = iconDefinition
+    } else if ('render' in iconDefinition) {
+      iconSource = iconDefinition
+    } else {
+      iconSource = iconDefinition[state]
+    }
+
+    if (typeof iconSource === "function") {
+      const IconComponent = iconSource
+      return (
+        <IconComponent
+          className={className}
+        />
+      )
+    } else if ('icon' in iconSource && 'iconName' in iconSource) {
+      return (
+        <FontAwesomeIcon
+          icon={iconSource}
+          className={className}
+        />
+      )
+    } else if ('render' in iconSource) {
+      const IconComponent = iconSource as unknown as React.ComponentType<{className?: string}>
+      return (
+        <IconComponent
+          className={className}
+        />
+      )
+    } else {
+      iconSource satisfies never
+      logger.error("Unable to determine icon for action button {*}", {iconDefinition, iconSource, state})
+    }
+  } catch(error) {
+    logger.error("Error rendering action button icon {*}", {error, iconDefinition, state})
+  }
+  return <div className={className}>?</div>
+}
+
+
+export const ActionButtonTitle = <State extends string>({
+  title,
+  state,
+  config,
+}: {
+  title: ActionButtonBaseProps<State>["title"],
+  state: State,
+  config?: Record<string, unknown>,
+}) => {
+  if (typeof title === "string") {
+    return <>{title}</>
+  } else if (typeof title === "function") {
+    const Title = title
+    return <Title state={state} config={config} />
+  } else if (state in title) {
+    return <>{title[state]}</>
+  }
+  logger.error("Unable to determine title for action button", {title, state})
+  return <strong>"?"</strong>
+}

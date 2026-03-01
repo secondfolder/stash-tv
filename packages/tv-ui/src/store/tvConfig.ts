@@ -2,9 +2,9 @@ import { LogLevel } from '@logtape/logtape';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { defaultLogLevel } from '../helpers/logging';
-import type { ActionButtonConfig } from '../components/slide/ActionButtons';
 import { stashConfigStorage } from '../helpers/stash-config-storage';
 import { useGlobalState } from "./globalState"
+import { ActionButtonConfig } from '../components/action-buttons/buttons';
 export type DebuggingInfo = "render-debugging" | "onscreen-info" | "virtualizer-debugging";
 
 export const tvConfigStorageKey = 'app-state';

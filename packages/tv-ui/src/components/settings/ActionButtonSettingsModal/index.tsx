@@ -1,28 +1,12 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { Modal } from "../../containers/Modal";
 import { Button } from "react-bootstrap";
-import {
-  ActionButtonConfig,
-  editTagsActionButtonSchema,
-  createMarkerActionButtonSchema,
-  quickTagActionButtonSchema,
-  createNewActionButtonConfig,
-  volumeActionButtonSchema
-} from "../../slide/ActionButtons";
-import { ActionButtonIcons, actionButtonIcons, getActionButtonDetails } from "../../../helpers/getActionButtonDetails";
-import { Tag } from "stash-ui/wrappers/components/TagSelect";
-import { TagIdSelect } from "stash-ui/wrappers/components/TagIdSelect";
 import "./ActionButtonSettingsModal.css";
-import { queryFindTagsByIDForSelect } from "stash-ui/dist/src/core/StashService";
 import { yupFormikValidate } from "stash-ui/dist/src/utils/yup";
-import { MarkerTitleSuggest } from "stash-ui/dist/src/components/Shared/Select";
-import { Form } from "react-bootstrap";
-import ActionButton from "../../slide/ActionButton";
 import { getLogger } from "@logtape/logtape";
-import { IconSelect } from "../IconSelect";
 import { useFormik } from "formik";
-import * as yup from "yup";
-import Switch from "../Switch";
+import { ActionButtonConfig, allButtonDefinition, getActionButtonDefinition } from "../../action-buttons/buttons";
+import { ActionButtonIcon, ActionButtonTitle } from "../../action-buttons/ActionButtonBase";
 
 const logger = getLogger(["stash-tv", "ActionButtonSettingsModal"]);
 
@@ -33,80 +17,52 @@ type Props = {
 }
 
 export const ActionButtonSettingsModal = ({ initialActionButtonConfig, onClose, onSave }: Props) => {
-  const operation = initialActionButtonConfig.id ? "edit" : "add";
-  const [tag, setTag] = useState<Tag>()
-
   const initialConfig = initialActionButtonConfig
-  const [initialTagName, setInitialTagName] = useState<string>()
-  useEffect(() => {
-    if (!initialTagName && 'tagId' in initialConfig && tag && initialConfig.tagId === tag?.id) {
-      setInitialTagName(tag.name)
-    }
-  }, [initialTagName, initialConfig, tag])
+  const operation = initialConfig.id ? "edit" : "add";
 
   // We memorise this so that the header shows the state of the saved config, not the config as it's being edited
-  const initialDetails = useMemo(
-    () => getActionButtonDetails(initialConfig, { tagName: initialTagName }),
-    [initialConfig.id, initialTagName]
+  const initialButtonDefinition = useMemo(
+    () => allButtonDefinition.find(def => def.id === initialConfig.type),
+    [initialConfig.id]
   )
 
-  let formik
-  let form
-  if (initialActionButtonConfig.type === "quick-tag") {
-    formik = useFormik<yup.InferType<typeof quickTagActionButtonSchema>>({
-      initialValues: initialActionButtonConfig,
-      enableReinitialize: true,
-      validate: yupFormikValidate(quickTagActionButtonSchema),
-      onSubmit: (values) => onSave(quickTagActionButtonSchema.cast(values)),
-    });
-    form = <QuickTagForm formik={formik} />
-  } else if (initialActionButtonConfig.type === "edit-tags") {
-    formik = useFormik<yup.InferType<typeof editTagsActionButtonSchema>>({
-      initialValues: initialActionButtonConfig,
-      enableReinitialize: true,
-      validate: yupFormikValidate(editTagsActionButtonSchema),
-      onSubmit: (values) => onSave(editTagsActionButtonSchema.cast(values)),
-    });
-    form = <EditTagsForm formik={formik} />
-  } else if (initialActionButtonConfig.type === "create-marker") {
-    formik = useFormik<yup.InferType<typeof createMarkerActionButtonSchema>>({
-      initialValues: initialActionButtonConfig,
-      enableReinitialize: true,
-      validate: yupFormikValidate(createMarkerActionButtonSchema),
-      onSubmit: (values) => onSave(createMarkerActionButtonSchema.cast(values)),
-    });
-    form = <CreateMarkerForm formik={formik} />
-  } else if (initialActionButtonConfig.type === "volume") {
-    formik = useFormik<yup.InferType<typeof volumeActionButtonSchema>>({
-      initialValues: initialActionButtonConfig,
-      enableReinitialize: true,
-      validate: yupFormikValidate(volumeActionButtonSchema),
-      onSubmit: (values) => onSave(volumeActionButtonSchema.cast(values)),
-    });
-    form = <VolumeForm formik={formik} />
-  } else {
-    throw new Error(`Unknown action button type: ${initialActionButtonConfig.type}`)
+  if (!initialButtonDefinition) {
+    logger.error("Unknown action button type in settings modal", { type: initialConfig.type })
+    return null
+  }
+  const actionButtonDefinition = getActionButtonDefinition(initialConfig.type)
+  if (!('settings' in actionButtonDefinition.components)) {
+    logger.warn("Action button definition has no settings component", { actionButtonDefinition })
+    return null
   }
 
-  useEffect(() => {
-    if (!('tagId' in formik.values) || !formik.values.tagId) return;
-    queryFindTagsByIDForSelect(formik.values.tagId ? [formik.values.tagId] : [])
-      .then(result => setTag(result.data.findTags.tags[0]))
-  }, ['tagId' in formik.values ? formik.values.tagId : null])
-
+  const formik = useFormik({
+    initialValues: initialConfig,
+    enableReinitialize: true,
+    validate: yupFormikValidate(actionButtonDefinition.configSchema),
+    onSubmit: (values) => onSave(actionButtonDefinition.configSchema.cast(values)),
+  });
+  // @ts-expect-error - formik and the button's settings should necessarily be for the same config schema but not sure how to type that
+  const form = <actionButtonDefinition.components.settings formik={formik} />
 
   return (
     <Modal show onHide={() => onClose()} title="" className="ActionButtonSettingsModal">
       <Modal.Header>
-        <ActionButton
-          {...initialDetails.props}
-          active={false}
-          size="auto"
-          displayOnly={true}
+        <ActionButtonIcon
+          iconDefinition={initialButtonDefinition.icon}
+          state="inactive"
+          size="small"
+          config={initialConfig}
         />
         <span>
           {operation === "add" ? "Add" : "Edit"}{" "}
-          <em>{initialDetails.inactiveText}</em>{" "}
+          <em>
+            <ActionButtonTitle
+              title={initialButtonDefinition.title}
+              state="inactive"
+              config={initialConfig}
+            />
+          </em>{" "}
           Action Button
         </span>
       </Modal.Header>
@@ -125,251 +81,4 @@ export const ActionButtonSettingsModal = ({ initialActionButtonConfig, onClose, 
       </Modal.Footer>
     </Modal>
   )
-}
-
-function QuickTagForm({formik}: { formik: ReturnType<typeof useFormik<yup.InferType<typeof quickTagActionButtonSchema>>> }) {
-  const customQuickTagIcons = Object.entries(actionButtonIcons)
-    .filter(([key, icon]) => icon.category.includes("tag") || icon.category.includes("general"))
-    .map(([key, icon]) => ({
-      value: key as ActionButtonIcons,
-      label: icon.inactive
-    }))
-  const { tagId: tagIdError, iconId: iconIdError, ...otherErrors } = formik.errors
-  return <>
-    <Form.Group>
-      <label htmlFor="tag-id">
-        Tag to add (required)
-      </label>
-      <TagIdSelect
-        inputId="tag-id"
-        onSelect={(tags: Array<{ id: string; name: string }>) => {
-          const tag = tags[0] as Tag
-          formik.setFieldValue("tagId", tag?.id)
-        }}
-        ids={formik.values.tagId ? [formik.values.tagId] : []}
-        hoverPlacement="right"
-      />
-      {formik.touched.tagId && (
-        <Form.Control.Feedback type="invalid">
-          {tagIdError}
-        </Form.Control.Feedback>
-      )}
-    </Form.Group>
-    <Form.Group>
-      <label htmlFor="button-icon">
-        Action Button Icon
-      </label>
-      <IconSelect
-        inputId="button-icon"
-        value={customQuickTagIcons.find(icon => icon.value === formik.values.iconId)}
-        options={customQuickTagIcons}
-        onChange={
-          (newValue: typeof customQuickTagIcons[number] | null) =>
-            formik.setFieldValue("iconId", (newValue && 'value' in newValue) ? newValue.value : "add-tag")
-        }
-      />
-      {formik.touched.iconId && (
-        <Form.Control.Feedback type="invalid">
-          {iconIdError}
-        </Form.Control.Feedback>
-      )}
-    </Form.Group>
-    {Object.keys(otherErrors).length > 0 && (
-      <Form.Control.Feedback type="invalid">
-        <ul>
-          {Object.entries(otherErrors).map(([key, error]) => (
-            <li key={key}>{error}</li>
-          ))}
-        </ul>
-      </Form.Control.Feedback>
-    )}
-  </>
-}
-
-
-function EditTagsForm({formik}: { formik: ReturnType<typeof useFormik<yup.InferType<typeof editTagsActionButtonSchema>>> }) {
-  const { pinnedTagIds: pinnedTagIdsError, ...otherErrors } = formik.errors
-  return <>
-    <Form.Group>
-      <label htmlFor="pinned-tags">
-        Pinned Tags (optional)
-      </label>
-      <TagIdSelect
-        isMulti
-        inputId="pinned-tags"
-        ids={formik.values.pinnedTagIds || []}
-        onSelect={(tags: Tag[]) => formik.setFieldValue("pinnedTagIds", tags.map(t => t.id))}
-        hoverPlacement="right"
-      />
-      {formik.touched.pinnedTagIds && (
-        <Form.Control.Feedback type="invalid">
-          {pinnedTagIdsError}
-        </Form.Control.Feedback>
-      )}
-      <Form.Text className="text-muted">
-        Pinned tags allow you to quickly add your most used tags.
-      </Form.Text>
-    </Form.Group>
-    {Object.keys(otherErrors).length > 0 && (
-      <Form.Control.Feedback type="invalid">
-        <ul>
-          {Object.entries(otherErrors).map(([key, error]) => (
-            <li key={key}>{error}</li>
-          ))}
-        </ul>
-      </Form.Control.Feedback>
-    )}
-  </>
-}
-
-function CreateMarkerForm({formik}: { formik: ReturnType<typeof useFormik<yup.InferType<typeof createMarkerActionButtonSchema>>> }) {
-  const { markerDefaults: markerDefaultsError, iconId: iconIdError, ...otherErrors } = formik.errors
-  return <>
-    <Form.Group>
-      <Switch
-        id="quick-add"
-        checked={Boolean(formik.values.markerDefaults)}
-        label="Create with defaults"
-        onChange={event => formik.setFieldValue(
-          "markerDefaults",
-          event.target.checked
-            ? createNewActionButtonConfig("create-marker", {includeMarkerDefaults: true}).markerDefaults
-            : null
-        )}
-      />
-      <Form.Text className="text-muted">
-        Create a marker immediately when clicked with pre-defined details.
-      </Form.Text>
-    </Form.Group>
-    {formik.values.markerDefaults && <CreateMarkerQuickAddForm formik={formik} />}
-    {Object.keys(otherErrors).length > 0 && (
-      <Form.Control.Feedback type="invalid">
-        <ul>
-          {Object.entries(otherErrors).map(([key, error]) => (
-            <li key={key}>{error}</li>
-          ))}
-        </ul>
-      </Form.Control.Feedback>
-    )}
-  </>
-}
-
-function CreateMarkerQuickAddForm({formik}: { formik: ReturnType<typeof useFormik<yup.InferType<typeof createMarkerActionButtonSchema>>> }) {
-  const customQuickCreateMarkerIcons = Object.entries(actionButtonIcons)
-    .filter(([key, icon]) => icon.category.includes("marker") || icon.category.includes("general"))
-    .map(([key, icon]) => ({
-      value: key as ActionButtonIcons,
-      label: icon.inactive
-    }))
-  const { markerDefaults } = formik.values
-  if (!markerDefaults) return null;
-  const { iconId: iconIdError } = formik.errors
-  // Formik doesn't type the nested markerDefaults correctly so we have to cast it
-  const { title: titleError, primaryTagId: primaryTagIdError, tags: tagsError, ...otherErrors } = formik.errors.markerDefaults as { title?: string; primaryTagId?: string; tags?: string } || {}
-  const touched = formik.touched.markerDefaults as { title?: boolean; primaryTagId?: boolean; tags?: boolean } | undefined || {}
-  return <>
-    <Form.Group>
-      <label htmlFor="title">
-        Title (optional)
-      </label>
-      <MarkerTitleSuggest
-        initialMarkerTitle={markerDefaults.title || ""}
-        onChange={(v) => formik.setFieldValue("markerDefaults.title", v)}
-      />
-      {touched.title && (
-        <Form.Control.Feedback type="invalid">
-          {titleError}
-        </Form.Control.Feedback>
-      )}
-    </Form.Group>
-    <Form.Group>
-      <label htmlFor="primary-tag">
-        Primary Tag (required)
-      </label>
-      <TagIdSelect
-        inputId="primary-tag"
-        ids={formik.values.markerDefaults?.primaryTagId ? [formik.values.markerDefaults.primaryTagId] : []}
-        onSelect={(tags: Tag[]) => formik.setFieldValue("markerDefaults.primaryTagId", tags[0]?.id)}
-        isClearable={false}
-        hoverPlacement="right"
-      />
-      {touched.primaryTagId && (
-        <Form.Control.Feedback type="invalid">
-          {primaryTagIdError}
-        </Form.Control.Feedback>
-      )}
-    </Form.Group>
-    <Form.Group>
-      <label htmlFor="tags">
-        Tags (optional)
-      </label>
-      <TagIdSelect
-        isMulti
-        inputId="tags"
-        ids={formik.values.markerDefaults?.tagIds || []}
-        onSelect={(tags: Tag[]) => formik.setFieldValue("markerDefaults.tagIds", tags.map(t => t.id))}
-        hoverPlacement="right"
-      />
-    </Form.Group>
-    <Form.Group>
-      <label htmlFor="button-icon">
-        Action Button Icon
-      </label>
-      <IconSelect
-        inputId="button-icon"
-        value={customQuickCreateMarkerIcons.find(icon => icon.value === formik.values.iconId)}
-        options={customQuickCreateMarkerIcons}
-        onChange={
-          (newValue: typeof customQuickCreateMarkerIcons[number] | null) =>
-            formik.setFieldValue("iconId", (newValue && 'value' in newValue) ? newValue.value : "add-marker")
-        }
-      />
-      {formik.touched.iconId && (
-        <Form.Control.Feedback type="invalid">
-          {iconIdError}
-        </Form.Control.Feedback>
-      )}
-    </Form.Group>
-    {Object.keys(otherErrors).length > 0 && (
-      <Form.Control.Feedback type="invalid">
-        <ul>
-          {Object.entries(otherErrors).map(([key, error]) => (
-            <li key={key}>{error}</li>
-          ))}
-        </ul>
-      </Form.Control.Feedback>
-    )}
-  </>
-}
-
-function VolumeForm({formik}: { formik: ReturnType<typeof useFormik<yup.InferType<typeof volumeActionButtonSchema>>> }) {
-  const { fullControl: fullControlError, ...otherErrors } = formik.errors
-  return <>
-    <Form.Group>
-      <Switch
-        id="full-control"
-        checked={Boolean(formik.values.fullControl)}
-        label="Full volume control"
-        onChange={event => formik.setFieldValue("fullControl", event.target.checked)}
-      />
-      <Form.Text className="text-muted">
-        Enable full volume control rather than just mute/unmute. Note that this does not work on iOS devices due to
-        platform limitations.
-      </Form.Text>
-      {formik.touched.fullControl && fullControlError && (
-        <Form.Control.Feedback type="invalid">
-          {fullControlError}
-        </Form.Control.Feedback>
-      )}
-    </Form.Group>
-    {Object.keys(otherErrors).length > 0 && (
-      <Form.Control.Feedback type="invalid">
-        <ul>
-          {Object.entries(otherErrors).map(([key, error]) => (
-            <li key={key}>{error}</li>
-          ))}
-        </ul>
-      </Form.Control.Feedback>
-    )}
-  </>
 }

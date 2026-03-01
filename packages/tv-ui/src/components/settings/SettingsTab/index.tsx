@@ -17,18 +17,17 @@ import useStashTvConfig from "../../../hooks/useStashTvConfig";
 import { getLogger, LogLevel } from "@logtape/logtape";
 import { getLoggers } from "../../../helpers/logging";
 import DraggableList from "../../DraggableList";
-import { actionButtonsDetails, getActionButtonDetails } from "../../../helpers/getActionButtonDetails";
-import ActionButton from "../../slide/ActionButton";
 import objectHash from "object-hash";
-import { ActionButtonConfig, createNewActionButtonConfig } from "../../slide/ActionButtons";
 import { ActionButtonSettingsModal } from "../ActionButtonSettingsModal";
 import { queryFindTagsByIDForSelect } from "stash-ui/dist/src/core/StashService";
 import { FindTagsForSelectQuery } from "stash-ui/dist/src/core/generated-graphql";
-import { objectKeys } from "ts-extras"
 import { getStashOrigin } from "../../../helpers/getStashOrigin";
 import Slider from "../../controls/slider";
 import { KeyboardShortcutsInfo } from "../KeyboardShortcutsInfo";
 import { getFunctionFromString } from "../../../helpers/getFunctionFromString";
+import { ActionButtonIcon, ActionButtonTitle } from "../../action-buttons/ActionButtonBase";
+import { ActionButtonConfig, allButtonDefinition, getActionButtonDefinition } from "../../action-buttons/buttons";
+import { createNewActionButtonConfig } from "../../action-buttons/action-button-config";
 
 const SettingsTab = memo(() => {
   const logger = getLogger(["stash-tv", "SettingsTab"]);
@@ -269,22 +268,24 @@ const SettingsTab = memo(() => {
       })
   }, [objectHash(tagIds)])
 
-  const addableActionButtons = objectKeys(actionButtonsDetails)
-    .map((type) => {
+  const addableActionButtons = allButtonDefinition
+    .map((definition) => {
       return {
-        type,
-        details: getActionButtonDetails(
-          createNewActionButtonConfig(type)
-        ),
+        type: definition.id,
+        definition,
+        isRepeatable: 'isRepeatable' in definition && definition.isRepeatable,
         add() {
           const options = {
             includeMarkerDefaults: false
           }
-          if (type === "create-marker" && actionButtonsConfig.some(config => config.type === "create-marker")) {
+          if (definition.id === "create-marker" && actionButtonsConfig.some(config => config.type === "create-marker")) {
             options.includeMarkerDefaults = true
           }
-          const config = createNewActionButtonConfig(type, options);
-          if (getActionButtonDetails(config).hasSettings) {
+          const config = createNewActionButtonConfig(definition.id, options);
+
+          const buttonDefinition = getActionButtonDefinition(definition.id)
+
+          if (buttonDefinition.components.settings) {
             setActionButtonDraft(config);
           } else {
             setTvConfig("actionButtonsConfig", [...actionButtonsConfig, config]);
@@ -292,10 +293,11 @@ const SettingsTab = memo(() => {
         }
       }
     })
+    .filter((v): v is (Exclude<typeof v, null>) => v !== null)
     // Exclude singleton button types that are already displayed
     .filter(
       actionButton => !actionButtonsConfig.some(config => config.type === actionButton.type)
-        || actionButton.details.repeatable
+        || actionButton.isRepeatable
     )
 
   const hydratedMediaItemsModifierFunction = mediaItemsModifierFunction && getFunctionFromString(mediaItemsModifierFunction)
@@ -313,6 +315,7 @@ const SettingsTab = memo(() => {
     }
     return ""
   }, [hydratedMediaItemsModifierFunction])
+
 
   /* -------------------------------- Component ------------------------------- */
   return <SideDrawer
@@ -634,31 +637,31 @@ const SettingsTab = memo(() => {
                 )
               }}
               renderItem={(item, getDragHandleProps) => {
-                const details = getActionButtonDetails(
-                  item,
-                  {
-                    tagName: tags.find(
-                      tag => 'tagId' in item ? tag.id === item.tagId : false
-                    )?.name
-                  }
-                );
+                const buttonDefinition = allButtonDefinition.find(def => def.id === item.type)
+                if (!buttonDefinition) {
+                  logger.error(`No button definition found for action button config type ${item.type}`, {item})
+                  return null
+                }
+
                 return <div className={cx("draggable-list-item")}>
                   <div className="inline">
                     <div className="drag-handle" {...getDragHandleProps({className: "drag-handle"})}>
                       <FontAwesomeIcon icon={faGripVertical} />
-                      <ActionButton
-                        {...details.props}
-                        className={"action-button-icon"}
-                        active={false}
-                        displayOnly={true}
-                        key={item.id}
-                        size="auto"
+                      <ActionButtonIcon
+                        iconDefinition={buttonDefinition.icon}
+                        state="inactive"
+                        size="small"
+                        config={item}
                       />
                     </div>
-                    {details.inactiveText}
+                    <ActionButtonTitle
+                      title={buttonDefinition.title}
+                      state="inactive"
+                      config={item}
+                    />
                   </div>
                   <div className="inline controls">
-                    {details.hasSettings && <Button
+                    {'settings' in buttonDefinition.components && <Button
                       variant="link"
                       className={cx("settings", "muted")}
                       onClick={() => setActionButtonDraft(item)}
@@ -700,14 +703,15 @@ const SettingsTab = memo(() => {
                 >
                   <FontAwesomeIcon icon={faAdd} />
                   <div className="info">
-                    <ActionButton
-                      {...actionButton.details.props}
-                      className={"action-button-icon"}
-                      active={false}
-                      displayOnly={true}
-                      size="auto"
+                    <ActionButtonIcon
+                      iconDefinition={actionButton.definition.icon}
+                      state="inactive"
+                      size="small"
                     />
-                    {actionButton.details.inactiveText}
+                    <ActionButtonTitle
+                      title={actionButton.definition.title}
+                      state="inactive"
+                    />
                   </div>
                 </Button>
               ))}

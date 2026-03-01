@@ -1,4 +1,4 @@
-import React from "react";
+import React, { ReactNode } from "react";
 import Select from "../Select";
 import { components, MenuListProps, OptionProps, SingleValueProps } from "react-select";
 
@@ -19,19 +19,19 @@ export const IconSelect: typeof Select = (props) => {
     );
   };
 
-  const GridOption = (props: OptionProps<{label: React.ComponentType<{size: string | number}>}>) => {
+  const GridOption = (props: OptionProps<{label: ReactNode}>) => {
     return (
       <components.Option {...props}>
-        <props.data.label size="100%" />
+        {props.data.label}
       </components.Option>
     );
   };
 
-  const GridSingleValue = (props: SingleValueProps<{label: React.ComponentType<{size: string | number}>}>) => {
+  const GridSingleValue = (props: SingleValueProps<{label: ReactNode}>) => {
     return (
       <components.SingleValue {...props}>
-        <div style={{ display: 'flex', alignItems: 'center', margin: '0.5em 0' }}>
-          <props.data.label size={40} />
+        <div style={{ display: 'flex', alignItems: 'center', margin: '0.5em 0.1em', height: '30px' }}>
+          {props.data.label}
         </div>
       </components.SingleValue>
     );

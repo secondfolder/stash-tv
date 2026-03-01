@@ -22,7 +22,7 @@ import videojs from "video.js";
 import {styledBigPlayButton} from "./video-js-plugins/styled-big-play-button";
 import "./video-js-plugins/styled-big-play-button.css";
 import { type ScrollToIndexOptions } from "../../VideoScroller";
-import { ActionButtons } from "../ActionButtons";
+import { ActionButtonStack } from "../../action-buttons/ActionButtonStack";
 import SceneInfo from "../SceneInfo";
 import { getLogger, type Logger } from "@logtape/logtape";
 import {Options as AbLoopPluginOptions} from "videojs-abloop";
@@ -801,7 +801,12 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
           className={cx({active: sceneInfoOpen})}
           onExternalLinkClick={() => videojsPlayerRef.current?.pause()}
         />
-        <ActionButtons mediaItem={props.mediaItem} sceneInfoOpen={sceneInfoOpen} setSceneInfoOpen={setSceneInfoOpen} playerRef={videojsPlayerRef} />
+        <ActionButtonStack
+          mediaItem={props.mediaItem}
+          sceneInfoOpen={sceneInfoOpen}
+          setSceneInfoOpen={setSceneInfoOpen}
+          playerRef={videojsPlayerRef}
+        />
       </CrtEffect>
     </div>
   );

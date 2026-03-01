@@ -10,7 +10,7 @@ import { useMediaItems } from "../../hooks/useMediaItems";
 import { useWindowSize } from "../../hooks/useWindowSize";
 import hashObject from 'object-hash';
 import { getLogger } from "@logtape/logtape";
-import { useCurrentOpenPopover } from "../slide/ActionButton";
+import { useCurrentOpenPopover } from "../action-buttons/ActionButtonBase";
 
 interface VideoScrollerProps {}
 

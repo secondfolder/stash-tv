@@ -3,14 +3,13 @@ import "./Feed.scss";
 import VideoScroller from "../../components/VideoScroller";
 import { useTvConfig } from "../../store/tvConfig";
 import SettingsTab from "../../components/settings/SettingsTab";
-import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import { useMediaItems } from "../../hooks/useMediaItems";
 import { LoadingIndicator } from "stash-ui/wrappers/components/shared/LoadingIndicator";
 import { useMediaItemFilters } from "../../hooks/useMediaItemFilters";
 import GuideOverlay from "../../components/GuideOverlay";
 import { ErrorMessage } from "stash-ui/dist/src/components/Shared/ErrorMessage";
 import cx from "classnames";
-import { SettingsActionButton } from "../../components/slide/ActionButtons";
+import { SettingsActionButton } from "../../components/action-buttons/buttons/SettingsActionButton";
 import { useGlobalState } from "../../store/globalState";
 
 interface FeedPageProps {

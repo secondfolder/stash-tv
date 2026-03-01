@@ -1,4 +1,4 @@
-.ActionButtons {
+.ActionButtonStack {
   --bottom-offset: 1.1em;
   --side-offset: calc(0.8em + (var(--crt-inset-right) / 2) );
   position: absolute;
