@@ -3,7 +3,7 @@ import * as yup from "yup";
 import ActionButtonBase from "../ActionButtonBase";
 import { sharedActionButtonSchema } from "../action-button-config";
 import { actionButtonIcons } from "../icons";
-import type { ActionButtonDefinition } from "./index";
+import type { ActionButtonDefinitionInput } from "./index";
 import { DeleteScenesDialog } from "stash-ui/dist/src/components/Scenes/DeleteScenesDialog";
 import { DeleteSceneMarkersDialog } from "stash-ui/dist/src/components/Scenes/DeleteSceneMarkersDialog";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
@@ -25,9 +25,9 @@ export const buttonDefinition = {
     button: DeleteMediaItemActionButton,
   },
   configSchema: sharedActionButtonSchema.shape({
-    type: yup.string().oneOf([id]).required(),
+    buttonType: yup.string().oneOf([id]).required(),
   }),
-} as const satisfies ActionButtonDefinition;
+} as const satisfies ActionButtonDefinitionInput;
 
 export function DeleteMediaItemActionButton({
     mediaItem

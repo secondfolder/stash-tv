@@ -32,7 +32,7 @@ type ActionButtonProps = {
   setSceneInfoOpen: (open: boolean) => void,
 }
 
-export type ActionButtonDefinition<Config extends Record<string, unknown> = Record<string, unknown>> = {
+export type ActionButtonDefinitionInput<Config extends Record<string, unknown> = Record<string, unknown>> = {
   id: string;
   title: Record<string, string> | React.FC<{state: string, config?: Config}>;
   icon: ActionButtonIcon;
@@ -64,18 +64,18 @@ export const allButtonDefinition = [
   volumeButtonDefinition,
 ] as const
 
-export type ActionButtonConfig = yup.InferType<typeof allButtonDefinition[number]["configSchema"]>
+export type ActionButtonDefinition = typeof allButtonDefinition[number]
+
+export type ActionButtonConfig = yup.InferType<ActionButtonDefinition["configSchema"]>
 
 export function getActionButtonDefinition<
-  ButtonType extends ActionButtonConfig["type"]
+  ButtonType extends ActionButtonDefinition["id"]
 >(
   type: ButtonType
-): ActionButtonDefinition<Extract<ActionButtonConfig, { type: ButtonType }>> {
+): Extract<ActionButtonDefinition, { id: ButtonType }> {
   const definition = allButtonDefinition.find(def => def.id === type)
   if (!definition) {
     throw new Error(`No action button definition found for type ${type}`)
   }
-  return definition as ActionButtonDefinition<
-    Extract<ActionButtonConfig, { type: ButtonType }>
-  >
+  return definition as Extract<ActionButtonDefinition, { id: ButtonType }>
 }

@@ -1,11 +1,11 @@
 import React from "react"
 import * as yup from "yup";
-import { useAppStateStore } from "../../../store/appStateStore";
+import { useTvConfig } from "../../../store/tvConfig";
 import ActionButtonBase from "../ActionButtonBase";
 import { sharedActionButtonSchema } from "../action-button-config";
 import { faClosedCaptioning } from "@fortawesome/free-solid-svg-icons";
 import ClosedCaptioningOutline from '../../../assets/closed-captioning-outline.svg?react';
-import type { ActionButtonDefinition } from "./index";
+import type { ActionButtonDefinitionInput } from "./index";
 import cx from "classnames";
 import useStashTvConfig from "../../../hooks/useStashTvConfig";
 import ISO6391 from "iso-639-1";
@@ -27,16 +27,16 @@ export const buttonDefinition = {
     button: SubtitlesActionButton,
   },
   configSchema: sharedActionButtonSchema.shape({
-    type: yup.string().oneOf([id]).required(),
+    buttonType: yup.string().oneOf([id]).required(),
   }),
-} as const satisfies ActionButtonDefinition;
+} as const satisfies ActionButtonDefinitionInput;
 
 export function SubtitlesActionButton({
   scene
 }: {
   scene: GQL.SceneDataFragment
 }) {
-  const { showSubtitles, set: setAppSetting } = useAppStateStore();
+  const { showSubtitles, set: setTvConfig } = useTvConfig();
   const { data: { subtitleLanguage } } = useStashTvConfig()
   /** Only render captions track if available, and it matches the user's chosen
   * language. Fails accessibility if missing, but there's no point rendering
@@ -68,6 +68,6 @@ export function SubtitlesActionButton({
     title={buttonDefinition.title}
     className={cx(buttonDefinition.id, "hide-on-ui-hide")}
     data-testid="MediaSlide--subtitlesButton"
-    onClick={() => setAppSetting("showSubtitles", (prev) => !prev)}
+    onClick={() => setTvConfig("showSubtitles", (prev) => !prev)}
   />
 }

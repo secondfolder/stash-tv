@@ -19,8 +19,6 @@ import { getLoggers } from "../../../helpers/logging";
 import DraggableList from "../../DraggableList";
 import objectHash from "object-hash";
 import { ActionButtonSettingsModal } from "../ActionButtonSettingsModal";
-import { queryFindTagsByIDForSelect } from "stash-ui/dist/src/core/StashService";
-import { FindTagsForSelectQuery } from "stash-ui/dist/src/core/generated-graphql";
 import { getStashOrigin } from "../../../helpers/getStashOrigin";
 import Slider from "../../controls/slider";
 import { KeyboardShortcutsInfo } from "../KeyboardShortcutsInfo";
@@ -28,6 +26,8 @@ import { getFunctionFromString } from "../../../helpers/getFunctionFromString";
 import { ActionButtonIcon, ActionButtonTitle } from "../../action-buttons/ActionButtonBase";
 import { ActionButtonConfig, allButtonDefinition, getActionButtonDefinition } from "../../action-buttons/buttons";
 import { createNewActionButtonConfig } from "../../action-buttons/action-button-config";
+import { Arrow90degRight, ArrowLeft, Folder } from "react-bootstrap-icons";
+import { ActionButtonStackConfig } from "../../action-buttons/ActionButtonStack";
 
 const SettingsTab = memo(() => {
   const logger = getLogger(["stash-tv", "SettingsTab"]);
@@ -61,7 +61,7 @@ const SettingsTab = memo(() => {
     maxPlayLength,
     maxMedia,
     leftHandedUi,
-    actionButtonsConfig,
+    actionButtonStackConfig,
     mediaItemsModifierFunction,
     renderedMediaItemsBuffer,
     set: setTvConfig,
@@ -72,11 +72,11 @@ const SettingsTab = memo(() => {
 
   const noMediaItemsAvailable = !mediaItemFiltersLoading && !mediaItemsLoading && mediaItems.length === 0
 
-  const actionButtonsConfigIsDefault = useMemo(() => {
-    const defaultConfig = getDefaultAppSetting("actionButtonsConfig");
+  const actionButtonStackConfigIsDefault = useMemo(() => {
+    const defaultConfig = getDefaultAppSetting("actionButtonStackConfig");
     const hashOptions: objectHash.NormalOption = { excludeKeys: key => ["id"].includes(key) }
-    return objectHash(actionButtonsConfig, hashOptions) === objectHash(defaultConfig, hashOptions)
-  }, [getDefaultAppSetting, actionButtonsConfig])
+    return objectHash(actionButtonStackConfig, hashOptions) === objectHash(defaultConfig, hashOptions)
+  }, [getDefaultAppSetting, actionButtonStackConfig])
 
   const [displayedModal, setDisplayedModal] = useState<"keyboard-shortcuts" | "action-button-settings" | null>(null);
 
@@ -241,54 +241,40 @@ const SettingsTab = memo(() => {
   useEffect(() => setDisplayedModal(actionButtonDraft ? "action-button-settings" : null), [actionButtonDraft])
 
   const saveActionButtonDraft = (actionButton: ActionButtonConfig) => {
-    const existingButtonIndex = actionButtonsConfig.findIndex(button => button.id === actionButton.id);
+    const existingButtonIndex = actionButtonStackConfig.findIndex(button => button.id === actionButton.id);
     if (existingButtonIndex !== -1) {
       setTvConfig(
-        "actionButtonsConfig",
-        actionButtonsConfig.map((button, index) => index === existingButtonIndex ? actionButton : button)
+        "actionButtonStackConfig",
+        actionButtonStackConfig.map((button, index) => index === existingButtonIndex ? actionButton : button)
       );
     } else {
       setTvConfig(
-        "actionButtonsConfig",
-        [...actionButtonsConfig, {...actionButton, id: Date.now().toString()}]
+        "actionButtonStackConfig",
+        [...actionButtonStackConfig, {...actionButton, id: Date.now().toString()}]
       );
     }
   }
 
-  const [tags, setTags] = useState<FindTagsForSelectQuery["findTags"]["tags"]>([]);
-  const tagIds = actionButtonsConfig.filter(config => 'tagId' in config)
-      .map(config => config.tagId)
-      .toSorted()
-  useEffect(() => {
-    queryFindTagsByIDForSelect(tagIds)
-      .then(result => setTags(result.data.findTags.tags))
-      .catch((error) => {
-        console.info("Action buttons with tag IDs", actionButtonsConfig.filter(config => 'tagId' in config))
-        logger.error(`Error when fetching tags ${tagIds.join(", ")}: {error}`, {error})
-      })
-  }, [objectHash(tagIds)])
-
   const addableActionButtons = allButtonDefinition
     .map((definition) => {
       return {
-        type: definition.id,
         definition,
         isRepeatable: 'isRepeatable' in definition && definition.isRepeatable,
         add() {
           const options = {
             includeMarkerDefaults: false
           }
-          if (definition.id === "create-marker" && actionButtonsConfig.some(config => config.type === "create-marker")) {
+          if (definition.id === "create-marker" && actionButtonStackConfig.some(config => config.type === "button" && config.buttonType === "create-marker")) {
             options.includeMarkerDefaults = true
           }
           const config = createNewActionButtonConfig(definition.id, options);
 
           const buttonDefinition = getActionButtonDefinition(definition.id)
 
-          if (buttonDefinition.components.settings) {
+          if ('settings' in buttonDefinition.components) {
             setActionButtonDraft(config);
           } else {
-            setTvConfig("actionButtonsConfig", [...actionButtonsConfig, config]);
+            setTvConfig("actionButtonStackConfig", [...actionButtonStackConfig, config]);
           }
         }
       }
@@ -296,7 +282,13 @@ const SettingsTab = memo(() => {
     .filter((v): v is (Exclude<typeof v, null>) => v !== null)
     // Exclude singleton button types that are already displayed
     .filter(
-      actionButton => !actionButtonsConfig.some(config => config.type === actionButton.type)
+      actionButton =>
+        !actionButtonStackConfig.some(config =>
+          (config.type === "button" && config.buttonType === actionButton.definition.id)
+          || (config.type === "folder" && config.contents.some(config =>
+            config.type === "button" && config.buttonType === actionButton.definition.id
+          ))
+        )
         || actionButton.isRepeatable
     )
 
@@ -316,6 +308,46 @@ const SettingsTab = memo(() => {
     return ""
   }, [hydratedMediaItemsModifierFunction])
 
+
+    const editableActionButtonStackConfig = useMemo(() =>
+      actionButtonStackConfig
+        .toReversed()
+        .map(item => {
+          if (item.type === "folder") {
+            return {
+              ...item,
+              contents: item.contents.toReversed()
+            }
+          }
+          return item
+        })
+        .toSorted((a, b) => (a.pinned ? 1 : 0) - (b.pinned ? 1 : 0)),
+      [actionButtonStackConfig]
+    )
+    const updateEditableActionButtonStackConfig = ((newConfig: ActionButtonStackConfig[]) => {
+      newConfig = newConfig
+        .toReversed()
+        .map(item => {
+          if (item.type === "folder") {
+            return {
+              ...item,
+              contents: item.contents.toReversed()
+            }
+          }
+          return item
+        })
+      const indexOfFirstNonPinned = newConfig.findIndex(config => !config.pinned)
+      newConfig = newConfig
+        // If we move any pinned config items above a non-pinned one, unpin it.
+        .map((config, index) => ({
+          ...config,
+          pinned: config.pinned && index >= indexOfFirstNonPinned ? false : config.pinned,
+        }))
+      setTvConfig(
+        "actionButtonStackConfig",
+        newConfig
+      )
+    })
 
   /* -------------------------------- Component ------------------------------- */
   return <SideDrawer
@@ -624,28 +656,71 @@ const SettingsTab = memo(() => {
 
             <DraggableList
               className={cx("draggable-list")}
-              items={actionButtonsConfig.toReversed().toSorted((a, b) => (a.pinned ? 1 : 0) - (b.pinned ? 1 : 0))}
-              onItemsOrderChange={(newOrder) => {
-                const buttons = newOrder.toReversed()
-                const indexOfFirstNonPinned = buttons.findIndex(button => !button.pinned)
-                setTvConfig(
-                  "actionButtonsConfig",
-                  buttons.map((buttonConfig, index) => ({
-                    ...buttonConfig,
-                    pinned: buttonConfig.pinned && index >= indexOfFirstNonPinned ? false : buttonConfig.pinned,
-                  }))
-                )
-              }}
-              renderItem={(item, getDragHandleProps) => {
-                const buttonDefinition = allButtonDefinition.find(def => def.id === item.type)
+              items={editableActionButtonStackConfig}
+              onItemsOrderChange={updateEditableActionButtonStackConfig}
+              nestingKey="contents"
+              renderItem={({
+                item,
+                items,
+                getDragHandleProps,
+                nestedChildren,
+                currentNestingParent,
+                previousNestingParent,
+                updateList
+              }) => {
+                const configType = item.type
+                if (item.type === "folder") {
+                  return (
+                    <div className={cx("draggable-list-item", "folder")}>
+                      <div className="inline">
+                        <div className="drag-handle" {...getDragHandleProps({className: "drag-handle"})}>
+                          <FontAwesomeIcon icon={faGripVertical} />
+                          <ActionButtonIcon
+                            iconDefinition={Folder}
+                            state="inactive"
+                            size="small"
+                          />
+                          Folder
+                        </div>
+                        <div className="controls">
+                          <Button
+                            variant="link"
+                            className={cx("hide-button", "muted")}
+                            onClick={() => updateList(items.filter(listItem => listItem !== item))}
+                          >
+                            <FontAwesomeIcon icon={faTrashCan} />
+                          </Button>
+                        </div>
+                      </div>
+                      {!item.contents.length && <div className="text-muted instructions">
+                        (click <Arrow90degRight /> on items below to add to folder)
+                      </div>}
+                      {nestedChildren}
+                    </div>
+                  )
+                } else if (item.type !== "button") {
+                  item satisfies never;
+                  logger.error(`Unsupported action button config type ${configType}`, {item})
+                  return null
+                }
+                const buttonDefinition = getActionButtonDefinition(item.buttonType)
                 if (!buttonDefinition) {
-                  logger.error(`No button definition found for action button config type ${item.type}`, {item})
+                  logger.error(`No button definition found for action button config type ${item.buttonType}`, {item})
                   return null
                 }
 
+                const dragHandleProps = getDragHandleProps({className: "drag-handle"})
+                const isDeletable = item.buttonType !== "settings"
+                const isPinnable = !currentNestingParent
+                const isInsideFolder = currentNestingParent
+                const canAddToFolder = previousNestingParent && item.buttonType !== "settings" && item.buttonType !== "ui-visibility"
+
                 return <div className={cx("draggable-list-item")}>
                   <div className="inline">
-                    <div className="drag-handle" {...getDragHandleProps({className: "drag-handle"})}>
+                    <div
+                      className={cx("drag-handle", {disable: items.length === 1})}
+                      {...(items.length > 1 ? dragHandleProps: {})}
+                    >
                       <FontAwesomeIcon icon={faGripVertical} />
                       <ActionButtonIcon
                         iconDefinition={buttonDefinition.icon}
@@ -668,26 +743,74 @@ const SettingsTab = memo(() => {
                     >
                       <FontAwesomeIcon icon={faPenToSquare} />
                     </Button>}
-                    {item.type !== "settings" && <Button
+                    {canAddToFolder && <Button
+                      variant="link"
+                      className={cx("add-to-folder", "muted")}
+                      onClick={() => updateEditableActionButtonStackConfig(
+                        editableActionButtonStackConfig
+                          .map((config) => {
+                            if (config === previousNestingParent && config.type === "folder") {
+                              return {
+                                ...config,
+                                contents: [...config.contents, item]
+                              }
+                            } else if (config === item) {
+                              return null
+                            }
+                            return config
+                          })
+                          .filter((v): v is (Exclude<typeof v, null>) => v !== null)
+                      )}
+                    >
+                      <Arrow90degRight />
+                    </Button>}
+                    {isDeletable && <Button
                       variant="link"
                       className={cx("hide-button", "muted")}
-                      onClick={() => setTvConfig(
-                        "actionButtonsConfig",
-                        actionButtonsConfig.filter(button => button.id !== item.id)
-                      )}
+                      onClick={() => updateList(items.filter(listItem => listItem !== item))}
                     >
                       <FontAwesomeIcon icon={faTrashCan} />
                     </Button>}
-                    <Button
+                    {isInsideFolder && <Button
                       variant="link"
-                      className={cx("pin-button", {muted: !item.pinned})}
-                      onClick={() => setTvConfig(
-                        "actionButtonsConfig",
-                        actionButtonsConfig.map(button => button.id === item.id ? {...button, pinned: !button.pinned} : button)
+                      className={cx("remove-from-folder", "muted")}
+                      onClick={() => updateEditableActionButtonStackConfig(
+                        editableActionButtonStackConfig
+                          .flatMap((config) => {
+                            if (config.type === "folder" && config.contents.some(config => config === item)) {
+                              return [
+                                {
+                                  ...config,
+                                  contents: config.contents.filter(config => config !== item)
+                                },
+                                item,
+                              ]
+                            }
+                            return config
+                          })
                       )}
                     >
+                      <ArrowLeft />
+                    </Button>}
+                    {isPinnable && <Button
+                      variant="link"
+                      className={cx("pin-button", {muted: !item.pinned})}
+                      onClick={() => {
+                        const updatedConfig = editableActionButtonStackConfig
+                          .map((config) =>
+                            config.type === "button" && config.id === item.id
+                              ? {...config, pinned: !config.pinned}
+                              : config
+                          )
+                        // Ensure all pinned config is at the bottom
+                        updateEditableActionButtonStackConfig([
+                          ...updatedConfig.filter(config => !config.pinned),
+                          ...updatedConfig.filter(config => config.pinned),
+                        ])
+                      }}
+                    >
                       <FontAwesomeIcon icon={faThumbtack} />
-                    </Button>
+                    </Button>}
                   </div>
                 </div>
               }}
@@ -696,9 +819,9 @@ const SettingsTab = memo(() => {
             <div className="form-subgroup">
               {addableActionButtons.map(actionButton => (
                 <Button
-                  key={actionButton.type}
+                  key={actionButton.definition.id}
                   variant="link"
-                  className={cx("add-action-button")}
+                  className={cx("add-config-item", "add-action-button")}
                   onClick={() => actionButton.add()}
                 >
                   <FontAwesomeIcon icon={faAdd} />
@@ -715,11 +838,29 @@ const SettingsTab = memo(() => {
                   </div>
                 </Button>
               ))}
+              <Button
+                variant="link"
+                className={cx("add-config-item", "add-folder")}
+                onClick={() => setTvConfig("actionButtonStackConfig", [...actionButtonStackConfig, {id: Date.now().toString(), type: "folder", pinned: false, contents: []}])}
+              >
+                <FontAwesomeIcon icon={faAdd} />
+                <div className="info">
+                  <ActionButtonIcon
+                    iconDefinition={Folder}
+                    state="inactive"
+                    size="small"
+                  />
+                  <ActionButtonTitle
+                    title="New Folder"
+                    state="inactive"
+                  />
+                </div>
+              </Button>
             </div>
-            {!actionButtonsConfigIsDefault && <div className="inline form-subgroup">
+            {!actionButtonStackConfigIsDefault && <div className="inline form-subgroup">
               <Button
                 variant="outline-warning"
-                onClick={() => setDefaultAppSetting('actionButtonsConfig')}
+                onClick={() => setDefaultAppSetting('actionButtonStackConfig')}
               >
                 Reset to default
               </Button>

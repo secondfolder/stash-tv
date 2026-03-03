@@ -4,7 +4,7 @@ import ActionButtonBase from "../ActionButtonBase";
 import { sharedActionButtonSchema } from "../action-button-config";
 
 import { actionButtonIcons } from "../icons";
-import type { ActionButtonDefinition } from "./index";
+import type { ActionButtonDefinitionInput } from "./index";
 import { useSceneUpdate } from "../../../hooks/useSceneUpdate";
 import { MediaItem } from "../../../hooks/useMediaItems";
 
@@ -21,9 +21,9 @@ export const buttonDefinition = {
     button: SetOrganizedActionButton,
   },
   configSchema: sharedActionButtonSchema.shape({
-    type: yup.string().oneOf([id]).required(),
+    buttonType: yup.string().oneOf([id]).required(),
   }),
-} as const satisfies ActionButtonDefinition;
+} as const satisfies ActionButtonDefinitionInput;
 
 export function SetOrganizedActionButton({
   mediaItem,

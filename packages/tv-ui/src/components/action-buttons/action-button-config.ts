@@ -3,46 +3,49 @@ import type { ActionButtonConfig } from "./buttons";
 
 export const sharedActionButtonSchema = yup.object({
   id: yup.string().required(),
+  type: yup.string().oneOf(["button"]).required(),
   pinned: yup.boolean().required(),
 })
 
-export const createNewActionButtonConfig = <ButtonType extends ActionButtonConfig["type"]>(
+export const createNewActionButtonConfig = <ButtonType extends ActionButtonConfig["buttonType"]>(
   type: ButtonType,
   options?: {includeMarkerDefaults?: boolean}
-): Extract<ActionButtonConfig, { type: ButtonType }> => {
+): Extract<ActionButtonConfig, { buttonType: ButtonType }> => {
   const sharedDefaults = {
     id: `${Date.now()}-${Math.random().toString().slice(2)}` ,
+    type: "button" as const,
     pinned: false
   }
-  switch (type) {
+  const buttonType = type
+  switch (buttonType) {
     case "edit-tags":
       return {
         ...sharedDefaults,
-        type,
+        buttonType,
         pinnedTagIds: [],
-      } as unknown as Extract<ActionButtonConfig, { type: ButtonType }>
+      } as unknown as Extract<ActionButtonConfig, { buttonType: ButtonType }>
     case "quick-tag":
       return {
         ...sharedDefaults,
-        type,
+        buttonType: buttonType,
         iconId: "add-tag",
         tagId: "",
-      } as unknown as Extract<ActionButtonConfig, { type: ButtonType }>
+      } as unknown as Extract<ActionButtonConfig, { buttonType: ButtonType }>
     case "create-marker":
       return {
         ...sharedDefaults,
-        type,
+        buttonType: buttonType,
         iconId: !options?.includeMarkerDefaults ? "add-marker" : "bookmark",
         markerDefaults: options?.includeMarkerDefaults ? {
           title: "",
           primaryTagId: "",
           tagIds: [],
         } : null
-      } as unknown as Extract<ActionButtonConfig, { type: ButtonType }>
+      } as unknown as Extract<ActionButtonConfig, { buttonType: ButtonType }>
     default:
       return {
         ...sharedDefaults,
-          type,
-      } as unknown as Extract<ActionButtonConfig, { type: ButtonType }>
+          buttonType,
+      } as unknown as Extract<ActionButtonConfig, { buttonType: ButtonType }>
   }
 }

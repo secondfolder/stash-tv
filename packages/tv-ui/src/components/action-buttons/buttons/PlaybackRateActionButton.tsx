@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react"
 import * as yup from "yup";
-import { useAppStateStore } from "../../../store/appStateStore";
+import { useTvConfig } from "../../../store/tvConfig";
 import ActionButtonBase from "../ActionButtonBase";
 import { sharedActionButtonSchema } from "../action-button-config";
 
 import { FastForward, FastForwardFill } from "react-bootstrap-icons";
-import type { ActionButtonDefinition } from "./index";
+import type { ActionButtonDefinitionInput } from "./index";
 import cx from "classnames";
 import { VideoJsPlayer } from "video.js";
 import { Button } from "react-bootstrap";
@@ -26,16 +26,16 @@ export const buttonDefinition = {
     button: PlaybackRateActionButton,
   },
   configSchema: sharedActionButtonSchema.shape({
-    type: yup.string().oneOf([id]).required(),
+    buttonType: yup.string().oneOf([id]).required(),
   }),
-} as const satisfies ActionButtonDefinition;
+} as const satisfies ActionButtonDefinitionInput;
 
 export function PlaybackRateActionButton({
   playerRef,
 }: {
   playerRef: React.RefObject<VideoJsPlayer>,
 }) {
-  const {playbackRate: desiredPlaybackRate} = useAppStateStore();
+  const {playbackRate: desiredPlaybackRate} = useTvConfig();
   const [playbackRate, setPlaybackRate] = useState(desiredPlaybackRate);
   const active = useMemo(() => playbackRate !== 1, [playbackRate])
   useEffect(() => {

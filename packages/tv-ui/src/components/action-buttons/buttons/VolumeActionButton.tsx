@@ -1,12 +1,12 @@
 import React from "react"
 import * as yup from "yup";
-import { useAppStateStore } from "../../../store/appStateStore";
+import { useTvConfig } from "../../../store/tvConfig";
 import ActionButtonBase from "../ActionButtonBase";
 import { sharedActionButtonSchema } from "../action-button-config";
 import { faVolumeHigh as faVolume } from "@fortawesome/free-solid-svg-icons";
 
 import VolumeMuteOutlineIcon from '../../../assets/volume-mute-outline.svg?react';
-import type { ActionButtonDefinition } from "./index";
+import type { ActionButtonDefinitionInput } from "./index";
 import cx from "classnames";
 import { UAParser } from "ua-parser-js";
 import Slider from "../../controls/slider";
@@ -20,7 +20,7 @@ const logger = getLogger(["stash-tv", "VolumeActionButton"])
 const id = "volume";
 
 const configSchema = sharedActionButtonSchema.shape({
-  type: yup.string().oneOf([id]).required(),
+  buttonType: yup.string().oneOf([id]).required(),
   fullControl: yup.boolean().optional(),
 })
 
@@ -39,7 +39,7 @@ export const buttonDefinition = {
     settings: SettingsForm,
   },
   configSchema
-} as const satisfies ActionButtonDefinition<yup.InferType<typeof configSchema>>;
+} as const satisfies ActionButtonDefinitionInput<yup.InferType<typeof configSchema>>;
 
 export function VolumeActionButton({
   config
@@ -53,7 +53,7 @@ export function VolumeActionButton({
   } catch (error) {
     logger.warn("Invalid config for volume action button, falling back to mute toggle", { error, config })
   }
-  const { volume, set: setAppSetting } = useAppStateStore();
+  const { volume, set: setTvConfig } = useTvConfig();
 
   let clickHandler
   let sidePanel
@@ -64,13 +64,13 @@ export function VolumeActionButton({
         min={0}
         max={100}
         value={[volume * 100]}
-        onValueChange={e => setAppSetting("volume", Number(e[0]) / 100)}
+        onValueChange={e => setTvConfig("volume", Number(e[0]) / 100)}
       />
     );
     clickHandler = undefined;
   } else {
     sidePanel = undefined;
-    clickHandler = () => setAppSetting("volume", (prev) => prev ? 0 : 1);
+    clickHandler = () => setTvConfig("volume", (prev) => prev ? 0 : 1);
   }
 
   return <ActionButtonBase

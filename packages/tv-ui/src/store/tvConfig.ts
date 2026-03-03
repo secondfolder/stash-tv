@@ -4,7 +4,7 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 import { defaultLogLevel } from '../helpers/logging';
 import { stashConfigStorage } from '../helpers/stash-config-storage';
 import { useGlobalState } from "./globalState"
-import { ActionButtonConfig } from '../components/action-buttons/buttons';
+import { ActionButtonStackConfig } from '../components/action-buttons/ActionButtonStack';
 export type DebuggingInfo = "render-debugging" | "onscreen-info" | "virtualizer-debugging";
 
 export const tvConfigStorageKey = 'app-state';
@@ -32,7 +32,7 @@ type TvConfig = {
   maxPlayLength?: number;
   showGuideOverlay?: boolean;
   leftHandedUi?: boolean;
-  actionButtonsConfig: ActionButtonConfig[];
+  actionButtonStackConfig: ActionButtonStackConfig[];
   currentFilterId?: string;
   // Device specific state
   forceLandscape: boolean;
@@ -80,18 +80,26 @@ const defaults = {
   showDebuggingInfo: [],
   renderedMediaItemsBuffer: 2,
   videoJsEventsToLog: [],
-  actionButtonsConfig: [
-    {id: "1", type: "ui-visibility", pinned: true},
-    {id: "2", type: "settings", pinned: false},
-    {id: "3", type: "show-scene-info", pinned: false},
-    {id: "4", type: "rate-scene", pinned: false},
-    {id: "5", type: "o-counter", pinned: false},
-    {id: "6", type: "force-landscape", pinned: false},
-    {id: "7", type: "fullscreen", pinned: false},
-    {id: "8", type: "volume", pinned: false},
-    {id: "9", type: "letterboxing", pinned: false},
-    {id: "10", type: "loop", pinned: false},
-    {id: "11", type: "subtitles", pinned: false},
+  actionButtonStackConfig: [
+    {id: "1", type: "button", buttonType: "ui-visibility", pinned: true},
+    {id: "2", type: "button", buttonType: "settings", pinned: false},
+    {id: "3", type: "button", buttonType: "show-scene-info", pinned: false},
+    {id: "12", type: "folder", pinned: false, contents: [
+      {id: "12.1", type: "button", buttonType: "rate-scene", pinned: false},
+      {id: "12.2", type: "button", buttonType: "o-counter", pinned: false},
+      {id: "12.3", type: "button", buttonType: "set-organized", pinned: false},
+      {id: "12.4", type: "button", buttonType: "edit-tags", pinned: false, pinnedTagIds: []},
+      {id: "12.5", type: "button", buttonType: "delete-media-item", pinned: false},
+    ]},
+    {id: "6", type: "button", buttonType: "force-landscape", pinned: false},
+    {id: "8", type: "button", buttonType: "volume", pinned: false},
+    {id: "9", type: "button", buttonType: "letterboxing", pinned: false},
+    {id: "13", type: "folder", pinned: false, contents: [
+      {id: "13.1", type: "button", buttonType: "loop", pinned: false},
+      {id: "13.2", type: "button", buttonType: "playback-rate", pinned: false},
+      {id: "13.3", type: "button", buttonType: "subtitles", pinned: false},
+      {id: "13.4", type: "button", buttonType: "fullscreen", pinned: false},
+    ]}
   ],
   playbackRate: 1,
 } satisfies TvConfig;
@@ -217,7 +225,7 @@ export const useTvConfig = create<TvConfig & AppAction>()(
       onRehydrateStorage: (state) => {
         return () => useGlobalState.setState({tvConfigLoaded: true})
       },
-      version: 1,
+      version: 2,
       migrate: (persistedState, version) => {
         if (version === 0 && persistedState && typeof persistedState === "object") {
           if ('audioMuted' in persistedState) {
@@ -230,6 +238,18 @@ export const useTvConfig = create<TvConfig & AppAction>()(
               if (button.type === "mute") {
                 button.type = "volume";
               }
+            }
+          }
+        }
+        if (version < 2 && persistedState && typeof persistedState === "object") {
+          if ('actionButtonsConfig' in persistedState && Array.isArray(persistedState.actionButtonsConfig)) {
+            const actionButtonStackConfig = persistedState.actionButtonsConfig
+            // @ts-expect-error -- we know actionButtonStackConfig doesn't exist in the type, we're trying to add it
+            persistedState.actionButtonStackConfig = actionButtonStackConfig
+            delete persistedState.actionButtonsConfig
+            for (const config of actionButtonStackConfig) {
+              config.buttonType = config.type;
+              config.type = "button";
             }
           }
         }

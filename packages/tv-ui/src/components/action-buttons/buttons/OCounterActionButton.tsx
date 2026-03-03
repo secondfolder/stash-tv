@@ -5,7 +5,7 @@ import { sharedActionButtonSchema } from "../action-button-config";
 import { faPlus, faMinus } from "@fortawesome/free-solid-svg-icons";
 import SplashIcon from '../../../assets/splash.svg?react';
 import SplashOutlineIcon from '../../../assets/splash-outline.svg?react';
-import type { ActionButtonDefinition } from "./index";
+import type { ActionButtonDefinitionInput } from "./index";
 import cx from "classnames";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useSceneDecrementO, useSceneIncrementO } from "stash-ui/dist/src/core/StashService";
@@ -27,9 +27,9 @@ export const buttonDefinition = {
     button: OCounterActionButton,
   },
   configSchema: sharedActionButtonSchema.shape({
-    type: yup.string().oneOf([id]).required(),
+    buttonType: yup.string().oneOf([id]).required(),
   })
-} as const satisfies ActionButtonDefinition;
+} as const satisfies ActionButtonDefinitionInput;
 
 export function OCounterActionButton({
   scene,

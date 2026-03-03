@@ -4,9 +4,9 @@ import ActionButtonBase from "../ActionButtonBase";
 import { sharedActionButtonSchema } from "../action-button-config";
 import { faStar } from "@fortawesome/free-solid-svg-icons";
 import StarOutlineIcon from '../../../assets/star-outline.svg?react';
-import type { ActionButtonDefinition } from "./index";
+import type { ActionButtonDefinitionInput } from "./index";
 import cx from "classnames";
-import { useAppStateStore } from "../../../store/appStateStore";
+import { useTvConfig } from "../../../store/tvConfig";
 import { ConfigurationContext } from "stash-ui/dist/src/hooks/Config";
 import { defaultRatingSystemOptions, RatingSystemType } from "stash-ui/dist/src/utils/rating";
 import { RatingSystem } from "stash-ui/wrappers/components/shared/RatingSystem";
@@ -29,9 +29,9 @@ export const buttonDefinition = {
     button: RateSceneActionButton,
   },
   configSchema: sharedActionButtonSchema.shape({
-    type: yup.string().oneOf([id]).required(),
+    buttonType: yup.string().oneOf([id]).required(),
   })
-} as const satisfies ActionButtonDefinition;
+} as const satisfies ActionButtonDefinitionInput;
 
 export function RateSceneActionButton({
   scene,
@@ -39,7 +39,7 @@ export function RateSceneActionButton({
   scene: GQL.SceneDataFragment,
 }) {
   const { configuration: stashConfig } = React.useContext(ConfigurationContext);
-  const { leftHandedUi } = useAppStateStore();
+  const { leftHandedUi } = useTvConfig();
   const ratingSystemOptions =
     stashConfig?.ui.ratingSystemOptions ?? defaultRatingSystemOptions;
 

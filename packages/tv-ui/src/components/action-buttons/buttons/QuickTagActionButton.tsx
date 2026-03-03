@@ -3,7 +3,7 @@ import * as yup from "yup";
 import ActionButtonBase, { ActionButtonIcon } from "../ActionButtonBase";
 import { sharedActionButtonSchema } from "../action-button-config";
 import { ActionButtonIconName, actionButtonIcons } from "../icons";
-import type { ActionButtonDefinition } from "./index";
+import type { ActionButtonDefinitionInput } from "./index";
 import cx from "classnames";
 import { queryFindTagsByIDForSelect } from "stash-ui/dist/src/core/StashService";
 import { useMediaItemTags } from "../../../hooks/useMediaItemTags";
@@ -20,7 +20,7 @@ const logger = getLogger(["stash-tv", "QuickTagActionButton"])
 const id = "quick-tag";
 
 const configSchema = sharedActionButtonSchema.shape({
-  type: yup.string().oneOf([id]).required(),
+  buttonType: yup.string().oneOf([id]).required(),
   iconId: yup.string().required(),
   tagId: yup.string().required(),
 })
@@ -29,7 +29,7 @@ export const buttonDefinition = {
   id,
   title: ({state, config}: {state: string, config?: Record<string, unknown>}) => {
     const [tag, setTag] = useState<Tag>()
-    if (config && config.type !== id) {
+    if (config && config.buttonType !== id) {
       logger.error("Invalid config for quick tag action button title {*}", { config })
       return <strong>?</strong>
     }
@@ -61,7 +61,7 @@ export const buttonDefinition = {
   },
   isRepeatable: true,
   configSchema,
-} as const satisfies ActionButtonDefinition<yup.InferType<typeof configSchema>>;
+} as const satisfies ActionButtonDefinitionInput<yup.InferType<typeof configSchema>>;
 
 export function QuickTagActionButton({
   config,

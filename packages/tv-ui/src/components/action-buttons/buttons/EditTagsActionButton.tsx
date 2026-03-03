@@ -4,7 +4,7 @@ import ActionButtonBase from "../ActionButtonBase";
 import { sharedActionButtonSchema } from "../action-button-config";
 
 import { actionButtonIcons } from "../icons";
-import type { ActionButtonDefinition } from "./index";
+import type { ActionButtonDefinitionInput } from "./index";
 import cx from "classnames";
 import { useMediaItemTags } from "../../../hooks/useMediaItemTags";
 import { MediaItem } from "../../../hooks/useMediaItems";
@@ -20,7 +20,7 @@ const logger = getLogger(["stash-tv", "EditTagsActionButton"])
 const id = "edit-tags";
 
 const configSchema = sharedActionButtonSchema.shape({
-  type: yup.string().oneOf([id]).required(),
+  buttonType: yup.string().oneOf([id]).required(),
   pinnedTagIds: yup.array().of(yup.string().required()).required(),
 })
 
@@ -36,7 +36,7 @@ export const buttonDefinition = {
     settings: SettingsForm,
   },
   configSchema
-} as const satisfies ActionButtonDefinition<yup.InferType<typeof configSchema>>;
+} as const satisfies ActionButtonDefinitionInput<yup.InferType<typeof configSchema>>;
 
 export function EditTagsActionButton({
   config,

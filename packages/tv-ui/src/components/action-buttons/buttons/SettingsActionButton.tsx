@@ -1,12 +1,13 @@
 import React from "react"
 import * as yup from "yup";
-import { useAppStateStore } from "../../../store/appStateStore";
+import { useTvConfig } from "../../../store/tvConfig";
 import ActionButtonBase from "../ActionButtonBase";
-import type { ActionButtonDefinition } from "./index";
+import type { ActionButtonDefinitionInput } from "./index";
 import cx from "classnames";
 import { sharedActionButtonSchema } from "../action-button-config";
 import { faGear } from "@fortawesome/free-solid-svg-icons";
 import CogOutlineIcon from '../../../assets/cog-outline.svg?react';
+import { useGlobalState } from "../../../store/globalState";
 
 const id = "settings";
 
@@ -24,17 +25,17 @@ export const buttonDefinition = {
     button: SettingsActionButton,
   },
   configSchema: sharedActionButtonSchema.shape({
-    type: yup.string().oneOf([id]).required(),
+    buttonType: yup.string().oneOf([id]).required(),
   })
-} as const satisfies ActionButtonDefinition;
+} as const satisfies ActionButtonDefinitionInput;
 
 export function SettingsActionButton() {
-  const { showSettings, set: setAppSetting } = useAppStateStore();
+  const { showSettings, set: setGlobalState } = useGlobalState();
   return <ActionButtonBase
     state={showSettings ? "active" : "inactive"}
     icon={buttonDefinition.icon}
     title={buttonDefinition.title}
     className={cx(buttonDefinition.id, "hide-on-ui-hide")}
-    onClick={() => setAppSetting("showSettings", (prev) => !prev)}
+    onClick={() => setGlobalState("showSettings", (prev) => !prev)}
   />
 }

@@ -4,7 +4,7 @@ import ActionButtonBase, { ActionButtonIcon } from "../ActionButtonBase";
 import { createNewActionButtonConfig, sharedActionButtonSchema } from "../action-button-config";
 
 import { ActionButtonIconName, actionButtonIcons } from "../icons";
-import type { ActionButtonDefinition } from "./index";
+import type { ActionButtonDefinitionInput } from "./index";
 import cx from "classnames";
 import { queryFindTagsByIDForSelect, useSceneMarkerCreate } from "stash-ui/dist/src/core/StashService";
 import { SceneMarkerForm } from "stash-ui/wrappers/components/SceneMarkerForm";
@@ -24,7 +24,7 @@ const logger = getLogger(["stash-tv", "CreateMarkerActionButton"])
 const id = "create-marker";
 
 const configSchema = sharedActionButtonSchema.shape({
-  type: yup.string().oneOf([id]).required(),
+  buttonType: yup.string().oneOf([id]).required(),
   iconId: yup.string().required(),
   markerDefaults: yup.object({
     title: yup.string(),
@@ -40,7 +40,7 @@ export const buttonDefinition = {
     let tagId = null
     try {
       if (config) {
-        if (config.type !== id) {
+        if (config.buttonType !== id) {
           logger.error("Invalid config for create marker action button title {*}", { config })
           return <strong>?</strong>
         }
@@ -83,7 +83,7 @@ export const buttonDefinition = {
   },
   isRepeatable: true,
   configSchema,
-} as const satisfies ActionButtonDefinition<yup.InferType<typeof configSchema>>;
+} as const satisfies ActionButtonDefinitionInput<yup.InferType<typeof configSchema>>;
 
 export function CreateMarkerActionButton(
   {

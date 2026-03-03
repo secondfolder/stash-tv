@@ -22,15 +22,15 @@ export const ActionButtonSettingsModal = ({ initialActionButtonConfig, onClose, 
 
   // We memorise this so that the header shows the state of the saved config, not the config as it's being edited
   const initialButtonDefinition = useMemo(
-    () => allButtonDefinition.find(def => def.id === initialConfig.type),
+    () => allButtonDefinition.find(def => def.id === initialConfig.buttonType),
     [initialConfig.id]
   )
 
   if (!initialButtonDefinition) {
-    logger.error("Unknown action button type in settings modal", { type: initialConfig.type })
+    logger.error("Unknown action button type in settings modal", { type: initialConfig.buttonType })
     return null
   }
-  const actionButtonDefinition = getActionButtonDefinition(initialConfig.type)
+  const actionButtonDefinition = getActionButtonDefinition(initialConfig.buttonType)
   if (!('settings' in actionButtonDefinition.components)) {
     logger.warn("Action button definition has no settings component", { actionButtonDefinition })
     return null

@@ -1,10 +1,10 @@
 import React from "react"
 import * as yup from "yup";
-import { useAppStateStore } from "../../../store/appStateStore";
+import { useTvConfig } from "../../../store/tvConfig";
 import ActionButtonBase from "../ActionButtonBase";
 import { faEllipsisVertical } from "@fortawesome/free-solid-svg-icons";
 import VerticalEllipsisOutlineIcon from '../../../assets/vertical-ellipsis-outline.svg?react';
-import type { ActionButtonDefinition } from "./index";
+import type { ActionButtonDefinitionInput } from "./index";
 import cx from "classnames";
 import { sharedActionButtonSchema } from "../action-button-config";
 
@@ -24,18 +24,18 @@ export const buttonDefinition = {
     button: UiVisibilityActionButton,
   },
   configSchema: sharedActionButtonSchema.shape({
-    type: yup.string().oneOf([id]).required(),
+    buttonType: yup.string().oneOf([id]).required(),
   })
-} as const satisfies ActionButtonDefinition;
+} as const satisfies ActionButtonDefinitionInput;
 
 export function UiVisibilityActionButton() {
-  const { uiVisible, set: setAppSetting } = useAppStateStore();
+  const { uiVisible, set: setTvConfig } = useTvConfig();
 
   return <ActionButtonBase
     state={uiVisible ? "active" : "inactive"}
     icon={buttonDefinition.icon}
     title={buttonDefinition.title}
     className={cx(buttonDefinition.id, "dim-on-ui-hide", {'active': uiVisible})}
-    onClick={() => setAppSetting("uiVisible", (prev) => !prev)}
+    onClick={() => setTvConfig("uiVisible", (prev) => !prev)}
   />
 }
