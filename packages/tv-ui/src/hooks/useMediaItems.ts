@@ -5,6 +5,7 @@ import { getMediaItemIdForVideoJsPlayer } from "../helpers";
 import { useAppStateStore } from "../store/appStateStore";
 import hashObject from 'object-hash';
 import { getLogger } from "@logtape/logtape";
+import { getFunctionFromString } from "../helpers/getFunctionFromString";
 
 export type MediaItem = {
   id: string;
@@ -21,14 +22,30 @@ export type MediaItem = {
   }
 )
 
+declare global {
+  interface Window {
+    mediaItems?: MediaItem[],
+    modifiedMediaItems?: MediaItem[],
+  }
+}
+
 export const defaultMarkerLength = 20;
 
 export function useMediaItems() {
   const logger = getLogger(["stash-tv", "useMediaItems"]);
   const { lastLoadedCurrentMediaItemFilter } = useMediaItemFilters()
-  const { maxMedia, scenePreviewOnly, markerPreviewOnly, pageSize: mediaItemsPerPage } = useAppStateStore()
+  const {
+    maxMedia,
+    scenePreviewOnly,
+    markerPreviewOnly,
+    pageSize: mediaItemsPerPage,
+    showDevOptions,
+    mediaItemsModifierFunction
+  } = useAppStateStore()
   const previewOnly = (lastLoadedCurrentMediaItemFilter?.entityType === "scene" && scenePreviewOnly)
     || (lastLoadedCurrentMediaItemFilter?.entityType === "marker" && markerPreviewOnly)
+
+  const hydratedMediaItemsModifierFunction = getFunctionFromString(mediaItemsModifierFunction)
 
   const [ neverLoaded, setNeverLoaded ] = useState(true)
 
@@ -102,6 +119,33 @@ export function useMediaItems() {
     logger.debug(`lastLoadedCurrentMediaItemFilter changed to "${lastLoadedCurrentMediaItemFilter?.savedFilter?.name}", resetting media items`)
   }, [lastLoadedCurrentMediaItemFilter])
 
+
+  useEffect(() => {
+    if (showDevOptions) {
+      window.mediaItems = [...mediaItems]
+    } else {
+      delete window.mediaItems
+    }
+  }, [mediaItems])
+
+  if (showDevOptions && typeof hydratedMediaItemsModifierFunction === "function") {
+    try {
+      const modifiedMediaItems = hydratedMediaItemsModifierFunction(mediaItems)
+      if (Array.isArray(modifiedMediaItems)) {
+        mediaItems = modifiedMediaItems
+      }
+    } catch(error) {
+      logger.error(`Media items modifier function threw an error`, {error})
+    }
+  }
+
+  useEffect(() => {
+    if (showDevOptions) {
+      window.modifiedMediaItems = [...mediaItems]
+    } else {
+      delete window.modifiedMediaItems
+    }
+  }, [mediaItems])
 
   const {
     fetchMore,

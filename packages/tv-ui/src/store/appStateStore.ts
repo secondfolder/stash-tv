@@ -26,6 +26,7 @@ type AppState = {
   endPosition: 'video-end' | 'fixed-length' | 'random-length';
   playLength?: number;
   pageSize: number;
+  mediaItemsModifierFunction?: string;
   minPlayLength?: number;
   maxPlayLength?: number;
   showGuideOverlay?: boolean;

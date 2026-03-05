@@ -28,6 +28,7 @@ import { objectKeys } from "ts-extras"
 import { getStashOrigin } from "../../../helpers/getStashOrigin";
 import Slider from "../../controls/slider";
 import { KeyboardShortcutsInfo } from "../KeyboardShortcutsInfo";
+import { getFunctionFromString } from "../../../helpers/getFunctionFromString";
 
 const SettingsTab = memo(() => {
   const logger = getLogger(["stash-tv", "SettingsTab"]);
@@ -62,6 +63,7 @@ const SettingsTab = memo(() => {
     maxMedia,
     leftHandedUi,
     actionButtonsConfig,
+    mediaItemsModifierFunction,
     set: setAppSetting,
     setToDefault: setDefaultAppSetting,
     getDefault: getDefaultAppSetting,
@@ -294,6 +296,22 @@ const SettingsTab = memo(() => {
       actionButton => !actionButtonsConfig.some(config => config.type === actionButton.type)
         || actionButton.details.repeatable
     )
+
+  const hydratedMediaItemsModifierFunction = mediaItemsModifierFunction && getFunctionFromString(mediaItemsModifierFunction)
+  const mediaItemsModifierFunctionValidity = useMemo(() => {
+    if (!hydratedMediaItemsModifierFunction) return ""
+    if (hydratedMediaItemsModifierFunction instanceof Error) {
+      return hydratedMediaItemsModifierFunction.message
+    }
+    try {
+      if (!Array.isArray(hydratedMediaItemsModifierFunction([]))) {
+        return "Does not return an array"
+      }
+    } catch(error) {
+      return `Threw an error when run: ${error}`
+    }
+    return ""
+  }, [hydratedMediaItemsModifierFunction])
 
   /* -------------------------------- Component ------------------------------- */
   return <SideDrawer
@@ -849,7 +867,8 @@ const SettingsTab = memo(() => {
                 }}
               />
               <Form.Text className="text-muted">
-                Load this many media at a time.
+                (Reload page to take effect.)
+                Load this many media at a time. Default is {getDefaultAppSetting("pageSize")}.
               </Form.Text>
             </Form.Group>
 
@@ -873,6 +892,32 @@ const SettingsTab = memo(() => {
               />
               <Form.Text className="text-muted">
                 Stop loading more media once this limit has been reached.
+              </Form.Text>
+            </Form.Group>
+
+            <Form.Group>
+              <label htmlFor="media-items-modifier-function">
+                Media Items Modifier Function
+              </label>
+              <Form.Control
+                as="textarea"
+                id="media-items-modifier-function"
+                className="text-input"
+                value={mediaItemsModifierFunction}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                  setAppSetting(
+                    "mediaItemsModifierFunction",
+                    event.currentTarget.value
+                  )
+                }
+                placeholder={"(mediaItems) => {\n  return mediaItems.toReversed()\n}"}
+              />
+              {mediaItemsModifierFunctionValidity && <div>
+                {mediaItemsModifierFunctionValidity}
+              </div>}
+              <Form.Text className="text-muted">
+                A JavaScript function that can be used to modified the content and ordering of the displayed media items.
+                The function is given the media items array as an argument and it must return an array of media items.
               </Form.Text>
             </Form.Group>
 
