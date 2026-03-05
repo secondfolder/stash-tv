@@ -16,7 +16,7 @@ export default {
           { type: "refactor", release: "patch" },
           { type: "chore", release: "patch" },
           { type: "style", release: "patch" },
-          { type: "docs", scope: "help-text", release: "patch" },
+          { type: "docs", scope: "in-app", release: "patch" },
           { type: "wip", release: "patch" },
           { type: "test", release: false },
           { scope: "no-release", release: false },

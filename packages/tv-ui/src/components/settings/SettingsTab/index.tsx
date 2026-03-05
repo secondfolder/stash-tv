@@ -874,7 +874,7 @@ const SettingsTab = memo(() => {
 
             <Form.Group>
               <label htmlFor="max-media">
-                Media Loading Limit
+                Media To Show Limit
               </label>
               <Form.Control
                 type="number"
@@ -891,7 +891,7 @@ const SettingsTab = memo(() => {
                 }
               />
               <Form.Text className="text-muted">
-                Stop loading more media once this limit has been reached.
+                Stop showing any more media once this limit has been reached.
               </Form.Text>
             </Form.Group>
 
