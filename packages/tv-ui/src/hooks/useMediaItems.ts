@@ -1,11 +1,12 @@
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import { useMediaItemFilters } from './useMediaItemFilters';
-import { useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { getMediaItemIdForVideoJsPlayer } from "../helpers";
 import { useAppStateStore } from "../store/appStateStore";
 import hashObject from 'object-hash';
 import { getLogger } from "@logtape/logtape";
 import { getFunctionFromString } from "../helpers/getFunctionFromString";
+import { ConfigurationContext } from "stash-ui/dist/src/hooks/Config";
 
 export type MediaItem = {
   id: string;
@@ -42,6 +43,7 @@ export function useMediaItems() {
     showDevOptions,
     mediaItemsModifierFunction
   } = useAppStateStore()
+  const { configuration: stashConfig } = useContext(ConfigurationContext)
   const previewOnly = (lastLoadedCurrentMediaItemFilter?.entityType === "scene" && scenePreviewOnly)
     || (lastLoadedCurrentMediaItemFilter?.entityType === "marker" && markerPreviewOnly)
 
@@ -207,7 +209,9 @@ export function useMediaItems() {
     if (mediaItem.entityType === "marker") {
       estimatedDuration = Math.min(defaultMarkerLength, scene.files[0].duration)
     } else {
-      estimatedDuration = Math.min(9.2, scene.files[0].duration)
+      const segmentDuration = stashConfig?.general.previewSegmentDuration ?? 0.75
+      const segmentCount = stashConfig?.general.previewSegments ?? 12
+      estimatedDuration = Math.min((segmentDuration * segmentCount), scene.files[0].duration)
     }
     mediaItem.id in previewLengths && logger.debug("Duration cached for media item {*}", {mediaItemId: mediaItem.id, duration: previewLengths[mediaItem.id]})
     const duration = mediaItem.id in previewLengths
