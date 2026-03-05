@@ -25,6 +25,7 @@ type AppState = {
   startPosition: 'resume' | 'beginning' | 'random';
   endPosition: 'video-end' | 'fixed-length' | 'random-length';
   playLength?: number;
+  pageSize: number;
   minPlayLength?: number;
   maxPlayLength?: number;
   showGuideOverlay?: boolean;
@@ -76,6 +77,7 @@ const defaults = {
   showGuideOverlay: true,
   showDevOptions: false,
   logLevel: defaultLogLevel,
+  pageSize: 5,
   loggersToShow: [],
   loggersToHide: [],
   showDebuggingInfo: [],

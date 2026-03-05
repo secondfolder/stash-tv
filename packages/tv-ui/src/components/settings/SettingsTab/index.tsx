@@ -53,6 +53,7 @@ const SettingsTab = memo(() => {
     loggersToHide,
     showDebuggingInfo,
     autoPlay,
+    pageSize,
     startPosition,
     endPosition,
     playLength,
@@ -833,8 +834,28 @@ const SettingsTab = memo(() => {
             </Form.Group>
 
             <Form.Group>
+              <label htmlFor="page-size">
+                Media Loading Page Size
+              </label>
+              <Form.Control
+                type="number"
+                id="page-size"
+                className="text-input"
+                value={pageSize}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                  const newSize = Number.parseInt(event.currentTarget.value)
+                  if (isNaN(newSize) || newSize < 1) return;
+                  setAppSetting("pageSize", newSize)
+                }}
+              />
+              <Form.Text className="text-muted">
+                Load this many media at a time.
+              </Form.Text>
+            </Form.Group>
+
+            <Form.Group>
               <label htmlFor="max-media">
-                Media Limit
+                Media Loading Limit
               </label>
               <Form.Control
                 type="number"
@@ -851,7 +872,7 @@ const SettingsTab = memo(() => {
                 }
               />
               <Form.Text className="text-muted">
-                Limit the number of media items that are shown (loading amount is unaffected).
+                Stop loading more media once this limit has been reached.
               </Form.Text>
             </Form.Group>
 

@@ -6,8 +6,6 @@ import { useAppStateStore } from "../store/appStateStore";
 import hashObject from 'object-hash';
 import { getLogger } from "@logtape/logtape";
 
-export const mediaItemsPerPage = 5
-
 export type MediaItem = {
   id: string;
 } & (
@@ -28,7 +26,7 @@ export const defaultMarkerLength = 20;
 export function useMediaItems() {
   const logger = getLogger(["stash-tv", "useMediaItems"]);
   const { lastLoadedCurrentMediaItemFilter } = useMediaItemFilters()
-  const { maxMedia, scenePreviewOnly, markerPreviewOnly } = useAppStateStore()
+  const { maxMedia, scenePreviewOnly, markerPreviewOnly, pageSize: mediaItemsPerPage } = useAppStateStore()
   const previewOnly = (lastLoadedCurrentMediaItemFilter?.entityType === "scene" && scenePreviewOnly)
     || (lastLoadedCurrentMediaItemFilter?.entityType === "marker" && markerPreviewOnly)
 
