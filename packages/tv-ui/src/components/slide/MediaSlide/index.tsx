@@ -2,6 +2,7 @@
 import cx from "classnames";
 import React, {
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -32,6 +33,7 @@ import { clamp, roundTo, roundToNearest } from "../../../helpers";
 import UAParser from "ua-parser-js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPause, faPlay, faForward, faBackward } from "@fortawesome/free-solid-svg-icons";
+import { ConfigurationContext } from "stash-ui/dist/src/hooks/Config";
 
 videojs.registerPlugin('styledBigPlayButton', styledBigPlayButton);
 
@@ -76,6 +78,9 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
     leftHandedUi,
     set: setAppSetting,
   } = useAppStateStore();
+
+
+  const { configuration: stashConfig } = useContext(ConfigurationContext)
 
   const logger = getLogger(["stash-tv", "MediaSlide", props.mediaItem.id]);
 
@@ -281,7 +286,20 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
     const duration = videojsPlayerRef.current?.duration();
     const currentTime = videojsPlayerRef.current?.currentTime();
     if (!duration || currentTime === undefined) {
-        return null
+      return null
+    }
+
+    const segmentDuration = stashConfig?.general.previewSegmentDuration ?? 0.75
+    const segmentCount = stashConfig?.general.previewSegments ?? 12
+
+    if (props.mediaItem.entityType === "scene" && scenePreviewOnly && duration >= (segmentDuration * segmentCount)) {
+      // Videos with a duration less than segmentDuration * segmentCount will have one segment
+      // https://github.com/stashapp/stash/blob/717f968a2c544a3f0c0f0be0b30e45cd0da58f10/pkg/scene/generate/preview.go#L95
+      const previewSegmentLength = duration / segmentCount
+      const newTime = (Math.floor(currentTime / previewSegmentLength) * previewSegmentLength)
+        + (previewSegmentLength * (direction === "forwards" ? 1 : -1))
+      const skipTime = Math.abs(newTime - currentTime)
+      return skipTime
     }
 
     let skipPercent
