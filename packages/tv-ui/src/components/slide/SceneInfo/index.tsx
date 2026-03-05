@@ -9,6 +9,7 @@ import { queryFindStudio } from "stash-ui/dist/src/core/StashService";
 import { getLogger } from "@logtape/logtape";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faAngleLeft } from "@fortawesome/free-solid-svg-icons";
+import { objectTitle } from "stash-ui/dist/src/core/files";
 
 export type Props = {
   style?: React.CSSProperties;
@@ -139,7 +140,11 @@ const SceneInfo = forwardRef(({scene, className, style, onExternalLinkClick}: Pr
         }}
       >
         {studio}
-        <a href={sceneUrl || ""} target="_blank" onClick={onExternalLinkClick}>{title}</a>
+        <a href={sceneUrl || ""} target="_blank" onClick={onExternalLinkClick}>
+          <h5>
+            {objectTitle(scene)}
+          </h5>
+        </a>
         {performers}
         {date}
       </div>
