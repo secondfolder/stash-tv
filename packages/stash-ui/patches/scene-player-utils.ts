@@ -1,5 +1,7 @@
 import videojs from "video.js";
 
+// This is used by Stash components which only expect there to ever be one player at a time so we have to
+// do some messy stuff to update this such that it is always pointing at the currently focused player
 export let VIDEO_PLAYER_ID = "";
 
 export const getPlayerPosition = () =>
