@@ -704,14 +704,9 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
           key={JSON.stringify([scene.id, hashObject(scene.sceneStreams)])}
           onTimeUpdate={handleOnTimeUpdate}
           mediaItem={props.mediaItem}
-          scene={{
-            ...scene,
-            paths: {
-              ...scene.paths,
-              // We avoid showing the poster if we are auto-playing to prevent a flash of the poster before playback starts
-              ...(globalAutoPlay ? { screenshot: null } : {})
-            },
-          }}
+          scene={scene}
+          // We avoid showing the poster if we are auto-playing to prevent a flash of the poster before playback starts
+          showPoster={!globalAutoPlay}
           hideScrubberOverride={true}
           muted={!volume}
           volume={volume}

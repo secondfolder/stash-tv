@@ -116,6 +116,7 @@ export type ScenePlayerProps = Omit<React.ComponentProps<typeof ScenePlayerOrigi
     muted?: boolean;
     volume?: number;
     playbackRate?: number;
+    showPoster?: boolean;
     loop?: boolean;
     trackActivity?: boolean;
     scrubberThumbnail?: boolean;
@@ -143,6 +144,7 @@ const ScenePlayer = forwardRef<
     muted,
     volume,
     playbackRate,
+    showPoster = true,
     loop,
     trackActivity = true,
     scrubberThumbnail = true,
@@ -506,6 +508,32 @@ const ScenePlayer = forwardRef<
             videojsPlayer.off('pointerup', onPointerUp);
         }
     }, [videojsPlayer, onPointerUp]);
+
+
+    // Stash's ScenePlayer sets the poster on any change to scene, even if that scene's poster hasn't changed.
+    // this messes with us temporally setting the poster to the last frame when loading is canceled.
+    // https://github.com/stashapp/stash/blob/74a8f2e5d59ad70f2e7cd676fdf02537f03d6457/ui/v2.5/src/components/ScenePlayer/ScenePlayer.tsx#L791
+    // + we want control when the poster is set anyway since we want to avoid setting the poster when autoPlay is on since
+    // it's less distracting to flash quickly between black to the poster to the video.
+    const originalPosterFunction = playerRef.current?.poster
+    if (playerRef.current) {
+      playerRef.current.poster = ((src: string) => {
+        if (!src) return ""
+      }) as {(src: string): void, (): string}
+    }
+    useEffect(() => {
+      if (!playerRef.current || !originalPosterFunction) return
+      playerRef.current.poster = originalPosterFunction
+    }, [Date.now()])
+    useEffect(() => {
+      if (!playerRef.current) return;
+      const newPoster = showPoster
+        ? scene.paths.screenshot ?? ""
+        : ""
+      if (playerRef.current.poster() !== newPoster) {
+        playerRef.current.poster(newPoster);
+      }
+    }, [scene.paths.screenshot, showPoster])
 
     return (
       <div
