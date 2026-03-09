@@ -79,17 +79,6 @@ export function getMediaItemIdForVideoJsPlayer(videoElm: Element): string {
   throw new Error("Could not find mediaItemId for Video.js player");
 }
 
-export function getPlayerIdForVideoJsPlayer(videoElm: Element): string {
-  let node: Element | null = videoElm;
-  while (node !== null) {
-    if (node instanceof HTMLElement && 'playerId' in node.dataset && node.dataset.playerId) {
-      return node.dataset.playerId;
-    }
-    node = node.parentElement;
-  }
-  throw new Error("Could not find playerId for Video.js player");
-}
-
 export function roundTo(num: number, decimals = 0) {
   const factor = Math.pow(10, decimals);
   return Math.round(num * factor) / factor;

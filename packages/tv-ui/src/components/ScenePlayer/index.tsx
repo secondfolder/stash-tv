@@ -1,19 +1,18 @@
 import ScenePlayerOriginal from "stash-ui/wrappers/components/ScenePlayer";
 import "./ScenePlayer.scss";
 import React, { ForwardedRef, forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useUID } from 'react-uid';
 import { default as cx } from "classnames";
 import videojs, { VideoJsPlayerOptions, type VideoJsPlayer } from "video.js";
-import { allowPluginRemoval } from "./hooks/allow-plugin-removal";
+import { allowPluginRemoval } from "./video.js/allow-plugin-removal";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
-import { getPlayerIdForVideoJsPlayer } from "../../helpers";
 import { useAppStateStore } from "../../store/appStateStore";
 import 'videojs-offset'
 import { getLogger } from "@logtape/logtape";
+import { usePlayerManager } from "./video.js/usePlayerManager";
+import { MediaItem } from "../../hooks/useMediaItems";
+
 const mountCount = new Map<string, number>();
 
-const videoJsOptionsOverride: Record<string, VideoJsPlayerOptions> = {}
-const videoJsSetupCallbacks: Record<string, (player: VideoJsPlayer) => void> = {}
 
 type FunctionKeys<T> = {
   [K in keyof T]: T[K] extends (...args: any[]) => any ? K : never
@@ -64,17 +63,6 @@ videojs.hook('setup', (player) => {
     // }) as {(originalCurrentTimeFunction: VideoJsPlayer['currentTime'], seconds: number): void; (originalCurrentTimeFunction: VideoJsPlayer['currentTime'], ): number;} )
 });
 
-videojs.hook('setup', function(player) {
-    let playerId
-    try {
-        playerId = getPlayerIdForVideoJsPlayer(player.el());
-    } catch (error) {
-        console.error(error)
-        return;
-    }
-    videoJsSetupCallbacks[playerId]?.(player)
-})
-
 videojs.hook('beforesetup', function(videoEl, options) {
     // Will be merged in with existing options
     return {
@@ -106,20 +94,7 @@ videojs.hook('beforesetup', function(videoEl, options) {
     }
 });
 
-// Merge in any option overrides set by this component
-videojs.hook('beforesetup', function(videoEl, options) {
-    let playerId
-    try {
-        playerId = getPlayerIdForVideoJsPlayer(videoEl);
-    } catch (error) {
-        console.error(error)
-        return {};
-    }
-    return videoJsOptionsOverride[playerId] || {}
-})
-
 allowPluginRemoval(videojs);
-
 
 ScenePlayerOriginal.displayName = "ScenePlayerOriginal";
 
@@ -136,6 +111,7 @@ export type ScenePlayerProps = Omit<React.ComponentProps<typeof ScenePlayerOrigi
     onPointerUp?: (event: PointerEvent) => void;
     onVideojsPlayerCreated?: (player: VideoJsPlayer) => void;
     optionsToMerge?: VideoJsPlayerOptions;
+    mediaItem: MediaItem,
     scene: GQL.SceneDataFragment;
     muted?: boolean;
     volume?: number;
@@ -175,6 +151,7 @@ const ScenePlayer = forwardRef<
     onPlay,
     onPause,
     initialTimestamp,
+    mediaItem,
     ...otherProps
 }: ScenePlayerProps, ref) => {
     const logger = getLogger(["stash-tv", "ScenePlayer", otherProps.scene.id]);
@@ -188,6 +165,14 @@ const ScenePlayer = forwardRef<
       mountCount.set(otherProps.scene.id, timesMounted + 1);
     }, [])
     useEffect(() => () => { showDebuggingInfo.includes("render-debugging") && console.log(`🔚 ScenePlayer (scene id ${otherProps.scene.id}) unmounting`) }, [])
+
+    const {
+      playerRef,
+      modifyPlayerSetupOptions,
+      playerSetupHook,
+      playerId,
+      playerParentProps,
+    } = usePlayerManager({mediaItem})
 
     // We don't use `ref` directly on our root element since `ref` since we also need access to the root element in this
     // file and if we use `ref` it might be a function which once set we don't have access to it's contents. Therefore
@@ -215,7 +200,7 @@ const ScenePlayer = forwardRef<
       console.groupCollapsed(`ScenePlayer [id=${id}] event: ${event.type}`);
       console.info(event);
       if (event.type === "timeupdate") {
-        console.info("currentTime:", videojsPlayerRef.current?.currentTime());
+        console.info("currentTime:", playerRef.current?.currentTime());
       }
       console.groupEnd();
     }, [])
@@ -223,7 +208,7 @@ const ScenePlayer = forwardRef<
       // Attach lot to events that should be attached but aren't yet
       for (const eventName of videoJsEventsToLog) {
         if (!videoJsEventsToLogAttached.current[eventName]) {
-          const player = videojsPlayerRef.current;
+          const player = playerRef.current;
           if (!player) continue;
           player.on(eventName, logVideoJsEvent)
           videoJsEventsToLogAttached.current[eventName] = true;
@@ -233,7 +218,7 @@ const ScenePlayer = forwardRef<
       const attachedEvents = Object.entries(videoJsEventsToLogAttached.current).filter(([, attached]) => attached).map(([eventName]) => eventName);
       for (const eventName of attachedEvents) {
         if (!videoJsEventsToLog.includes(eventName)) {
-          const player = videojsPlayerRef.current;
+          const player = playerRef.current;
           if (!player) continue;
           player.off(eventName, logVideoJsEvent)
           videoJsEventsToLogAttached.current[eventName] = false;
@@ -243,10 +228,6 @@ const ScenePlayer = forwardRef<
 
     const [videoElm, setVideoElm] = useState<HTMLVideoElement | null>(null);
     const [videojsPlayer, setVideojsPlayer] = useState<VideoJsPlayer | null>(null);
-    const videojsPlayerRef = useRef<VideoJsPlayer | null>(null);
-
-    // Replace with React's useId when we upgrade to React 18
-    const playerId = useUID();
 
     // While a scene wouldn't normally contain a stream for the preview video if the provided for whatever reason then
     // it will be treated as not a direct stream by the wrapped ScenePlayer component. This causes playback issues
@@ -307,7 +288,7 @@ const ScenePlayer = forwardRef<
     }
     function stubOnComplete() {}
     useEffect(() => {
-        const player = videojsPlayerRef.current
+        const player = playerRef.current
         if (!onEnded || !player || player.isDisposed()) return;
 
         player.on("ended", onEnded);
@@ -316,7 +297,7 @@ const ScenePlayer = forwardRef<
     }, [onEnded]);
 
     // Code to be run when wrapped ScenePlayer's Video.js player has been created
-    videoJsSetupCallbacks[playerId] = (player) => {
+    playerSetupHook((player) => {
       if (volume !== undefined) player.volume(volume);
       if (playbackRate !== undefined) {
         player.defaultPlaybackRate(playbackRate);
@@ -330,13 +311,12 @@ const ScenePlayer = forwardRef<
         videoJsEventsToLogAttached.current[eventName] = true;
       }
       if (loop !== undefined) {
-        // Ideally we wouldn't need this. See comment for "loop" in videoJsOptionsOverride
+        // Ideally we wouldn't need this. See comment for "loop" in modifyPlayerSetupOptions() call
         setTimeout(() => !player.isDisposed() && player.loop(loop), 100);
       }
       addWrapperToRevertPreviewUrlChange(player);
       disableBuggyOnEndHandling(player);
       onVideojsPlayerCreated?.(player);
-      videojsPlayerRef.current = player;
       setVideojsPlayer(player);
 
       const videoElm = player.el()?.querySelector('video')
@@ -346,7 +326,7 @@ const ScenePlayer = forwardRef<
       }
 
       setVideoElm(videoElm);
-    }
+    })
 
     /* Very annoyingly the wrapped ScenePlayer component will autoplay even if the autoplay prop is set to false, when
     initialTimestamp is greater than 0. To stop this behaviour we set the initialTimestamp to 0 for the wrapped
@@ -354,13 +334,12 @@ const ScenePlayer = forwardRef<
     */
     function handleInitialTimestamp() {
         if (!initialTimestamp) return;
-        videojsPlayerRef.current?.currentTime(initialTimestamp);
+        playerRef.current?.currentTime(initialTimestamp);
     }
     useEffect(handleInitialTimestamp, [initialTimestamp]);
 
     // Options to inject into wrapped ScenePlayer's Video.js instance when it's being created
-    videoJsOptionsOverride[playerId] = {
-      id: `videojs-${playerId}`,
+    modifyPlayerSetupOptions({
       muted,
       loop: loop, // Unfortunately this doesn't seem to work since the stash ScenePlayer component seems immediately set
       // the loop value itself after initialization so we have to set it the player ready callback
@@ -371,32 +350,32 @@ const ScenePlayer = forwardRef<
           ...(!markers ? { markers: undefined } : {}),
           ...optionsToMerge?.plugins,
       },
-    }
+    })
 
     // On muted prop change update Video.js player state. We also set muted on player creation via the options.
     useEffect(() => {
-        const player = videojsPlayerRef.current
+        const player = playerRef.current
         if (muted === undefined || !player || player.isDisposed() || muted === player.muted()) return;
         player.muted(muted);
     }, [muted]);
 
     // On volume prop change update Video.js player state. We also set volume on player creation via videoJsSetupCallback.
     useEffect(() => {
-        const player = videojsPlayerRef.current
+        const player = playerRef.current
         if (volume === undefined || !player || player.isDisposed() || volume === player.volume()) return;
         player.volume(volume);
     }, [volume]);
 
     // On playbackRate prop change update Video.js player state. We also set playbackRate on player creation via videoJsSetupCallback.
     useEffect(() => {
-        const player = videojsPlayerRef.current
+        const player = playerRef.current
         if (playbackRate === undefined || !player || player.isDisposed() || playbackRate === player.playbackRate()) return;
         player.playbackRate(playbackRate);
     }, [playbackRate]);
 
     // On loop prop change update Video.js player state. We also set loop on player creation via the options.
     useEffect(() => {
-        const player = videojsPlayerRef.current
+        const player = playerRef.current
         if (loop === undefined || !player || player.isDisposed() || loop === player.loop()) return;
         player.loop(loop);
     }, [loop]);
@@ -404,7 +383,7 @@ const ScenePlayer = forwardRef<
     // Fix bug in wrapped ScenePlayer that some times results in an error being thrown on unmount
     useEffect(() => {
       return () => {
-        const videojsPlayer = videojsPlayerRef.current
+        const videojsPlayer = playerRef.current
         if (videojsPlayer) {
           const vttThumbnailsPlugin = videojsPlayer.vttThumbnails()
           videojsPlayer.on("dispose", () => {
@@ -529,21 +508,21 @@ const ScenePlayer = forwardRef<
     }, [videojsPlayer, onPointerUp]);
 
     return (
-        <div
-            className={cx(['ScenePlayer', className, {'hide-controls': hideControls, 'hide-progress-bar': hideProgressBar}])}
-            ref={containerRef}
-            data-scene-id={otherProps.scene?.id}
-            data-player-id={playerId}
-            id={id}
-        >
-            <ScenePlayerOriginal
-                {...otherProps}
-                initialTimestamp={0 /* See comment for handleInitialTimestamp */}
-                permitLoop={true}
-                scene={scene}
-                onComplete={stubOnComplete}
-            />
-        </div>
+      <div
+        className={cx(['ScenePlayer', className, {'hide-controls': hideControls, 'hide-progress-bar': hideProgressBar}])}
+        ref={containerRef}
+        data-scene-id={otherProps.scene?.id}
+        {...playerParentProps}
+        id={id}
+      >
+        <ScenePlayerOriginal
+          {...otherProps}
+          initialTimestamp={0 /* See comment for handleInitialTimestamp */}
+          permitLoop={true}
+          scene={scene}
+          onComplete={stubOnComplete}
+        />
+      </div>
     )
 });
 

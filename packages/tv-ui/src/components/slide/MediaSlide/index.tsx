@@ -703,6 +703,7 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
           // Force remount when scene streams change to ensure videojs reloads the source
           key={JSON.stringify([scene.id, hashObject(scene.sceneStreams)])}
           onTimeUpdate={handleOnTimeUpdate}
+          mediaItem={props.mediaItem}
           scene={{
             ...scene,
             paths: {
