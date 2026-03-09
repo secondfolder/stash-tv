@@ -8,6 +8,7 @@ import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import { useAppStateStore } from "../../store/appStateStore";
 import 'videojs-offset'
 import { getLogger } from "@logtape/logtape";
+import "./video.js/pause-loading-plugin"
 import { usePlayerManager } from "./video.js/usePlayerManager";
 import { MediaItem } from "../../hooks/useMediaItems";
 
@@ -347,10 +348,11 @@ const ScenePlayer = forwardRef<
       // the loop value itself after initialization so we have to set it the player ready callback
       ...optionsToMerge,
       plugins: {
-          ...(!trackActivity ? { trackActivity: undefined } : {}),
-          ...(!scrubberThumbnail ? { vttThumbnails: undefined } : {}),
-          ...(!markers ? { markers: undefined } : {}),
-          ...optionsToMerge?.plugins,
+        pauseLoading: {},
+        ...(!trackActivity ? { trackActivity: undefined } : {}),
+        ...(!scrubberThumbnail ? { vttThumbnails: undefined } : {}),
+        ...(!markers ? { markers: undefined } : {}),
+        ...optionsToMerge?.plugins,
       },
     })
 

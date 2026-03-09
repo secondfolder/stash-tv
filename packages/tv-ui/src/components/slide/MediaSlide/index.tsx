@@ -34,6 +34,7 @@ import UAParser from "ua-parser-js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPause, faPlay, faForward, faBackward } from "@fortawesome/free-solid-svg-icons";
 import { ConfigurationContext } from "stash-ui/dist/src/hooks/Config";
+import { useFirstMountState } from "react-use";
 
 videojs.registerPlugin('styledBigPlayButton', styledBigPlayButton);
 
@@ -222,14 +223,16 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
 
   /* ------------------------------- Play/pause ------------------------------- */
 
+  const isFirstMount = useFirstMountState()
   useEffect(() => {
     // Play/pause the video based only on viewport
     if (!videojsPlayerRef.current) return;
     if (isCurrentVideo) {
       if (!autoplay) return;
       videojsPlayerRef.current?.play();
-    } else {
+    } else if (!isFirstMount) {
       videojsPlayerRef.current?.pause();
+      videojsPlayerRef.current?.cancelLoading?.();
     }
   }, [isCurrentVideo, autoplay]);
 
