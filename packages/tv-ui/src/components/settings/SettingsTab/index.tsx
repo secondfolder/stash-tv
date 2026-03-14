@@ -64,6 +64,7 @@ const SettingsTab = memo(() => {
     leftHandedUi,
     actionButtonsConfig,
     mediaItemsModifierFunction,
+    renderedMediaItemsBuffer,
     set: setAppSetting,
     setToDefault: setDefaultAppSetting,
     getDefault: getDefaultAppSetting,
@@ -868,13 +869,13 @@ const SettingsTab = memo(() => {
               />
               <Form.Text className="text-muted">
                 (Reload page to take effect.)
-                Load this many media at a time. Default is {getDefaultAppSetting("pageSize")}.
+                Load this many media at a time. Default is {getDefaultAppSetting("pageSize")}. Changing this can impact performance.
               </Form.Text>
             </Form.Group>
 
             <Form.Group>
               <label htmlFor="max-media">
-                Media To Show Limit
+                Limit of Media to Show
               </label>
               <Form.Control
                 type="number"
@@ -891,7 +892,30 @@ const SettingsTab = memo(() => {
                 }
               />
               <Form.Text className="text-muted">
-                Stop showing any more media once this limit has been reached.
+                Stop showing any more media once this limit has been reached. This does not just impact performance but will actually effect what media will get shown.
+              </Form.Text>
+            </Form.Group>
+
+            <Form.Group>
+              <label htmlFor="max-media">
+                Upcoming media to render at a time
+              </label>
+              <Form.Control
+                type="number"
+                id="max-media"
+                className="text-input"
+                value={renderedMediaItemsBuffer}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                  setAppSetting(
+                    "renderedMediaItemsBuffer",
+                    event.currentTarget.value
+                      ? Number.parseInt(event.currentTarget.value)
+                      : 0
+                  )
+                }
+              />
+              <Form.Text className="text-muted">
+                The maximum number of media upcoming media to be rendered off screen. Default is {getDefaultAppSetting("renderedMediaItemsBuffer")}. Changing this can impact performance.
               </Form.Text>
             </Form.Group>
 

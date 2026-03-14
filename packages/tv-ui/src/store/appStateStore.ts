@@ -41,6 +41,7 @@ type AppState = {
   storeLoaded: boolean;
   // Developer options
   showDevOptions: boolean;
+  renderedMediaItemsBuffer: number;
   logLevel: LogLevel;
   loggersToShow: (readonly string[])[];
   loggersToHide: (readonly string[])[];
@@ -82,6 +83,7 @@ const defaults = {
   loggersToShow: [],
   loggersToHide: [],
   showDebuggingInfo: [],
+  renderedMediaItemsBuffer: 2,
   videoJsEventsToLog: [],
   storeLoaded: false,
   actionButtonsConfig: [

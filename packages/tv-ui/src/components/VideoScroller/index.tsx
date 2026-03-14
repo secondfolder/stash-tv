@@ -18,9 +18,6 @@ const mediaSlideHeight = "calc(var(--y-unit-large) * 100)"
 
 export type ScrollToIndexOptions = { behavior?: ScrollBehavior }
 
-/** The number of items to fetch data for. */
-export const itemBufferEitherSide = 2 as const;
-
 const VideoScroller: React.FC<VideoScrollerProps> = memo(() => {
   const {
     forceLandscape: isForceLandscape,
@@ -28,6 +25,7 @@ const VideoScroller: React.FC<VideoScrollerProps> = memo(() => {
     showDebuggingInfo,
     scenePreviewOnly,
     markerPreviewOnly,
+    renderedMediaItemsBuffer,
     set: setAppSetting
   } = useAppStateStore();
   const { orientation } = useWindowSize()
@@ -81,7 +79,7 @@ const VideoScroller: React.FC<VideoScrollerProps> = memo(() => {
 
       return itemHeight;
     },
-    overscan: itemBufferEitherSide,
+    overscan: renderedMediaItemsBuffer,
   }
   const windowRowVirtualizer = useWindowVirtualizer({
     ...sharedOptions,
