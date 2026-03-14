@@ -4,8 +4,9 @@ import { default as cx } from "classnames";
 import React, { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { useSpring, animated, config, AnimatedComponent } from "@react-spring/web";
 import "./SideDrawer.scss";
-import { useAppStateStore } from "../../../store/appStateStore";
+import { useTvConfig } from "../../../store/tvConfig";
 import useOverflowIndicators from "../../../hooks/useOverflowIndicators";
+import { useGlobalState } from "../../../store/globalState";
 
 const AnimatedDivPure = memo(animated.div) as AnimatedComponent<"div">;
 
@@ -22,7 +23,8 @@ export default function SideDrawer({children, title, closeDisabled, className, v
   const bodyRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  const { showSettings, showGuideOverlay, leftHandedUi, set: setAppSetting } = useAppStateStore();
+  const { showGuideOverlay, leftHandedUi } = useTvConfig();
+  const { showSettings, set: setGlobalState } = useGlobalState();
 
   const [sidebarWidth, setSidebarWidth] = React.useState(window.innerWidth);
   useEffect(() => {
@@ -80,7 +82,7 @@ export default function SideDrawer({children, title, closeDisabled, className, v
         tension: 400,
         friction: 20
       } : undefined,
-      onRest: () => setAppSetting("showSettings", true)
+      onRest: () => setGlobalState("showSettings", true)
     })
   }
 
@@ -93,7 +95,7 @@ export default function SideDrawer({children, title, closeDisabled, className, v
       x: 0,
       immediate,
       config: { ...config.stiff },
-      onRest: () => setAppSetting("showSettings", false)
+      onRest: () => setGlobalState("showSettings", false)
     })
   }, [api, closeDisabled]);
 
@@ -111,7 +113,7 @@ export default function SideDrawer({children, title, closeDisabled, className, v
       <button
         className="action"
         data-testid="SideDrawer--closeButton"
-        onClick={() => setAppSetting("showSettings", false)}
+        onClick={() => setGlobalState("showSettings", false)}
         type="button"
       >
         <FontAwesomeIcon icon={faXmark} />

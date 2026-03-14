@@ -7,7 +7,7 @@ import "./ActionButton.css";
 import { useUID } from "react-uid";
 import { OverlayTrigger, Popover } from "react-bootstrap";
 import { create } from "zustand";
-import { useAppStateStore } from "../../../store/appStateStore";
+import { useTvConfig } from "../../../store/tvConfig";
 import { ActionButtonIconComponent } from "../../../helpers/getActionButtonDetails";
 import { OverlayTriggerProps } from "react-bootstrap/esm/OverlayTrigger";
 import { preventMisclickOnMoveModifier } from "../../../helpers/popper-modifiers/preventMisclickOnMove";
@@ -53,7 +53,7 @@ const ActionButton = (props: Props) => {
   } = props;
   const Icon = active ? activeIcon : inactiveIcon;
   const ButtonElement = displayOnly ? "div" : "button";
-  const { leftHandedUi } = useAppStateStore();
+  const { leftHandedUi } = useTvConfig();
 
   const displayText = active ? activeText : inactiveText
 
@@ -110,7 +110,7 @@ const SidePanel = (
   }
 ): JSX.Element => {
   const currentOpenPopover = useCurrentOpenPopover()
-  const { leftHandedUi, forceLandscape } = useAppStateStore();
+  const { leftHandedUi, forceLandscape } = useTvConfig();
   const id = `action-button-side-panel-${useUID()}`
   const isOpen = id === currentOpenPopover
 

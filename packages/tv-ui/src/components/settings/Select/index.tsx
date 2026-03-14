@@ -3,7 +3,7 @@ import RSSelect, { GroupBase, Props as StateManagerProps, SelectInstance, CSSObj
 import { useMedia } from "react-use";
 import cx from "classnames";
 import "./Select.css"
-import { useAppStateStore } from "../../../store/appStateStore";
+import { useTvConfig } from "../../../store/tvConfig";
 
 // @ts-expect-error -- why-did-you-render doesn't type this properly but it does consume this
 RSSelect.whyDidYouRender = {
@@ -23,7 +23,7 @@ function Select<Option = unknown, IsMulti extends boolean = false, Group extends
   // Disabling isSearchable on mobile resolves the issue of keyboard popping up on mobile devices and messing up the layout, particularly for forceLandscape mode
   const isSearchable = props.isSearchable !== undefined ? props.isSearchable : !hasTouchScreen;
 
-  const { leftHandedUi } = useAppStateStore();
+  const { leftHandedUi } = useTvConfig();
 
   // We use the "react-select" class name so that stash styles are applied and we use menuPortalTarget to render the
   // menu outside of it's parent container so the dropdown is not cut off by overflow hidden/scrolled parents.

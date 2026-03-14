@@ -2,7 +2,7 @@ import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import { useMediaItemFilters } from './useMediaItemFilters';
 import { useContext, useEffect, useMemo, useState } from "react";
 import { getMediaItemIdForVideoJsPlayer } from "../helpers";
-import { useAppStateStore } from "../store/appStateStore";
+import { useTvConfig } from "../store/tvConfig";
 import hashObject from 'object-hash';
 import { getLogger } from "@logtape/logtape";
 import { getFunctionFromString } from "../helpers/getFunctionFromString";
@@ -42,7 +42,7 @@ export function useMediaItems() {
     pageSize: mediaItemsPerPage,
     showDevOptions,
     mediaItemsModifierFunction
-  } = useAppStateStore()
+  } = useTvConfig()
   const { configuration: stashConfig } = useContext(ConfigurationContext)
   const previewOnly = (lastLoadedCurrentMediaItemFilter?.entityType === "scene" && scenePreviewOnly)
     || (lastLoadedCurrentMediaItemFilter?.entityType === "marker" && markerPreviewOnly)

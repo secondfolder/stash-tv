@@ -12,7 +12,7 @@ import "./MediaSlide.scss";
 import ScenePlayer from "../../ScenePlayer";
 import { type VideoJsPlayer } from "video.js";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
-import { useAppStateStore } from "../../../store/appStateStore";
+import { useTvConfig } from "../../../store/tvConfig";
 import CrtEffect from "../../CrtEffect";
 import { defaultMarkerLength, MediaItem } from "../../../hooks/useMediaItems";
 import hashObject from 'object-hash';
@@ -77,8 +77,8 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
     showGuideOverlay,
     uiVisible,
     leftHandedUi,
-    set: setAppSetting,
-  } = useAppStateStore();
+    set: setTvConfig,
+  } = useTvConfig();
 
 
   const { configuration: stashConfig } = useContext(ConfigurationContext)
@@ -131,19 +131,19 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
     const getPlayerVolume = () => videojsPlayerRef.current?.muted() ? 0 : videojsPlayerRef.current?.volume() || 0;
     player.on("volumechange", () => {
       logger.info(`Video.js player volumechange event - player volume is ${getPlayerVolume() * 100}%`);
-      setAppSetting("volume", getPlayerVolume());
+      setTvConfig("volume", getPlayerVolume());
     });
     // Should ideally not be used since we set the video volume to `volume` on player creation but if for some reason
     // the player doesn't get set correctly it's better to update our volume setting so the UI shows the actual player
     // volume not what we want it to be but isn't.
     if (volume !== getPlayerVolume()) {
       logger.info(`Video.js player loaded - player volume is ${getPlayerVolume() * 100}%`);
-      setAppSetting("volume", getPlayerVolume());
+      setTvConfig("volume", getPlayerVolume());
     }
 
     player.on("ratechange", () => {
       logger.info(`Video.js player ratechange event - player playback rate is ${player.playbackRate()}`);
-      setAppSetting("playbackRate", player.playbackRate());
+      setTvConfig("playbackRate", player.playbackRate());
     });
 
     // We resort to `any` here because the types for videojs are incomplete

@@ -1,3 +1,6 @@
+// Note: This is not really needed any more (except maybe be tv-plugin) as tvConfig.ts handles this. I should refactor it out at some point.
+
+
 import { PLUGIN_NAMESPACE } from "../constants";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import { ConfigurationContext } from "stash-ui/dist/src/hooks/Config";

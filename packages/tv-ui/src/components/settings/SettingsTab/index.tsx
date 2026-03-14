@@ -5,7 +5,7 @@ import React, { memo, useContext, useEffect, useMemo, useState } from "react";
 import Select from "../Select";
 import { components } from "react-select";
 import "./SettingsTab.scss";
-import { DebuggingInfo, useAppStateStore } from "../../../store/appStateStore";
+import { DebuggingInfo, useTvConfig } from "../../../store/tvConfig";
 import SideDrawer from "../SideDrawer";
 import Switch from "../Switch";
 import { useMediaItems } from "../../../hooks/useMediaItems";
@@ -65,10 +65,10 @@ const SettingsTab = memo(() => {
     actionButtonsConfig,
     mediaItemsModifierFunction,
     renderedMediaItemsBuffer,
-    set: setAppSetting,
+    set: setTvConfig,
     setToDefault: setDefaultAppSetting,
     getDefault: getDefaultAppSetting,
-  } = useAppStateStore();
+  } = useTvConfig();
   const { mediaItems, mediaItemsLoading, mediaItemsNeverLoaded, mediaItemsError } = useMediaItems()
 
   const noMediaItemsAvailable = !mediaItemFiltersLoading && !mediaItemsLoading && mediaItems.length === 0
@@ -146,7 +146,7 @@ const SettingsTab = memo(() => {
     const handlePointerUp = () => {
       clickCount += 1;
       if (clickCount > 4) {
-        setAppSetting("showDevOptions", true);
+        setTvConfig("showDevOptions", true);
       }
       clearTimeout(clearClickCountTimer);
       clearClickCountTimer = setTimeout(() => {
@@ -244,12 +244,12 @@ const SettingsTab = memo(() => {
   const saveActionButtonDraft = (actionButton: ActionButtonConfig) => {
     const existingButtonIndex = actionButtonsConfig.findIndex(button => button.id === actionButton.id);
     if (existingButtonIndex !== -1) {
-      setAppSetting(
+      setTvConfig(
         "actionButtonsConfig",
         actionButtonsConfig.map((button, index) => index === existingButtonIndex ? actionButton : button)
       );
     } else {
-      setAppSetting(
+      setTvConfig(
         "actionButtonsConfig",
         [...actionButtonsConfig, {...actionButton, id: Date.now().toString()}]
       );
@@ -287,7 +287,7 @@ const SettingsTab = memo(() => {
           if (getActionButtonDetails(config).hasSettings) {
             setActionButtonDraft(config);
           } else {
-            setAppSetting("actionButtonsConfig", [...actionButtonsConfig, config]);
+            setTvConfig("actionButtonsConfig", [...actionButtonsConfig, config]);
           }
         }
       }
@@ -346,7 +346,7 @@ const SettingsTab = memo(() => {
               inputId="filter"
               isLoading={mediaItemFiltersLoading || mediaItemsLoading}
               value={selectedFilter ?? null}
-              onChange={(newValue: { value: string; label: string; filterType: "scene" | "marker" } | null) => newValue && setAppSetting("currentFilterId", newValue.value)}
+              onChange={(newValue: { value: string; label: string; filterType: "scene" | "marker" } | null) => newValue && setTvConfig("currentFilterId", newValue.value)}
               options={allFiltersGrouped}
               placeholder={`${allFilters.length > 0 ? "No filter selected" : "No filters saved in stash"}. Showing all scenes.`}
               components={{
@@ -399,7 +399,7 @@ const SettingsTab = memo(() => {
                   id="randomise-filter"
                   checked={isRandomised}
                   label="Randomise filter order"
-                  onChange={event => setAppSetting("isRandomised", event.target.checked)}
+                  onChange={event => setTvConfig("isRandomised", event.target.checked)}
                 />
               <Form.Text className="text-muted">Randomise the order of scenes in the filter.</Form.Text>
             </>}
@@ -410,7 +410,7 @@ const SettingsTab = memo(() => {
               id="only-show-matching-orientation"
               label="Only Show Scenes Matching Orientation"
               checked={onlyShowMatchingOrientation}
-              onChange={event => setAppSetting("onlyShowMatchingOrientation", event.target.checked)}
+              onChange={event => setTvConfig("onlyShowMatchingOrientation", event.target.checked)}
             />
             <Form.Text className="text-muted">Limit scenes to only those in the same orientation as the current window.</Form.Text>
           </Form.Group>
@@ -426,7 +426,7 @@ const SettingsTab = memo(() => {
               id="auto-play"
               label="Auto Play"
               checked={autoPlay}
-              onChange={event => setAppSetting("autoPlay", event.target.checked)}
+              onChange={event => setTvConfig("autoPlay", event.target.checked)}
             />
             <Form.Text className="text-muted">Automatically play scenes.</Form.Text>
           </Form.Group>
@@ -437,7 +437,7 @@ const SettingsTab = memo(() => {
                 id="scene-preview-only"
                 label="Scene Preview Only"
                 checked={scenePreviewOnly}
-                onChange={event => setAppSetting("scenePreviewOnly", event.target.checked)}
+                onChange={event => setTvConfig("scenePreviewOnly", event.target.checked)}
               />
               <Form.Text className="text-muted">Play a short preview rather than the full scene. (Requires the preview files to have been generated in Stash for a scene otherwise the full scene will be shown.)</Form.Text>
             </Form.Group>
@@ -448,7 +448,7 @@ const SettingsTab = memo(() => {
                 id="marker-preview-only"
                 label="Play Low-res Preview"
                 checked={markerPreviewOnly}
-                onChange={event => setAppSetting("markerPreviewOnly", event.target.checked)}
+                onChange={event => setTvConfig("markerPreviewOnly", event.target.checked)}
               />
               <Form.Text className="text-muted">Play the low-resolution marker preview which can be useful for low bandwidth situations. (Requires the preview files to have been generated in Stash for a marker otherwise the full-quality video will be shown.)</Form.Text>
             </Form.Group>
@@ -462,7 +462,7 @@ const SettingsTab = memo(() => {
               <Select<typeof startPositionOptions[number]>
                 inputId="start-position"
                 value={startPositionOptions.find(option => option.value === startPosition) ?? null}
-                onChange={(newValue: typeof startPositionOptions[number] | null) => newValue && setAppSetting("startPosition", newValue.value)}
+                onChange={(newValue: typeof startPositionOptions[number] | null) => newValue && setTvConfig("startPosition", newValue.value)}
                 options={startPositionOptions}
               />
               <Form.Text className="text-muted">
@@ -477,7 +477,7 @@ const SettingsTab = memo(() => {
               <Select<typeof endPositionOptions[number]>
                 inputId="end-position"
                 value={endPositionOptions.find(option => option.value === endPosition) ?? null}
-                onChange={(newValue: typeof endPositionOptions[number] | null) => newValue && setAppSetting("endPosition", newValue.value)}
+                onChange={(newValue: typeof endPositionOptions[number] | null) => newValue && setTvConfig("endPosition", newValue.value)}
                 options={endPositionOptions}
               />
               <Form.Text className="text-muted">
@@ -494,7 +494,7 @@ const SettingsTab = memo(() => {
                   className="text-input"
                   value={playLength ?? ""}
                   onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                    setAppSetting(
+                    setTvConfig(
                       "playLength",
                       event.currentTarget.value
                         ? Number.parseInt(event.currentTarget.value)
@@ -522,7 +522,7 @@ const SettingsTab = memo(() => {
                     placeholder="Min"
                     value={minPlayLength ?? ""}
                     onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                      setAppSetting(
+                      setTvConfig(
                         "minPlayLength",
                         event.currentTarget.value
                           ? Number.parseInt(event.currentTarget.value)
@@ -540,7 +540,7 @@ const SettingsTab = memo(() => {
                     value={maxPlayLength ?? ""}
                     placeholder="Max"
                     onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                      setAppSetting(
+                      setTvConfig(
                         "maxPlayLength",
                         event.currentTarget.value
                           ? Number.parseInt(event.currentTarget.value)
@@ -584,7 +584,7 @@ const SettingsTab = memo(() => {
               id="crt-effect"
               label="CRT Effect"
               checked={crtEffect}
-              onChange={event => setAppSetting("crtEffect", event.target.checked)}
+              onChange={event => setTvConfig("crtEffect", event.target.checked)}
             />
             <Form.Text className="text-muted">Emulate the visual effects of an old CRT television.</Form.Text>
             {crtEffect && <Form.Group>
@@ -595,7 +595,7 @@ const SettingsTab = memo(() => {
                 step={0.2}
                 marks
                 value={[crtEffectStrength]}
-                onValueChange={e => setAppSetting("crtEffectStrength", Number(e[0]))}
+                onValueChange={e => setTvConfig("crtEffectStrength", Number(e[0]))}
               />
               <Form.Text className="text-muted">Adjusts how strong the CRT effect is.</Form.Text>
             </Form.Group>}
@@ -612,7 +612,7 @@ const SettingsTab = memo(() => {
               id="left-handed-ui"
               label="Left-handed UI"
               checked={leftHandedUi}
-              onChange={event => setAppSetting("leftHandedUi", event.target.checked)}
+              onChange={event => setTvConfig("leftHandedUi", event.target.checked)}
             />
             <Form.Text className="text-muted">Flip the user interface for left-handed use.</Form.Text>
           </Form.Group>
@@ -625,7 +625,7 @@ const SettingsTab = memo(() => {
               onItemsOrderChange={(newOrder) => {
                 const buttons = newOrder.toReversed()
                 const indexOfFirstNonPinned = buttons.findIndex(button => !button.pinned)
-                setAppSetting(
+                setTvConfig(
                   "actionButtonsConfig",
                   buttons.map((buttonConfig, index) => ({
                     ...buttonConfig,
@@ -668,7 +668,7 @@ const SettingsTab = memo(() => {
                     {item.type !== "settings" && <Button
                       variant="link"
                       className={cx("hide-button", "muted")}
-                      onClick={() => setAppSetting(
+                      onClick={() => setTvConfig(
                         "actionButtonsConfig",
                         actionButtonsConfig.filter(button => button.id !== item.id)
                       )}
@@ -678,7 +678,7 @@ const SettingsTab = memo(() => {
                     <Button
                       variant="link"
                       className={cx("pin-button", {muted: !item.pinned})}
-                      onClick={() => setAppSetting(
+                      onClick={() => setTvConfig(
                         "actionButtonsConfig",
                         actionButtonsConfig.map(button => button.id === item.id ? {...button, pinned: !button.pinned} : button)
                       )}
@@ -734,7 +734,7 @@ const SettingsTab = memo(() => {
         <>
           <Form.Group className="inline">
             <Button
-              onClick={() => setAppSetting('showGuideOverlay', true)}
+              onClick={() => setTvConfig('showGuideOverlay', true)}
             >
               Show Guide
             </Button>
@@ -774,7 +774,7 @@ const SettingsTab = memo(() => {
                 id="show-dev-options"
                 label="Hide Developer Options"
                 checked={showDevOptions}
-                onChange={event => setAppSetting("showDevOptions", false)}
+                onChange={event => setTvConfig("showDevOptions", false)}
               />
               <Form.Text className="text-muted">Hide developer options.</Form.Text>
             </Form.Group>
@@ -786,7 +786,7 @@ const SettingsTab = memo(() => {
               <Select<{ value: LogLevel; label: string }>
                 inputId="log-level"
                 value={logLevelOptions.find(option => option.value === logLevel) ?? null}
-                onChange={(newValue: { value: LogLevel; label: string } | null) => newValue?.value && setAppSetting("logLevel", newValue.value)}
+                onChange={(newValue: { value: LogLevel; label: string } | null) => newValue?.value && setTvConfig("logLevel", newValue.value)}
                 options={logLevelOptions}
               />
               <Form.Text className="text-muted">The level of logging detail.</Form.Text>
@@ -807,7 +807,7 @@ const SettingsTab = memo(() => {
                     )
                   )
                 )}
-                onChange={(newValues: readonly { value: string[]; label: string }[]) => setAppSetting("loggersToShow", newValues.map((option) => option.value))}
+                onChange={(newValues: readonly { value: string[]; label: string }[]) => setTvConfig("loggersToShow", newValues.map((option) => option.value))}
                 isMulti={true}
                 closeMenuOnSelect={false}
               />
@@ -830,7 +830,7 @@ const SettingsTab = memo(() => {
                   )
                 )}
                 placeholder="All loggers"
-                onChange={(newValues: readonly { value: string[]; label: string }[]) => setAppSetting("loggersToHide", newValues.map((option) => option.value))}
+                onChange={(newValues: readonly { value: string[]; label: string }[]) => setTvConfig("loggersToHide", newValues.map((option) => option.value))}
                 isMulti={true}
                 closeMenuOnSelect={false}
               />
@@ -844,7 +844,7 @@ const SettingsTab = memo(() => {
               <Select<{ value: DebuggingInfo; label: string }, true>
                 inputId="show-debugging-info"
                 value={showDebuggingInfoOptions.filter(option => showDebuggingInfo.includes(option.value))}
-                onChange={(newValues: readonly { value: DebuggingInfo; label: string }[]) => setAppSetting("showDebuggingInfo", newValues.map((option) => option.value))}
+                onChange={(newValues: readonly { value: DebuggingInfo; label: string }[]) => setTvConfig("showDebuggingInfo", newValues.map((option) => option.value))}
                 options={showDebuggingInfoOptions}
                 isMulti={true}
                 closeMenuOnSelect={false}
@@ -864,7 +864,7 @@ const SettingsTab = memo(() => {
                 onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
                   const newSize = Number.parseInt(event.currentTarget.value)
                   if (isNaN(newSize) || newSize < 1) return;
-                  setAppSetting("pageSize", newSize)
+                  setTvConfig("pageSize", newSize)
                 }}
               />
               <Form.Text className="text-muted">
@@ -883,7 +883,7 @@ const SettingsTab = memo(() => {
                 className="text-input"
                 value={maxMedia ?? ""}
                 onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                  setAppSetting(
+                  setTvConfig(
                     "maxMedia",
                     event.currentTarget.value
                       ? Number.parseInt(event.currentTarget.value)
@@ -906,7 +906,7 @@ const SettingsTab = memo(() => {
                 className="text-input"
                 value={renderedMediaItemsBuffer}
                 onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                  setAppSetting(
+                  setTvConfig(
                     "renderedMediaItemsBuffer",
                     event.currentTarget.value
                       ? Number.parseInt(event.currentTarget.value)
@@ -929,7 +929,7 @@ const SettingsTab = memo(() => {
                 className="text-input"
                 value={mediaItemsModifierFunction}
                 onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                  setAppSetting(
+                  setTvConfig(
                     "mediaItemsModifierFunction",
                     event.currentTarget.value
                   )
@@ -955,7 +955,7 @@ const SettingsTab = memo(() => {
                   label: eventName,
                   value: eventName,
                 }))}
-                onChange={(newValue: readonly { label: string; value: string }[]) => setAppSetting(
+                onChange={(newValue: readonly { label: string; value: string }[]) => setTvConfig(
                   "videoJsEventsToLog",
                   newValue.some((item) => item.value === "all") ? videoJsEvents : newValue.map((item) => item.value)
                 )}

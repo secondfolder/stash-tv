@@ -1,7 +1,7 @@
 import React, { memo, useEffect, useRef } from "react";
 import "./Feed.scss";
 import VideoScroller from "../../components/VideoScroller";
-import { useAppStateStore } from "../../store/appStateStore";
+import { useTvConfig } from "../../store/tvConfig";
 import SettingsTab from "../../components/settings/SettingsTab";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import { useMediaItems } from "../../hooks/useMediaItems";
@@ -11,13 +11,15 @@ import GuideOverlay from "../../components/GuideOverlay";
 import { ErrorMessage } from "stash-ui/dist/src/components/Shared/ErrorMessage";
 import cx from "classnames";
 import { SettingsActionButton } from "../../components/slide/ActionButtons";
+import { useGlobalState } from "../../store/globalState";
 
 interface FeedPageProps {
   className?: string;
 }
 
 const FeedPage: React.FC<FeedPageProps> = memo(({className}) => {
-  const { showSettings, fullscreen, showDebuggingInfo, showGuideOverlay, set: setAppSetting } = useAppStateStore();
+  const { showDebuggingInfo, showGuideOverlay, set: setTvConfig } = useTvConfig();
+  const { showSettings, fullscreen, set: setGlobalState } = useGlobalState()
   const {
     currentMediaItemFilter,
     mediaItemFiltersLoading,
@@ -36,12 +38,12 @@ const FeedPage: React.FC<FeedPageProps> = memo(({className}) => {
 
   // Show settings tab if we've finished loading scenes but have no scenes to show
   if (loadedButNoScenes && !showSettings) {
-    setAppSetting("showSettings", true);
+    setGlobalState("showSettings", true);
   }
 
     useEffect(() => {
       if (!showGuideOverlay) return;
-      setAppSetting("showSettings", false);
+      setGlobalState("showSettings", false);
     }, [showGuideOverlay]);
 
   /* ------------------------------- Fullscreen ------------------------------- */
@@ -130,7 +132,7 @@ const FeedPage: React.FC<FeedPageProps> = memo(({className}) => {
       </>
       : <VideoScroller />}
     <SettingsTab />
-    {showGuideOverlay && <GuideOverlay onClose={() => setAppSetting("showGuideOverlay", false)} />}
+    {showGuideOverlay && <GuideOverlay onClose={() => setTvConfig("showGuideOverlay", false)} />}
   </main>
   );
 });

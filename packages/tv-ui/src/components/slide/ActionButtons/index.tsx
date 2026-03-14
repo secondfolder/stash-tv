@@ -1,7 +1,7 @@
 import React, { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { faPlus, faMinus } from "@fortawesome/free-solid-svg-icons";
 import * as yup from "yup";
-import { useAppStateStore } from "../../../store/appStateStore";
+import { useTvConfig } from "../../../store/tvConfig";
 import ISO6391 from "iso-639-1";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import cx from "classnames";
@@ -27,6 +27,7 @@ import { DeleteSceneMarkersDialog } from "stash-ui/dist/src/components/Scenes/De
 import { UAParser } from "ua-parser-js";
 import Slider from "../../controls/slider";
 import { Button } from "react-bootstrap";
+import { useGlobalState } from "../../../store/globalState";
 
 const logger = getLogger(["stash-tv", "ActionButtons"]);
 
@@ -170,7 +171,7 @@ export function ActionButtons({mediaItem, sceneInfoOpen, setSceneInfoOpen, playe
     uiVisible,
     leftHandedUi,
     actionButtonsConfig,
-  } = useAppStateStore();
+  } = useTvConfig();
 
   const scene = mediaItem.entityType === "scene" ? mediaItem.entity : mediaItem.entity.scene;
 
@@ -247,7 +248,8 @@ export function ActionButtons({mediaItem, sceneInfoOpen, setSceneInfoOpen, playe
 }
 
 export function SettingsActionButton({buttonConfig}: {buttonConfig?: ActionButtonConfig}) {
-  const { showSettings, actionButtonsConfig, set: setAppSetting } = useAppStateStore();
+  const { actionButtonsConfig } = useTvConfig();
+  const { showSettings, set: setGlobalState } = useGlobalState();
 
   if (!buttonConfig) {
     buttonConfig = actionButtonsConfig.find(config => config.type === "settings")
@@ -260,7 +262,7 @@ export function SettingsActionButton({buttonConfig}: {buttonConfig?: ActionButto
     className="settings hide-on-ui-hide"
     active={showSettings}
     data-testid="MediaSlide--settingsButton"
-    onClick={() => setAppSetting("showSettings", (prev) => !prev)}
+    onClick={() => setGlobalState("showSettings", (prev) => !prev)}
   />
 }
 
@@ -276,7 +278,7 @@ function ShowSceneInfoActionButton({sceneInfoOpen, setSceneInfoOpen, buttonConfi
 
 function RateSceneActionButton({scene, buttonConfig}: {scene: GQL.SceneDataFragment, buttonConfig: ActionButtonConfig}) {
   const { configuration: config } = React.useContext(ConfigurationContext);
-  const { leftHandedUi } = useAppStateStore();
+  const { leftHandedUi } = useTvConfig();
   const ratingSystemOptions =
     config?.ui.ratingSystemOptions ?? defaultRatingSystemOptions;
 
@@ -365,30 +367,30 @@ function OCounterActionButton({scene, buttonConfig}: {scene: GQL.SceneDataFragme
 }
 
 function ForceLandscapeActionButton({buttonConfig}: {buttonConfig: ActionButtonConfig}) {
-  const { forceLandscape, set: setAppSetting } = useAppStateStore();
+  const { forceLandscape, set: setTvConfig } = useTvConfig();
   return <ActionButton
     {...getActionButtonDetails(buttonConfig).props}
     className="force-landscape hide-on-ui-hide"
     active={forceLandscape}
     data-testid="MediaSlide--forceLandscapeButton"
-    onClick={() => setAppSetting("forceLandscape", (prev) => !prev)}
+    onClick={() => setTvConfig("forceLandscape", (prev) => !prev)}
   />
 }
 
 function FullscreenActionButton({buttonConfig}: {buttonConfig: ActionButtonConfig}) {
-  const { fullscreen, set: setAppSetting } = useAppStateStore();
+  const { fullscreen, set: setTvConfig } = useGlobalState();
   if (!('exitFullscreen' in document)) return null
   return <ActionButton
     {...getActionButtonDetails(buttonConfig).props}
     className="fullscreen hide-on-ui-hide"
     active={fullscreen}
     data-testid="MediaSlide--fullscreenButton"
-    onClick={() => setAppSetting("fullscreen", (prev) => !prev)}
+    onClick={() => setTvConfig("fullscreen", (prev) => !prev)}
   />
 }
 
 function VolumeActionButton({buttonConfig}: {buttonConfig: Extract<ActionButtonConfig, { type: "volume" }>}) {
-  const { volume, set: setAppSetting } = useAppStateStore();
+  const { volume, set: setTvConfig } = useTvConfig();
   let clickHandler
   let sidePanel
   // iOS does not let us control a video's volume programmatically, just mute toggling
@@ -398,13 +400,13 @@ function VolumeActionButton({buttonConfig}: {buttonConfig: Extract<ActionButtonC
         min={0}
         max={100}
         value={[volume * 100]}
-        onValueChange={e => setAppSetting("volume", Number(e[0]) / 100)}
+        onValueChange={e => setTvConfig("volume", Number(e[0]) / 100)}
       />
     );
     clickHandler = undefined;
   } else {
     sidePanel = undefined;
-    clickHandler = () => setAppSetting("volume", (prev) => prev ? 0 : 1);
+    clickHandler = () => setTvConfig("volume", (prev) => prev ? 0 : 1);
   }
 
   return <ActionButton
@@ -418,29 +420,29 @@ function VolumeActionButton({buttonConfig}: {buttonConfig: Extract<ActionButtonC
 }
 
 function LetterboxingActionButton({buttonConfig}: {buttonConfig: ActionButtonConfig}) {
-  const { letterboxing, set: setAppSetting } = useAppStateStore();
+  const { letterboxing, set: setTvConfig } = useTvConfig();
   return <ActionButton
     {...getActionButtonDetails(buttonConfig).props}
     className="letterboxing hide-on-ui-hide"
     active={letterboxing}
     data-testid="MediaSlide--letterboxButton"
-    onClick={() => setAppSetting("letterboxing", (prev) => !prev)}
+    onClick={() => setTvConfig("letterboxing", (prev) => !prev)}
   />
 }
 
 function LoopActionButton({buttonConfig}: {buttonConfig: ActionButtonConfig}) {
-  const { looping, set: setAppSetting } = useAppStateStore();
+  const { looping, set: setTvConfig } = useTvConfig();
   return <ActionButton
     {...getActionButtonDetails(buttonConfig).props}
     className="loop hide-on-ui-hide"
     active={looping}
     data-testid="MediaSlide--loopButton"
-    onClick={() => setAppSetting("looping", (prev) => !prev)}
+    onClick={() => setTvConfig("looping", (prev) => !prev)}
   />
 }
 
 function SubtitlesActionButton({scene, buttonConfig}: {scene: GQL.SceneDataFragment, buttonConfig: ActionButtonConfig}) {
-  const { showSubtitles, set: setAppSetting } = useAppStateStore();
+  const { showSubtitles, set: setTvConfig } = useTvConfig();
   const { data: { subtitleLanguage } } = useStashTvConfig()
   /** Only render captions track if available, and it matches the user's chosen
   * language. Fails accessibility if missing, but there's no point rendering
@@ -471,18 +473,18 @@ function SubtitlesActionButton({scene, buttonConfig}: {scene: GQL.SceneDataFragm
     className="subtitles hide-on-ui-hide"
     active={!!captionSources && showSubtitles}
     data-testid="MediaSlide--subtitlesButton"
-    onClick={() => setAppSetting("showSubtitles", (prev) => !prev)}
+    onClick={() => setTvConfig("showSubtitles", (prev) => !prev)}
   />
 }
 
 function UiVisibilityActionButton({buttonConfig}: {buttonConfig: ActionButtonConfig}) {
-  const { uiVisible, set: setAppSetting } = useAppStateStore();
+  const { uiVisible, set: setTvConfig } = useTvConfig();
   return <ActionButton
     {...getActionButtonDetails(buttonConfig).props}
     active={uiVisible}
     className={cx("toggle-ui", "dim-on-ui-hide", {'active': uiVisible})}
     data-testid="MediaSlide--showActionButton"
-    onClick={() => setAppSetting("uiVisible", (prev) => !prev)}
+    onClick={() => setTvConfig("uiVisible", (prev) => !prev)}
   />
 }
 
@@ -704,7 +706,7 @@ function PlaybackRateActionButton(
     playerRef: React.RefObject<VideoJsPlayer>
   }
 ) {
-  const {playbackRate: desiredPlaybackRate} = useAppStateStore();
+  const {playbackRate: desiredPlaybackRate} = useTvConfig();
   const [playbackRate, setPlaybackRate] = useState(desiredPlaybackRate);
   const active = useMemo(() => playbackRate !== 1, [playbackRate])
   useEffect(() => {

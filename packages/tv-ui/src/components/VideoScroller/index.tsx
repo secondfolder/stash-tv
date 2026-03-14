@@ -2,7 +2,7 @@ import React, { memo, useCallback, useEffect, useMemo, useReducer, useRef, useSt
 import "./VideoScroller.scss";
 import MediaSlide from "../slide/MediaSlide";
 import cx from "classnames";
-import { useAppStateStore } from "../../store/appStateStore";
+import { useTvConfig } from "../../store/tvConfig";
 import { useVirtualizer, useWindowVirtualizer, windowScroll, elementScroll } from "@tanstack/react-virtual";
 import throttle from 'throttleit';
 import { clamp } from "../../helpers";
@@ -26,8 +26,8 @@ const VideoScroller: React.FC<VideoScrollerProps> = memo(() => {
     scenePreviewOnly,
     markerPreviewOnly,
     renderedMediaItemsBuffer,
-    set: setAppSetting
-  } = useAppStateStore();
+    set: setTvConfig
+  } = useTvConfig();
   const { orientation } = useWindowSize()
   const rootElmRef = useRef<HTMLDivElement | null>(null);
   const logger = getLogger(["stash-tv", "VideoScroller"]);
@@ -245,7 +245,7 @@ const VideoScroller: React.FC<VideoScrollerProps> = memo(() => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "c" && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
-        setAppSetting("crtEffect", (prev) => !prev);
+        setTvConfig("crtEffect", (prev) => !prev);
       }
     }
     window.addEventListener("keydown", handleKeyDown);

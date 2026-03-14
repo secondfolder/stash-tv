@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from "react";
 import FeedPage from "../pages/Feed";
-import { useAppStateStore } from "../store/appStateStore";
+import { useTvConfig } from "../store/tvConfig";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import {ConfigurationProvider} from "stash-ui/dist/src/hooks/Config";
 import { useViewportRotate } from "../hooks/useViewportRotate";
@@ -11,12 +11,13 @@ import flattenMessages from "stash-ui/dist/src/utils/flattenMessages";
 import {setupLogging} from "../helpers/logging";
 import FeedbackOverlay from "../components/FeedbackOverlay";
 import { useDevConsoleHelpers } from "../hooks/useDevConsoleHelpers";
+import { useGlobalState } from "../store/globalState";
 
 await setupLogging()
 
-
 const App = () => {
-  const { forceLandscape, logLevel, loggersToShow, loggersToHide, storeLoaded } = useAppStateStore()
+  const { forceLandscape, logLevel, loggersToShow, loggersToHide } = useTvConfig()
+  const { tvConfigLoaded } = useGlobalState()
   useEffect(() => {
     setupLogging({logLevel, logCategoriesToShow: loggersToShow, logCategoriesToHide: loggersToHide});
   }, [logLevel, loggersToShow, loggersToHide]);
@@ -51,7 +52,7 @@ const App = () => {
 
   useDevConsoleHelpers()
 
-  if (!storeLoaded) return null
+  if (!tvConfigLoaded) return null
 
   return (
     <IntlProvider

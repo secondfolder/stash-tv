@@ -4,7 +4,7 @@ import "./FeedbackOverlay.css";
 import cx from "classnames";
 import { usePrevious } from "react-use";
 import { getLogger } from "@logtape/logtape";
-import { useAppStateStore } from "../../store/appStateStore";
+import { useTvConfig } from "../../store/tvConfig";
 
 const displayDuration = 1000; // milliseconds
 
@@ -45,7 +45,7 @@ export const useFeedback = create<{
 }))
 
 const FeedbackOverlay = memo(() => {
-  const { uiVisible } = useAppStateStore()
+  const { uiVisible } = useTvConfig()
   const { contents, icon, fade } = useFeedback()
   const previousContents = usePrevious(contents)
   const previousIcon = usePrevious(icon)

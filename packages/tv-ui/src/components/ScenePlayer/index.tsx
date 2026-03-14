@@ -5,7 +5,7 @@ import { default as cx } from "classnames";
 import videojs, { VideoJsPlayerOptions, type VideoJsPlayer } from "video.js";
 import { allowPluginRemoval } from "./video.js/allow-plugin-removal";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
-import { useAppStateStore } from "../../store/appStateStore";
+import { useTvConfig } from "../../store/tvConfig";
 import 'videojs-offset'
 import { getLogger } from "@logtape/logtape";
 import "./video.js/pause-loading-plugin"
@@ -159,7 +159,7 @@ const ScenePlayer = forwardRef<
 }: ScenePlayerProps, ref) => {
     const logger = getLogger(["stash-tv", "ScenePlayer", otherProps.scene.id]);
 
-    const { videoJsEventsToLog, showDebuggingInfo } = useAppStateStore();
+    const { videoJsEventsToLog, showDebuggingInfo } = useTvConfig();
 
     useMemo(() => {
       if (!showDebuggingInfo.includes("render-debugging")) return

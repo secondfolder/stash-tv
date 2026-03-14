@@ -4,11 +4,12 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 import { defaultLogLevel } from '../helpers/logging';
 import type { ActionButtonConfig } from '../components/slide/ActionButtons';
 import { stashConfigStorage } from '../helpers/stash-config-storage';
+import { useGlobalState } from "./globalState"
 export type DebuggingInfo = "render-debugging" | "onscreen-info" | "virtualizer-debugging";
 
-export const appStateStorageKey = 'app-state';
+export const tvConfigStorageKey = 'app-state';
 
-type AppState = {
+type TvConfig = {
   volume: number;
   showSubtitles: boolean;
   letterboxing: boolean;
@@ -35,10 +36,6 @@ type AppState = {
   currentFilterId?: string;
   // Device specific state
   forceLandscape: boolean;
-  // Non-persistent state
-  showSettings: boolean;
-  fullscreen: boolean;
-  storeLoaded: boolean;
   // Developer options
   showDevOptions: boolean;
   renderedMediaItemsBuffer: number;
@@ -51,17 +48,15 @@ type AppState = {
 }
 
 type AppAction = {
-  set: <PropName extends keyof AppState>(propName: PropName, value: AppState[PropName] | ((prev: AppState[PropName]) => AppState[PropName])) => void;
-  get: <PropName extends keyof AppState>(propName: PropName) => AppState[PropName];
+  set: <PropName extends keyof TvConfig>(propName: PropName, value: TvConfig[PropName] | ((prev: TvConfig[PropName]) => TvConfig[PropName])) => void;
+  get: <PropName extends keyof TvConfig>(propName: PropName) => TvConfig[PropName];
   setToDefault: <PropName extends keyof typeof defaults>(propName: PropName) => void;
   getDefault: <PropName extends keyof typeof defaults>(propName: PropName) => typeof defaults[PropName];
 }
 
 const defaults = {
-  showSettings: false,
   volume: 0,
   showSubtitles: false,
-  fullscreen: false,
   letterboxing: false,
   forceLandscape: false,
   looping: false,
@@ -85,7 +80,6 @@ const defaults = {
   showDebuggingInfo: [],
   renderedMediaItemsBuffer: 2,
   videoJsEventsToLog: [],
-  storeLoaded: false,
   actionButtonsConfig: [
     {id: "1", type: "ui-visibility", pinned: true},
     {id: "2", type: "settings", pinned: false},
@@ -100,16 +94,10 @@ const defaults = {
     {id: "11", type: "subtitles", pinned: false},
   ],
   playbackRate: 1,
-} satisfies AppState;
-
-const nonPersistentKeys: (keyof AppState)[] = [
-  'storeLoaded',
-  'showSettings',
-  'fullscreen',
-]
+} satisfies TvConfig;
 
 // Keys that should be stored in localStorage (device-specific)
-const localStorageKeys: (keyof AppState)[] = [
+const localStorageKeys: (keyof TvConfig)[] = [
   'forceLandscape',
 ]
 
@@ -145,10 +133,8 @@ const createHybridStorage = () => {
       const localState: Record<string, any> = {};
 
       for (const [key, val] of Object.entries(state)) {
-        if (localStorageKeys.includes(key as keyof AppState)) {
+        if (localStorageKeys.includes(key as keyof TvConfig)) {
           localState[key] = val;
-        } else if (nonPersistentKeys.includes(key as keyof AppState)) {
-          // Do nothing
         } else {
           stashState[key] = val;
         }
@@ -175,13 +161,13 @@ const createHybridStorage = () => {
   };
 };
 
-export const useAppStateStore = create<AppState & AppAction>()(
+export const useTvConfig = create<TvConfig & AppAction>()(
   persist(
     (set, get) => ({
       ...defaults,
-      set: <PropName extends keyof AppState>(propName: PropName, value: AppState[PropName] | ((prev: AppState[PropName]) => AppState[PropName])) => {
-        if (!get().storeLoaded && propName !== "storeLoaded") {
-          console.warn(`Tried to set ${propName} to "${value}" before store was loaded`);
+      set: <PropName extends keyof TvConfig>(propName: PropName, value: TvConfig[PropName] | ((prev: TvConfig[PropName]) => TvConfig[PropName])) => {
+        if (!useGlobalState.getState().tvConfigLoaded) {
+          console.warn(`Tried to set ${propName} to "${value}" before config was loaded`);
           return;
         }
         set((state) => {
@@ -190,7 +176,7 @@ export const useAppStateStore = create<AppState & AppAction>()(
           // so so that it can be read by renderDebugger.ts at the very start of the app before we've received the store
           // state from stash.
           if (propName === 'showDebuggingInfo') {
-            const enableRenderDebugging = (resolvedValue as AppState['showDebuggingInfo'])
+            const enableRenderDebugging = (resolvedValue as TvConfig['showDebuggingInfo'])
               .includes("render-debugging");
             const previousEnableRenderDebugging = localStorage.getItem("enableRenderDebugging") === "true";
             // We reload since renderDebugger.ts must be initialised at app start
@@ -208,7 +194,7 @@ export const useAppStateStore = create<AppState & AppAction>()(
         });
       },
       setToDefault: <PropName extends keyof typeof defaults>(propName: PropName) => {
-        if (!get().storeLoaded) {
+        if (!useGlobalState.getState().tvConfigLoaded) {
           console.warn(`Tried to set ${propName} to default before store was loaded`);
           return;
         }
@@ -221,15 +207,15 @@ export const useAppStateStore = create<AppState & AppAction>()(
       getDefault: <PropName extends keyof typeof defaults>(propName: PropName) => {
         return defaults[propName];
       },
-      get: <PropName extends keyof AppState>(propName: PropName) => {
+      get: <PropName extends keyof TvConfig>(propName: PropName) => {
         return get()[propName];
       },
     }),
     {
-      name: appStateStorageKey,
+      name: tvConfigStorageKey,
       storage: createJSONStorage(() => createHybridStorage()),
       onRehydrateStorage: (state) => {
-        return () => state.set("storeLoaded", true)
+        return () => useGlobalState.setState({tvConfigLoaded: true})
       },
       version: 1,
       migrate: (persistedState, version) => {

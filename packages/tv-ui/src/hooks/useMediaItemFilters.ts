@@ -3,7 +3,7 @@ import { useApolloClient, type ApolloClient, type NormalizedCacheObject } from "
 import { useContext, useEffect, useMemo, useState } from "react";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import { ListFilterModel } from "stash-ui/dist/src/models/list-filter/filter";
-import { useAppStateStore } from "../store/appStateStore";
+import { useTvConfig } from "../store/tvConfig";
 import { useWindowSize } from "./useWindowSize";
 import { create } from "zustand";
 import { useConditionalMemo } from "./useMemoConditional";
@@ -90,7 +90,7 @@ export function useMediaItemFilters() {
 
   const loadingDataRequiredBeforeLoadingCurrentFilter = stashConfigurationLoading || loadingAvailableSavedSceneFilters || loadingAvailableSavedMarkerFilters;
 
-  const { isRandomised, onlyShowMatchingOrientation, currentFilterId } = useAppStateStore();
+  const { isRandomised, onlyShowMatchingOrientation, currentFilterId } = useTvConfig();
   const { orientation } = useWindowSize()
 
   let limitOrientation: "landscape" | "portrait" | undefined = undefined
