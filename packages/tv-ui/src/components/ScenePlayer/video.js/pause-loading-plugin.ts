@@ -103,7 +103,7 @@ class PauseLoadingPlugin extends videojs.getPlugin("plugin") {
         if (await supports10BitVideos === undefined) {
           supports10BitVideos = testFor10BitSupport()
         }
-        const showLastFrame = await supports10BitVideos || true
+        const showLastFrame = await supports10BitVideos
         if (showLastFrame) {
           await setPosterToCurrentFrame()
         }
