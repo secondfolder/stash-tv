@@ -33,6 +33,7 @@ import { clamp, roundTo, roundToNearest } from "../../../helpers";
 import UAParser from "ua-parser-js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPause, faPlay, faForward, faBackward } from "@fortawesome/free-solid-svg-icons";
+import { TOGGLE_VIDEO_EVENT, PAUSE_VIDEO_EVENT } from "../../../events";
 import { ConfigurationContext } from "stash-ui/dist/src/hooks/Config";
 import { useFirstMountState } from "react-use";
 
@@ -82,6 +83,8 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
 
 
   const { configuration: stashConfig } = useContext(ConfigurationContext)
+  const { connectedAt: gamepadConnectedAt } = useGamepadStatus();
+  const gamepadConnectedAWhileAgo = (Date.now() - (gamepadConnectedAt ?? 0)) > 6000
 
   const logger = getLogger(["stash-tv", "MediaSlide", props.mediaItem.id]);
 
@@ -516,6 +519,22 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
     };
   }, [forceLandscape, isCurrentVideo, seekBackwards, seekForwards, props.index]);
 
+  useEffect(() => {
+    if (!isCurrentVideo) return;
+    const handleToggle = () => {
+      videojsPlayerRef.current?.paused()
+        ? videojsPlayerRef.current?.play()
+        : videojsPlayerRef.current?.pause();
+    };
+    const handlePause = () => videojsPlayerRef.current?.pause();
+    window.addEventListener(TOGGLE_VIDEO_EVENT, handleToggle);
+    window.addEventListener(PAUSE_VIDEO_EVENT, handlePause);
+    return () => {
+      window.removeEventListener(TOGGLE_VIDEO_EVENT, handleToggle);
+      window.removeEventListener(PAUSE_VIDEO_EVENT, handlePause);
+    };
+  }, [isCurrentVideo]);
+
   // These classes allow us to better control when the big play button shows to avoid showing it if we're likely to
   // immediately hide it again such as when auto-playing
   const updatePlayableClass = useCallback(() => {
@@ -744,10 +763,22 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
             }
           }}
         />}
-        {currentlyPlayingMarkers.length > 0 && videoJsControlBarElm && createPortal(
+        {videoJsControlBarElm && createPortal(
           <>
-            <div className="vjs-control currently-playing-marker">{currentlyPlayingMarkersDisplayName}</div>
+            <div className="center-controls">
+              {currentlyPlayingMarkers.length > 0 && (
+                <div className="vjs-control currently-playing-marker">
+                  {currentlyPlayingMarkersDisplayName}
+                </div>
+              )}
+
+            </div>
             <div className="vjs-custom-control-spacer vjs-spacer">&nbsp;</div>
+            <div className="right-controls">
+              {gamepadConnectedAt && !gamepadConnectedAWhileAgo && (
+                <FontAwesomeIcon icon={faGamepad} className="vjs-control gamepad-connected-indicator" />
+              )}
+            </div>
           </>,
           videoJsControlBarElm
         )}

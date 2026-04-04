@@ -12,6 +12,7 @@ import {setupLogging} from "../helpers/logging";
 import FeedbackOverlay from "../components/FeedbackOverlay";
 import { useDevConsoleHelpers } from "../hooks/useDevConsoleHelpers";
 import { useGlobalState } from "../store/globalState";
+import { useGamepad } from "../hooks/useGamepad";
 
 await setupLogging()
 
@@ -51,6 +52,7 @@ const App = () => {
   }), []);
 
   useDevConsoleHelpers()
+  useGamepad({ forceLandscape })
 
   if (!tvConfigLoaded) return null
 
