@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useGamepadState } from "../store/gamepadState";
 import { objectEntries } from "ts-extras";
 
 // Standard Gamepad API button indices for d-pad
@@ -36,6 +37,25 @@ const BUTTON_ACTION_MAP: Record<number, () => void> = {
  * rotated arrow key semantics used throughout the app in landscape mode.
  */
 export function useGamepad({ forceLandscape }: { forceLandscape: boolean }) {
+  const setConnected = useGamepadState((state) => state.setConnected);
+
+  useEffect(() => {
+    const handleConnect = () => setConnected(true);
+    const handleDisconnect = () =>
+      setConnected(Array.from(navigator.getGamepads()).some(Boolean));
+
+    window.addEventListener("gamepadconnected", handleConnect);
+    window.addEventListener("gamepaddisconnected", handleDisconnect);
+
+    // Sync initial state
+    setConnected(Array.from(navigator.getGamepads()).some(Boolean));
+
+    return () => {
+      window.removeEventListener("gamepadconnected", handleConnect);
+      window.removeEventListener("gamepaddisconnected", handleDisconnect);
+    };
+  }, [setConnected]);
+
   useEffect(() => {
     const dpadButtonMap = forceLandscape ? DPAD_BUTTON_MAP_LANDSCAPE : DPAD_BUTTON_MAP_PORTRAIT;
     const keyButtonMap = { ...dpadButtonMap };

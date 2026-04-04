@@ -64,7 +64,7 @@
       padding-right: calc(var(--safe-inset-right) + var(--crt-inset-right) + 50px);
       padding-left: var(--crt-inset-left);
       flex-wrap: wrap;
-      column-gap: 1em;
+      column-gap: 0.5em;
       align-items: center;
 
       &::before {
@@ -129,6 +129,19 @@
             }
           }
         }
+      }
+
+      .center-controls,
+      .right-controls {
+        display: flex;
+        gap: 0.5em;
+      }
+
+      .gamepad-connected-indicator {
+        width: 1em;
+        opacity: 0.7;
+        overflow: hidden;
+        animation: status-indicator-hide 0.4s ease-in 5s forwards;
       }
     }
     .vjs-loading-spinner {
@@ -280,5 +293,12 @@
 
   to {
     opacity: 0.5;
+  }
+}
+
+@keyframes status-indicator-hide {
+  to {
+    width: 0;
+    opacity: 0;
   }
 }
