@@ -14,6 +14,7 @@
   padding-inline-end: var(--side-padding);
   background-color: var(--body-bg);
   max-height: 100%;
+  z-index: 10;
 
   &.left-handed {
     --safe-inset-draw-side: var(--safe-inset-left);
@@ -43,7 +44,6 @@
     background: inherit;
     height: 100%; /* this is too small in iOS safari but too big when viewed as a web app on iOS */
     width: 100%;
-    z-index: 10;
     position: relative;
 
     display: flex;

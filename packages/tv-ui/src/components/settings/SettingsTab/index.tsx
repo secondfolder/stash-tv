@@ -902,7 +902,7 @@ const SettingsTab = memo(() => {
               You can donate via <a href="https://ko-fi.com/secondfolder" target="_blank" rel="noopener noreferrer">Ko-Fi</a>
               {" "}or <a href="https://github.com/sponsors/secondfolder" target="_blank" rel="noopener noreferrer">GitHub Sponsors</a>. Thanks!
             </p>
-            <FontAwesomeIcon icon={faHeart} className="accent-icon" />
+            <FontAwesomeIcon icon={faHeart} className="accent-icon large-icon" />
           </Form.Group>
         </>
       </Accordion.Collapse>
