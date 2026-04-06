@@ -9,7 +9,7 @@ import { OverlayTrigger, Popover } from "react-bootstrap";
 import { create } from "zustand";
 import { useTvConfig } from "../../../store/tvConfig";
 import { OverlayTriggerProps } from "react-bootstrap/esm/OverlayTrigger";
-import { preventChildOverflowModifier } from "../../../helpers/popper-modifiers/preventChildOverflow";
+import { includeChildOverflowInPopperSizeModifier } from "../../../helpers/popper-modifiers/includeChildOverflowInPopperSize";
 import { applyArrowHideModifier } from "../../../helpers/popper-modifiers/applyArrowHide";
 import { actionButtonIcons, ActionButtonIconSource } from "../icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -189,7 +189,7 @@ const SidePanel = (
       }}
       popperConfig={{
         modifiers: [
-          preventChildOverflowModifier,
+          includeChildOverflowInPopperSizeModifier,
           applyArrowHideModifier,
           {
             name: 'preventOverflow',
