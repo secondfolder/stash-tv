@@ -15,6 +15,7 @@ import { actionButtonIcons, ActionButtonIconSource } from "../icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { getLogger } from "@logtape/logtape";
 import { setMaxSizeModifier } from "../../../helpers/popper-modifiers/setMaxSize";
+import { useOffscreenModifier } from "../../../hooks/useOffscreenModifier";
 import { useOutsideClickModifier } from "../../../hooks/useOutsideClickModifier";
 
 const logger = getLogger(["stash-tv", "ActionButtonBase"]);
@@ -118,6 +119,10 @@ const SidePanel = (
     onOutsideClick: () => useCurrentOpenPopover.setState(null)
   })
 
+  const offscreenModifier = useOffscreenModifier({
+    onOffscreen: () => useCurrentOpenPopover.setState(null)
+  })
+
   const onSidePanelToggleRef = React.useRef(onSidePanelToggle)
   onSidePanelToggleRef.current = onSidePanelToggle
 
@@ -194,6 +199,7 @@ const SidePanel = (
             },
           },
           setMaxSizeModifier,
+          offscreenModifier,
           outsideClickModifier,
         ],
       }}

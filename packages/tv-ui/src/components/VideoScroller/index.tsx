@@ -198,7 +198,6 @@ const VideoScroller: React.FC<VideoScrollerProps> = memo(() => {
     if (currentIndex >= mediaItems.length - 5) {
       loadMoreMediaItems();
     }
-    useCurrentOpenPopover.setState(null);
   }, [currentIndex, mediaItems.length]);
 
   const [keysDown] = useState<Set<string>>(new Set());
