@@ -130,13 +130,8 @@ const SidePanel = ({
     boundary = undefined
   }
   const preventOverflowModifier = usePreventOverflowModifier({
-    additionalPadding: {
-      top: 10,
-      right: 10,
-      bottom: 60,
-      left: 10,
-    },
-    boundary: boundary
+    boundary: boundary,
+    accountForKeyboard: true,
   })
 
   const outsideClickModifier = useOutsideClickModifier({
