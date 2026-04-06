@@ -118,16 +118,6 @@
   .left-handed {
     translate: calc(var(--safe-inset-left) * 1) 0 !important;
   }
-  max-width: calc(
-    ( var(--x-unit-dynamic) * 100 )
-    -
-    ( 65px + var(--safe-inset-left) + var(--safe-inset-right) + var(--overlay-edge-margin) * 2 )
-  );
-  max-height: calc(
-    ( var(--y-unit-dynamic) * 100 )
-    -
-    ( var(--safe-inset-top) + var(--safe-inset-bottom) + var(--overlay-edge-margin) * 2 )
-  );
   display: flex;
 
   &.show {

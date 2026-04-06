@@ -15,6 +15,7 @@ import { applyArrowHideModifier } from "../../../helpers/popper-modifiers/applyA
 import { actionButtonIcons, ActionButtonIconSource } from "../icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { getLogger } from "@logtape/logtape";
+import { setMaxSizeModifier } from "../../../helpers/popper-modifiers/setMaxSize";
 
 const logger = getLogger(["stash-tv", "ActionButtonBase"]);
 
@@ -224,6 +225,7 @@ const SidePanel = (
               tether: false,
             },
           },
+          setMaxSizeModifier,
         ],
       }}
     >
