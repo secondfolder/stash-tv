@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import "./useOverflowIndicators.css";
 
-type ScrollClasses = "top-overflowing" | "bottom-overflowing" | "indicators-on-overflow";
+type ScrollClasses = "top-overflowing" | "bottom-overflowing" | "indicators-on-overflow" | "overflowing";
 
 export default function useOverflowIndicators(stackElmRef: React.MutableRefObject<HTMLElement | null>) {
   const [isOverflowingTop, setIsOverflowingTop] = useState<boolean>(false);
@@ -10,6 +10,7 @@ export default function useOverflowIndicators(stackElmRef: React.MutableRefObjec
     const classes: ScrollClasses[] = ["indicators-on-overflow"];
     if (isOverflowingTop) classes.push("top-overflowing");
     if (isOverflowingBottom) classes.push("bottom-overflowing");
+    // if (isOverflowingTop || isOverflowingBottom) classes.push("overflowing");
     return classes;
   }, [isOverflowingTop, isOverflowingBottom]);
 

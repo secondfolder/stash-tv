@@ -43,12 +43,44 @@ overflow-x to visible. So we hide it instead to avoid horizontal scrollbars appe
     display: flex;
     /* We reverse the order so that we start from the bottom when scrollable */
     flex-direction: column-reverse;
+    align-items: end;
+
+    .folder {
+      .folder-contents {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.2em;
+        flex-direction: row-reverse;
+        justify-content: center;
+        > * {
+          flex: 0 0 0.8em;
+        }
+      }
+
+      height: 40px;
+      width: 40px;
+      margin: 5px 0;
+      border-radius: 0.3em;
+
+      button& {
+        background: none;
+        border: none;
+        color: inherit;
+      }
+
+      .hide-icon {
+        height: 100%;
+        width: 100%;
+        opacity: 0.8;
+      }
+    }
   }
 
   &.left-handed .stack {
     translate: calc(var(--side-offset) * -1) 0;
     padding-right: unset;
     padding-left: var(--side-offset);
+    align-items: start;
   }
 
   .toggle-ui {
@@ -160,4 +192,23 @@ overflow-x to visible. So we hide it instead to avoid horizontal scrollbars appe
 .action-button-rating-stars,
 .action-button-o-counter {
   font-size: 1.2em;
+}
+
+.folder-contents-popover {
+  &:not(.left-handed) {
+    translate: calc(var(--safe-inset-right) * -1) 0 !important;
+  }
+  background: none;
+  border: 0;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column-reverse;
+  overflow-y: auto;
+  z-index: 1;
+  padding: 0.5em; /* Add some padding so the drop shadow's aren't abruptly cut off by overflow auto */
+  overflow: auto;
+
+  > .arrow {
+    display: none;
+  }
 }

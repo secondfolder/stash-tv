@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { ReactNode, useRef, useState } from "react";
 import { useTvConfig } from "../../../store/tvConfig";
 import cx from "classnames";
 import "./ActionButtonStack.css";
@@ -8,6 +8,13 @@ import { MediaItem } from "../../../hooks/useMediaItems";
 import { VideoJsPlayer } from "video.js";
 import type { ActionButtonConfig } from "../buttons/index";
 import { getActionButtonDefinition } from "../buttons";
+import { ActionButtonIcon } from "../ActionButtonBase";
+import { Overlay, Popover } from "react-bootstrap";
+import { usePreventOverflowModifier } from "../../../hooks/usePreventOverflowModifier";
+import { useOffscreenModifier } from "../../../hooks/useOffscreenModifier";
+import { setMaxSizeModifier } from "../../../helpers/popper-modifiers/setMaxSize";
+import { useMediaItemState } from "../../../store/mediaItemState";
+import { ChevronRight } from "react-bootstrap-icons";
 
 const logger = getLogger(["stash-tv", "ActionButtonStack"]);
 
@@ -64,9 +71,11 @@ export function ActionButtonStack({mediaItem, sceneInfoOpen, setSceneInfoOpen, p
   function renderActionButtonStackConfigItem(config: ActionButtonStackConfig) {
     if (config.type === "folder") {
       return (
-        <div className="folder">
-          {config.contents.map(c => renderActionButton(c))}
-        </div>
+        <Folder
+          folderConfig={config}
+          renderActionButton={renderActionButton}
+          playerRef={playerRef}
+        />
       )
     }
     return renderActionButton(config)
@@ -95,4 +104,86 @@ export function ActionButtonStack({mediaItem, sceneInfoOpen, setSceneInfoOpen, p
       </div>
     </div>
   )
+}
+
+const Folder = ({
+  folderConfig,
+  renderActionButton,
+  playerRef
+}: {
+  folderConfig: ActionButtonStackFolderConfig,
+  renderActionButton: (buttonConfig: ActionButtonConfig) => ReactNode,
+  playerRef: React.RefObject<VideoJsPlayer>,
+}): JSX.Element => {
+  const { leftHandedUi } = useTvConfig();
+  const preventOverflowModifier = usePreventOverflowModifier({
+    boundary: playerRef.current?.el(),
+  })
+  const { openFolderId, set: setMediaItemState } = useMediaItemState()
+  const id = `action-button-stack-folder-${folderConfig.id}`
+  const isOpen = id === openFolderId
+  const offscreenModifier = useOffscreenModifier({
+    onOffscreen: () => setMediaItemState("openFolderId", "")
+  })
+  const first4buttons = folderConfig.contents.slice(0,4)
+
+  const buttonRef = useRef<HTMLButtonElement | null>(null)
+  const folderRef = useRef<HTMLElement | null>(null);
+  const [_, setFolderRefSet] = useState(false) // We need to force a re-render when folderRef is set so useOverflowIndicators will pick it up
+  const stackScrollClasses = useOverflowIndicators(folderRef);
+
+  return <>
+    <button
+      className="folder"
+      ref={buttonRef}
+      onClick={() => {
+        if (!isOpen) {
+          setMediaItemState("openFolderId", id)
+        } else {
+          setMediaItemState("openFolderId", "")
+        }
+      }}
+    >
+      {!isOpen && (
+        <div className="folder-contents">
+          {first4buttons.map(config => {
+            const def = getActionButtonDefinition(config.buttonType)
+            return (
+              <ActionButtonIcon
+                iconDefinition={def.icon}
+                state="inactive"
+                config={def}
+                key={config.id}
+              />
+            )
+          })}
+        </div>
+      )}
+      {isOpen && <ChevronRight className="hide-icon" />}
+    </button>
+    <Overlay
+      target={buttonRef}
+      placement={leftHandedUi ? "right" : "left"}
+      show={isOpen}
+      // The "ref" prop doesn't work so we use "onEntering" to capture the dom elm
+      onEntering={(elm) => {
+        setFolderRefSet(true);
+        folderRef.current = elm
+      }}
+      popperConfig={{
+        modifiers: [
+          preventOverflowModifier,
+          setMaxSizeModifier,
+          offscreenModifier,
+        ],
+      }}
+    >
+      <Popover
+        className={cx("folder-contents-popover", { 'left-handed': leftHandedUi }, stackScrollClasses)}
+        id={id}
+      >
+        {folderConfig.contents.map(config => renderActionButton(config))}
+      </Popover>
+    </Overlay>
+  </>
 }
