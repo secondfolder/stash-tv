@@ -115,7 +115,7 @@ const Folder = ({
   renderActionButton: (buttonConfig: ActionButtonConfig) => ReactNode,
   playerRef: React.RefObject<VideoJsPlayer>,
 }): JSX.Element => {
-  const { leftHandedUi } = useTvConfig();
+  const { leftHandedUi, uiVisible } = useTvConfig();
   const preventOverflowModifier = usePreventOverflowModifier({
     boundary: playerRef.current?.el(),
   })
@@ -134,7 +134,7 @@ const Folder = ({
 
   return <>
     <button
-      className="folder"
+      className="folder hide-on-ui-hide"
       ref={buttonRef}
       onClick={() => {
         if (!isOpen) {
@@ -179,7 +179,7 @@ const Folder = ({
       }}
     >
       <Popover
-        className={cx("folder-contents-popover", { 'left-handed': leftHandedUi }, stackScrollClasses)}
+        className={cx("folder-contents-popover", { 'left-handed': leftHandedUi, hide: !uiVisible }, stackScrollClasses)}
         id={id}
       >
         {folderConfig.contents.map(config => renderActionButton(config))}

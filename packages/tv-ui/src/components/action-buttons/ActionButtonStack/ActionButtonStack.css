@@ -208,6 +208,10 @@ overflow-x to visible. So we hide it instead to avoid horizontal scrollbars appe
   padding: 0.5em; /* Add some padding so the drop shadow's aren't abruptly cut off by overflow auto */
   overflow: auto;
 
+  &.hide {
+    visibility: hidden;
+  }
+
   > .arrow {
     display: none;
   }
