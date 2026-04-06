@@ -55,6 +55,7 @@ export function DeleteMediaItemActionButton({
       />
     )
   } else {
+    mediaItem satisfies never
     logger.error("DeleteMediaItemActionButton rendered for unsupported media item type", {mediaItem})
     return null
   }

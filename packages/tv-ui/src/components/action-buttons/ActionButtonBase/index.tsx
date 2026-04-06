@@ -37,7 +37,7 @@ export type ActionButtonBaseProps<State extends string> = {
   size?: "auto",
   displayOnly?: boolean;
   className?: string;
-  onClick?: () => void;
+  onClick?: (props: {toggleSidePanel: () => void}) => void;
   config?: Record<string, unknown>;
 }
 
@@ -62,8 +62,11 @@ const ActionButtonBase = <State extends string>(props: ActionButtonBaseProps<Sta
   const getOnClickHandler = (sidePanelClick: (event: React.MouseEvent<HTMLElement>) => void) => {
     if (displayOnly) return;
     return (event: React.MouseEvent<HTMLElement>) => {
-      onClick?.()
-      sidePanel && sidePanelClick(event)
+      if (onClick) {
+        onClick({toggleSidePanel: () => sidePanelClick(event)})
+      } else if (sidePanel) {
+        sidePanelClick(event)
+      }
     }
   }
 
@@ -174,6 +177,7 @@ const SidePanel = ({
       placement={leftHandedUi ? "right" : "left"}
       overlay={
         <Popover
+          as="dialog"
           className={cx("action-button-side-panel", sidePanelClassName, { 'left-handed': leftHandedUi })}
           id={id}
         >
@@ -224,13 +228,15 @@ export function ActionButtonIcon<State extends string>({
   state,
   size = "standard",
   config,
+  className: providedClassName,
 }: {
   iconDefinition: ActionButtonBaseProps<State>["icon"],
   state: State,
   size?: "standard" | "small" | "max"
   config?: Record<string, unknown>,
+  className?: string,
 }) {
-  const className = cx("ActionButtonIcon", `size-${size}`)
+  const className = cx("ActionButtonIcon", `size-${size}`, providedClassName)
 
   let iconSource: ActionButtonIconSource | undefined
 

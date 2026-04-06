@@ -700,7 +700,12 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
   const videoJsProgressControlElm = videojsPlayerRef.current?.getChild('ControlBar')?.getChild('ProgressControl')?.el();
 
   return (
-    <MediaItemStateContextProvider initialValues={{mediaSlideElementRef}}>
+    <MediaItemStateContextProvider
+      initialValues={{
+        mediaSlideElementRef,
+        preIncrementOCounterValue: scene.o_counter ?? undefined
+      }}
+    >
       <div
         className={cx("MediaSlide", {'current-video': isCurrentVideo, 'cover': !letterboxing, 'hide-controls': !uiVisible, 'left-handed': leftHandedUi}, props.className)}
         data-testid="MediaSlide--container"

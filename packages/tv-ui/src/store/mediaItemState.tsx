@@ -4,6 +4,7 @@ import { createStore, useStore } from 'zustand';
 
 type MediaItemState = {
   openFolderId: string;
+  preIncrementOCounterValue: number;
   mediaSlideElementRef: React.RefObject<HTMLDivElement>;
 }
 
@@ -16,6 +17,7 @@ type MediaItemStateActions = {
 
 const defaults = {
   openFolderId: '',
+  preIncrementOCounterValue: 0,
   mediaSlideElementRef: {
     current: null
   },
@@ -24,7 +26,7 @@ const defaults = {
 export type MediaItemStore = ReturnType<typeof createMediaItemStore>;
 
 export function createMediaItemStore(
-  {initialValues}: {initialValues?: Partial<MediaItemState & MediaItemStateActions>}
+  {initialValues}: {initialValues?: Partial<MediaItemState>}
 ) {
   return createStore<MediaItemState & MediaItemStateActions>()((set, get) => ({
     ...defaults,
@@ -50,7 +52,7 @@ export function createMediaItemStore(
 export const MediaItemStateContext = createContext<MediaItemStore | null>(null);
 
 export const MediaItemStateContextProvider = (
-  {children, initialValues}: {children?: ReactNode, initialValues?: Partial<MediaItemState & MediaItemStateActions>}
+  {children, initialValues}: {children?: ReactNode, initialValues?: Partial<MediaItemState>}
 ) => {
   const store = useMemo(() => createMediaItemStore({initialValues}), [])
   return (

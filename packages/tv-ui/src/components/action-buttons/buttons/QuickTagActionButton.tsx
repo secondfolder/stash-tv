@@ -103,6 +103,7 @@ export function QuickTagActionButton({
       </>
       : null;
   } else {
+    mediaItem satisfies never
     logger.error("QuickTagActionButton rendered for unsupported media item type", {mediaItem})
     return null
   }
