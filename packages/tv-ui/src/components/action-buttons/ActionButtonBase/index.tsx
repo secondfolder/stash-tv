@@ -9,13 +9,13 @@ import { OverlayTrigger, Popover } from "react-bootstrap";
 import { create } from "zustand";
 import { useTvConfig } from "../../../store/tvConfig";
 import { OverlayTriggerProps } from "react-bootstrap/esm/OverlayTrigger";
-import { preventMisclickOnMoveModifier } from "../../../helpers/popper-modifiers/preventMisclickOnMove";
 import { preventChildOverflowModifier } from "../../../helpers/popper-modifiers/preventChildOverflow";
 import { applyArrowHideModifier } from "../../../helpers/popper-modifiers/applyArrowHide";
 import { actionButtonIcons, ActionButtonIconSource } from "../icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { getLogger } from "@logtape/logtape";
 import { setMaxSizeModifier } from "../../../helpers/popper-modifiers/setMaxSize";
+import { useOutsideClickModifier } from "../../../hooks/useOutsideClickModifier";
 
 const logger = getLogger(["stash-tv", "ActionButtonBase"]);
 
@@ -114,6 +114,10 @@ const SidePanel = (
   const id = `action-button-side-panel-${useUID()}`
   const isOpen = id === currentOpenPopover
 
+  const outsideClickModifier = useOutsideClickModifier({
+    onOutsideClick: () => useCurrentOpenPopover.setState(null)
+  })
+
   const onSidePanelToggleRef = React.useRef(onSidePanelToggle)
   onSidePanelToggleRef.current = onSidePanelToggle
 
@@ -147,41 +151,6 @@ const SidePanel = (
     };
   }, [forceLandscape])
 
-  const processedClickEvents = useMemo(() => new WeakSet(), [])
-  useEffect(() => {
-    if (!isOpen) return;
-    function handleEvent(event: Event) {
-      if (!useCurrentOpenPopover.getState()) return; // The listeners should only be setup if a popover is open but we check to be safe
-      const clickedActionButton = (event.target as HTMLElement).closest(".ActionButton")
-      const clickedSidePanel = (event.target as HTMLElement).closest(".action-button-side-panel")
-      if (useCurrentOpenPopover.getState() && !clickedSidePanel) {
-        if (!clickedActionButton) {
-          // We don't want any non-popover or action button elements receiving mouse/pointer events if the popover is open
-          event.stopImmediatePropagation()
-          event.stopPropagation()
-          event.preventDefault()
-        }
-        if (event.type === "click" || event.type === "tap" || event.type === "touchend") {
-          processedClickEvents.add(event)
-          useCurrentOpenPopover.setState(null)
-        }
-      }
-    }
-    const eventTypes = ["click", "mousedown", "mouseup", "pointerdown", "pointerup", "tap", "touchstart", "touchend", "touchcancel"] as const
-    eventTypes.forEach(eventType => window.addEventListener(eventType, handleEvent, {capture: true}))
-    return () => {
-      eventTypes.forEach(eventType => window.removeEventListener(eventType, handleEvent, {capture: true}))
-    }
-  }, [isOpen])
-
-  const renderChildren: Children = ({onClick, ref}) => children({
-    onClick: (event) => {
-      // We want to skip any events that have already been acted upon as part of the rootClose handling
-      if (processedClickEvents.has(event.nativeEvent) || isOpen) return
-      onClick?.(event)
-    },
-    ref
-  })
 
   if (!content) return children({onClick: () => {}, ref: null})
   return (
@@ -204,8 +173,8 @@ const SidePanel = (
       }
       show={isOpen}
       onToggle={(shouldOpen) => {
-        // We want to make sure to ignore any calls triggered by a rootClose event if the user has already clicked a
-        // different action button and opened a different popover
+        // In practice it shouldn't be possible to trigger onToggle when the popper is open since it should be covered by
+        // outsideClickModifier's backdrop but we play it safe and cover that situation
         const currentlyOpen = id === useCurrentOpenPopover.getState()
         if (shouldOpen && !currentlyOpen) {
           useCurrentOpenPopover.setState(id)
@@ -215,7 +184,6 @@ const SidePanel = (
       }}
       popperConfig={{
         modifiers: [
-          preventMisclickOnMoveModifier,
           preventChildOverflowModifier,
           applyArrowHideModifier,
           {
@@ -226,12 +194,13 @@ const SidePanel = (
             },
           },
           setMaxSizeModifier,
+          outsideClickModifier,
         ],
       }}
     >
       {
         // OverlayTrigger's children appear to be typed wrong
-        renderChildren as unknown as OverlayTriggerProps['children']
+        children as unknown as OverlayTriggerProps['children']
       }
     </OverlayTrigger>
   )
