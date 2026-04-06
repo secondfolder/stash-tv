@@ -37,6 +37,7 @@ import { useGamepadStatus } from "../../../hooks/useGamepadStatus";
 import { TOGGLE_VIDEO_EVENT, PAUSE_VIDEO_EVENT } from "../../../events";
 import { ConfigurationContext } from "stash-ui/dist/src/hooks/Config";
 import { useFirstMountState } from "react-use";
+import { MediaItemStateContextProvider } from "../../../store/mediaItemState";
 
 videojs.registerPlugin('styledBigPlayButton', styledBigPlayButton);
 
@@ -82,6 +83,7 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
     set: setTvConfig,
   } = useTvConfig();
 
+  const mediaSlideElementRef = useRef<HTMLDivElement>(null)
 
   const { configuration: stashConfig } = useContext(ConfigurationContext)
   const { connectedAt: gamepadConnectedAt } = useGamepadStatus();
@@ -563,7 +565,6 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
 
   /* ------------------------------ On end event ------------------------------ */
 
-  const itemRef = useRef<HTMLDivElement>(null);
 
   /** Handle the event fired at the end of video playback. */
   const handleOnEnded = () => {
@@ -699,116 +700,118 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
   const videoJsProgressControlElm = videojsPlayerRef.current?.getChild('ControlBar')?.getChild('ProgressControl')?.el();
 
   return (
-    <div
-      className={cx("MediaSlide", {'current-video': isCurrentVideo, 'cover': !letterboxing, 'hide-controls': !uiVisible, 'left-handed': leftHandedUi}, props.className)}
-      data-testid="MediaSlide--container"
-      data-index={props.index}
-      data-scene-id={scene.id}
-      ref={itemRef}
-      style={props.style}
-    >
-      <CrtEffect
-        enabled={crtEffect}
-        strength={crtEffectStrength}
-        infoText={`STV-${props.index + 1}`}
+    <MediaItemStateContextProvider initialValues={{mediaSlideElementRef}}>
+      <div
+        className={cx("MediaSlide", {'current-video': isCurrentVideo, 'cover': !letterboxing, 'hide-controls': !uiVisible, 'left-handed': leftHandedUi}, props.className)}
+        data-testid="MediaSlide--container"
+        data-index={props.index}
+        data-scene-id={scene.id}
+        ref={mediaSlideElementRef}
+        style={props.style}
       >
-        {showDebuggingInfo.includes("onscreen-info") && <>
-          <div className="debugStats">
-            {props.index} - {scene.id} {loadingDeferred ? "(Loading deferred)" : ""}
-            {" "}{props.mediaItem.entityType === "marker" ? `(Marker: ${props.mediaItem.entity.primary_tag.name})` : ""}
-            {" "}(duration: {roundTo(videojsPlayerRef.current?.duration() || 0, 2)}s, current time: {roundTo(videojsPlayerRef.current?.currentTime() || 0, 2)}s)
-          </div>
-          <div className="loadingDeferredDebugBackground" />
-        </>}
-        {loadingDeferred && scene.paths.screenshot && <img className="loadingDeferredPreview" src={scene.paths.screenshot} />}
-        {!loadingDeferred && <ScenePlayer
-          id={`scene-player-${props.mediaItem.id}`}
-          // Force remount when scene streams change to ensure videojs reloads the source
-          key={JSON.stringify([scene.id, hashObject(scene.sceneStreams)])}
-          onTimeUpdate={handleOnTimeUpdate}
-          mediaItem={props.mediaItem}
-          scene={scene}
-          // We avoid showing the poster if we are auto-playing to prevent a flash of the poster before playback starts
-          showPoster={!globalAutoPlay}
-          hideScrubberOverride={true}
-          muted={!volume}
-          volume={volume}
-          playbackRate={playbackRate}
-          autoplay={autoplay}
-          loop={looping}
-          initialTimestamp={initialTimestamp}
-          sendSetTimestamp={() => {}}
-          onNext={() => {}}
-          onPrevious={() => {}}
-          refVideo={videoRef}
-          onEnded={handleOnEnded}
-          onVideojsPlayerCreated={handleVideojsPlayerCreated}
-          trackActivity={!scenePreviewOnly && props.mediaItem.entityType !== "marker"}
-          scrubberThumbnail={!scenePreviewOnly && props.mediaItem.entityType !== "marker"}
-          markers={!scenePreviewOnly}
-          optionsToMerge={{
-            plugins: {
-              styledBigPlayButton: {},
-              ...(props.mediaItem.entityType === "marker" && !markerPreviewOnly ? {
-                offset: {
-                  start: props.mediaItem.entity.seconds,
-                  end: props.mediaItem.entity.seconds + props.mediaItem.entity.duration,
-                  // This moves the play head to the start of the marker clip but does not resume play even if loop is
-                  // true so we handle that ourselves in an onEnded handler
-                  restart_beginning: true
-                }
-              } : {}),
-              abLoopPlugin: {
-                createButtons: false,
-              },
-            }
-          }}
-        />}
-        {videoJsControlBarElm && createPortal(
-          <>
-            <div className="center-controls">
+        <CrtEffect
+          enabled={crtEffect}
+          strength={crtEffectStrength}
+          infoText={`STV-${props.index + 1}`}
+        >
+          {showDebuggingInfo.includes("onscreen-info") && <>
+            <div className="debugStats">
+              {props.index} - {scene.id} {loadingDeferred ? "(Loading deferred)" : ""}
+              {" "}{props.mediaItem.entityType === "marker" ? `(Marker: ${props.mediaItem.entity.primary_tag.name})` : ""}
+              {" "}(duration: {roundTo(videojsPlayerRef.current?.duration() || 0, 2)}s, current time: {roundTo(videojsPlayerRef.current?.currentTime() || 0, 2)}s)
+            </div>
+            <div className="loadingDeferredDebugBackground" />
+          </>}
+          {loadingDeferred && scene.paths.screenshot && <img className="loadingDeferredPreview" src={scene.paths.screenshot} />}
+          {!loadingDeferred && <ScenePlayer
+            id={`scene-player-${props.mediaItem.id}`}
+            // Force remount when scene streams change to ensure videojs reloads the source
+            key={JSON.stringify([scene.id, hashObject(scene.sceneStreams)])}
+            onTimeUpdate={handleOnTimeUpdate}
+            mediaItem={props.mediaItem}
+            scene={scene}
+            // We avoid showing the poster if we are auto-playing to prevent a flash of the poster before playback starts
+            showPoster={!globalAutoPlay}
+            hideScrubberOverride={true}
+            muted={!volume}
+            volume={volume}
+            playbackRate={playbackRate}
+            autoplay={autoplay}
+            loop={looping}
+            initialTimestamp={initialTimestamp}
+            sendSetTimestamp={() => {}}
+            onNext={() => {}}
+            onPrevious={() => {}}
+            refVideo={videoRef}
+            onEnded={handleOnEnded}
+            onVideojsPlayerCreated={handleVideojsPlayerCreated}
+            trackActivity={!scenePreviewOnly && props.mediaItem.entityType !== "marker"}
+            scrubberThumbnail={!scenePreviewOnly && props.mediaItem.entityType !== "marker"}
+            markers={!scenePreviewOnly}
+            optionsToMerge={{
+              plugins: {
+                styledBigPlayButton: {},
+                ...(props.mediaItem.entityType === "marker" && !markerPreviewOnly ? {
+                  offset: {
+                    start: props.mediaItem.entity.seconds,
+                    end: props.mediaItem.entity.seconds + props.mediaItem.entity.duration,
+                    // This moves the play head to the start of the marker clip but does not resume play even if loop is
+                    // true so we handle that ourselves in an onEnded handler
+                    restart_beginning: true
+                  }
+                } : {}),
+                abLoopPlugin: {
+                  createButtons: false,
+                },
+              }
+            }}
+          />}
+          {videoJsControlBarElm && createPortal(
+            <>
+              <div className="center-controls">
               {currentlyPlayingMarkers.length > 0 && (
                 <div className="vjs-control currently-playing-marker">
                   {currentlyPlayingMarkersDisplayName}
                 </div>
               )}
 
-            </div>
-            <div className="vjs-custom-control-spacer vjs-spacer">&nbsp;</div>
-            <div className="right-controls">
-              {gamepadConnectedAt && !gamepadConnectedAWhileAgo && (
-                <FontAwesomeIcon icon={faGamepad} className="vjs-control gamepad-connected-indicator" />
-              )}
-            </div>
-          </>,
-          videoJsControlBarElm
-        )}
-        {videojsPlayerRef.current?.el() && createPortal(
-          textSelectionWorkaroundElm,
-          videojsPlayerRef.current?.el()
-        )}
-        {looping && initialTimestamp !== undefined && videoJsProgressControlElm && createPortal(
-          <ClipTimestamp type="start" progressPercentage={(initialTimestamp / (videojsPlayerRef.current?.duration() || 1)) * 100} />,
-          videoJsProgressControlElm
-        )}
-        {endTimestamp !== undefined && videoJsProgressControlElm && createPortal(
-          <ClipTimestamp type="end" progressPercentage={(endTimestamp / (videojsPlayerRef.current?.duration() || 1)) * 100} />,
-          videoJsProgressControlElm
-        )}
-        <SceneInfo
-          ref={sceneInfoPanelRef}
-          scene={scene}
-          className={cx({active: sceneInfoOpen})}
-          onExternalLinkClick={() => videojsPlayerRef.current?.pause()}
-        />
-        <ActionButtonStack
-          mediaItem={props.mediaItem}
-          sceneInfoOpen={sceneInfoOpen}
-          setSceneInfoOpen={setSceneInfoOpen}
-          playerRef={videojsPlayerRef}
-        />
-      </CrtEffect>
-    </div>
+              </div>
+                <div className="vjs-custom-control-spacer vjs-spacer">&nbsp;</div>
+                <div className="right-controls">
+                {gamepadConnectedAt && !gamepadConnectedAWhileAgo && (
+                  <FontAwesomeIcon icon={faGamepad} className="vjs-control gamepad-connected-indicator" />
+                )}
+              </div>
+            </>,
+            videoJsControlBarElm
+          )}
+          {videojsPlayerRef.current?.el() && createPortal(
+            textSelectionWorkaroundElm,
+            videojsPlayerRef.current?.el()
+          )}
+          {looping && initialTimestamp !== undefined && videoJsProgressControlElm && createPortal(
+            <ClipTimestamp type="start" progressPercentage={(initialTimestamp / (videojsPlayerRef.current?.duration() || 1)) * 100} />,
+            videoJsProgressControlElm
+          )}
+          {endTimestamp !== undefined && videoJsProgressControlElm && createPortal(
+            <ClipTimestamp type="end" progressPercentage={(endTimestamp / (videojsPlayerRef.current?.duration() || 1)) * 100} />,
+            videoJsProgressControlElm
+          )}
+          <SceneInfo
+            ref={sceneInfoPanelRef}
+            scene={scene}
+            className={cx({active: sceneInfoOpen})}
+            onExternalLinkClick={() => videojsPlayerRef.current?.pause()}
+          />
+          <ActionButtonStack
+            mediaItem={props.mediaItem}
+            sceneInfoOpen={sceneInfoOpen}
+            setSceneInfoOpen={setSceneInfoOpen}
+            playerRef={videojsPlayerRef}
+          />
+        </CrtEffect>
+      </div>
+    </MediaItemStateContextProvider>
   );
 };
 

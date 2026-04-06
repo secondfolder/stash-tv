@@ -1,6 +1,5 @@
 import React, {
   useEffect,
-  useMemo,
 } from "react";
 import cx from "classnames";
 import "./ActionButtonBase.css";
@@ -14,7 +13,9 @@ import { applyArrowHideModifier } from "../../../helpers/popper-modifiers/applyA
 import { actionButtonIcons, ActionButtonIconSource } from "../icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { getLogger } from "@logtape/logtape";
+import { usePreventOverflowModifier } from "../../../hooks/usePreventOverflowModifier";
 import { setMaxSizeModifier } from "../../../helpers/popper-modifiers/setMaxSize";
+import { hasMediaItemStateContext, useMediaItemState } from "../../../store/mediaItemState";
 import { useOffscreenModifier } from "../../../hooks/useOffscreenModifier";
 import { useOutsideClickModifier } from "../../../hooks/useOutsideClickModifier";
 
@@ -102,18 +103,38 @@ const ActionButtonBase = <State extends string>(props: ActionButtonBaseProps<Sta
 
 type Children = (props: {onClick: (event: React.MouseEvent<HTMLElement>) => void, ref: React.Ref<any>}) => JSX.Element
 
-const SidePanel = (
-  {content, children, onSidePanelToggle, sidePanelClassName}: {
-    content: SidePanelContent,
-    onSidePanelToggle?: (isOpen: boolean) => void,
-    sidePanelClassName?: string,
-    children: Children
-  }
-): JSX.Element => {
+const SidePanel = ({
+  content,
+  children,
+  onSidePanelToggle,
+  sidePanelClassName,
+}: {
+  content: SidePanelContent,
+  onSidePanelToggle?: (isOpen: boolean) => void,
+  sidePanelClassName?: string,
+  children: Children,
+}): JSX.Element => {
   const currentOpenPopover = useCurrentOpenPopover()
-  const { leftHandedUi, forceLandscape } = useTvConfig();
+  const { leftHandedUi } = useTvConfig();
   const id = `action-button-side-panel-${useUID()}`
   const isOpen = id === currentOpenPopover
+  let boundary
+  // Action buttons can be placed outside of a MediaSlide instance
+  if (hasMediaItemStateContext()) {
+    const { mediaSlideElementRef } = useMediaItemState()
+    boundary = mediaSlideElementRef.current ?? undefined
+  } else {
+    boundary = undefined
+  }
+  const preventOverflowModifier = usePreventOverflowModifier({
+    additionalPadding: {
+      top: 10,
+      right: 10,
+      bottom: 60,
+      left: 10,
+    },
+    boundary: boundary
+  })
 
   const outsideClickModifier = useOutsideClickModifier({
     onOutsideClick: () => useCurrentOpenPopover.setState(null)
@@ -144,17 +165,6 @@ const SidePanel = (
       if (timeout) clearTimeout(timeout);
     }
   }, [isOpen])
-
-  const safeInsetPadding = useMemo(() => {
-    const style = getComputedStyle(document.documentElement);
-    const additionalPadding = parseInt(style.getPropertyValue('--overlay-edge-margin')) ?? 0
-    return {
-      top: (parseInt(style.getPropertyValue('--safe-inset-top')) || 0) + additionalPadding,
-      left: (parseInt(style.getPropertyValue('--safe-inset-left')) || 0) + additionalPadding,
-      right: (parseInt(style.getPropertyValue('--safe-inset-right')) || 0) + additionalPadding,
-      bottom: (parseInt(style.getPropertyValue('--safe-inset-bottom')) || 0) + additionalPadding,
-    };
-  }, [forceLandscape])
 
 
   if (!content) return children({onClick: () => {}, ref: null})
@@ -191,13 +201,7 @@ const SidePanel = (
         modifiers: [
           includeChildOverflowInPopperSizeModifier,
           applyArrowHideModifier,
-          {
-            name: 'preventOverflow',
-            options: {
-              padding: safeInsetPadding,
-              tether: false,
-            },
-          },
+          preventOverflowModifier,
           setMaxSizeModifier,
           offscreenModifier,
           outsideClickModifier,
