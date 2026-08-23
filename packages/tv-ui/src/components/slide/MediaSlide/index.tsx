@@ -123,6 +123,29 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
 
   const scene = props.mediaItem.entityType === "scene" ? props.mediaItem.entity : props.mediaItem.entity.scene;
 
+  // Apollo re-broadcasts a scene (including sceneStreams) to every component watching it whenever any field on
+  // that Scene entity is written in the cache - notably every 10s from the trackActivity plugin's watch-progress
+  // mutation below. Stream URLs commonly carry a per-request auth token/signature in their query string, so a
+  // plain hash of sceneStreams would come out different on every one of those broadcasts even though the
+  // underlying files haven't changed, forcing ScenePlayer's key (below) to change and the player to be torn down
+  // and rebuilt - which is what was causing playback to restart from the beginning every ~10 seconds. We hash
+  // only each stream's origin + pathname plus its label/mime type, which is what actually identifies "which
+  // stream is this" - so a genuine stream change (e.g. transcode options changing) still forces a remount, but
+  // auth token churn on an unchanged stream no longer does.
+  const stableSceneStreamsKey = useMemo(
+    () => hashObject(scene.sceneStreams.map(stream => {
+      let path = stream.url;
+      try {
+        const url = new URL(stream.url, window.location.origin);
+        path = url.origin + url.pathname;
+      } catch {
+        // Leave path as the raw url if it isn't a parseable absolute/relative URL for some reason
+      }
+      return { path, mime_type: stream.mime_type, label: stream.label };
+    })),
+    [scene.sceneStreams]
+  );
+
   const getMediaItemDuration = () => props.mediaItem.entityType === "marker" ? props.mediaItem.entity.duration : props.mediaItem.entity.files[0]?.duration;
 
   // Stash itself has a "maximum loop duration" setting: videos shorter than it auto-loop regardless of our own
@@ -849,7 +872,7 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
           {!loadingDeferred && <ScenePlayer
             id={`scene-player-${props.mediaItem.id}`}
             // Force remount when scene streams change to ensure videojs reloads the source
-            key={JSON.stringify([scene.id, hashObject(scene.sceneStreams)])}
+            key={JSON.stringify([scene.id, stableSceneStreamsKey])}
             onTimeUpdate={handleOnTimeUpdate}
             mediaItem={props.mediaItem}
             scene={scene}
