@@ -4,6 +4,7 @@ import React, { ForwardedRef, forwardRef, useCallback, useEffect, useMemo, useRe
 import { default as cx } from "classnames";
 import videojs, { VideoJsPlayerOptions, type VideoJsPlayer } from "video.js";
 import { allowPluginRemoval } from "./video.js/allow-plugin-removal";
+import { moveStreamToFront } from "./video.js/source-selector-access";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import { useTvConfig } from "../../store/tvConfig";
 import 'videojs-offset'
@@ -253,7 +254,7 @@ const ScenePlayer = forwardRef<
                 })
             ),
     }
-    function addWrapperToRevertPreviewUrlChange(player: VideoJsPlayer) {
+    function addSourceSelectorWrappers(player: VideoJsPlayer) {
         const originalSourceSelector = player.sourceSelector
         player.sourceSelector = function(...args) {
             const sourceSelector = originalSourceSelector.apply(this, args);
@@ -264,7 +265,14 @@ const ScenePlayer = forwardRef<
                         source.src = source.src.replace(/\/preview\/stream$/, '/preview');
                     }
                 });
-                originalSetSources.apply(this, [sources, ...otherArgs]);
+                // If the user has a preferred stream (set via the resolution action button) move it to
+                // the front of the list. The source selector plugin loads sources[0] as the default, so
+                // this applies the preference without playing, keeping preloaded adjacent slides paused.
+                const preferredStreamLabel = useTvConfig.getState().get("preferredStreamLabel");
+                const sourcesToLoad = preferredStreamLabel
+                    ? moveStreamToFront(sources, preferredStreamLabel)
+                    : sources;
+                originalSetSources.apply(this, [sourcesToLoad, ...otherArgs]);
             };
             return sourceSelector;
         };
@@ -321,7 +329,7 @@ const ScenePlayer = forwardRef<
         // Ideally we wouldn't need this. See comment for "loop" in modifyPlayerSetupOptions() call
         setTimeout(() => !player.isDisposed() && player.loop(loop), 100);
       }
-      addWrapperToRevertPreviewUrlChange(player);
+      addSourceSelectorWrappers(player);
       disableBuggyOnEndHandling(player);
       onVideojsPlayerCreated?.(player);
       setVideojsPlayer(player);

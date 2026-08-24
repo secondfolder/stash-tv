@@ -20,6 +20,9 @@ type TvConfig = {
   crtEffectStrength: number;
   scenePreviewOnly: boolean;
   markerPreviewOnly: boolean;
+  // Label of the stream Stash TV should prefer playing, matching Stash's stream labels
+  // (e.g. "HLS Full HD (1080p)"). Undefined means the default (direct) stream.
+  preferredStreamLabel?: string;
   onlyShowMatchingOrientation: boolean;
   maxMedia: undefined | number;
   autoPlay: boolean;
@@ -66,6 +69,7 @@ const defaults = {
   crtEffectStrength: 1,
   scenePreviewOnly: false,
   markerPreviewOnly: false,
+  preferredStreamLabel: undefined,
   onlyShowMatchingOrientation: false,
   maxMedia: undefined,
   autoPlay: true,

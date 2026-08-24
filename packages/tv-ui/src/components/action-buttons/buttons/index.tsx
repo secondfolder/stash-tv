@@ -16,6 +16,7 @@ import { buttonDefinition as oCounterButtonDefinition } from "./OCounterActionBu
 import { buttonDefinition as playbackRateButtonDefinition } from "./PlaybackRateActionButton";
 import { buttonDefinition as quickTagButtonDefinition } from "./QuickTagActionButton";
 import { buttonDefinition as rateSceneButtonDefinition } from "./RateSceneActionButton";
+import { buttonDefinition as resolutionButtonDefinition } from "./ResolutionActionButton";
 import { buttonDefinition as setOrganizedButtonDefinition } from "./SetOrganizedActionButton";
 import { buttonDefinition as settingsButtonDefinition } from "./SettingsActionButton";
 import { buttonDefinition as showSceneInfoButtonDefinition } from "./ShowSceneInfoActionButton";
@@ -56,6 +57,7 @@ export const allButtonDefinition = [
   oCounterButtonDefinition,
   quickTagButtonDefinition,
   rateSceneButtonDefinition,
+  resolutionButtonDefinition,
   settingsButtonDefinition,
   showSceneInfoButtonDefinition,
   subtitlesButtonDefinition,

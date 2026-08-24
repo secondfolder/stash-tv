@@ -51,6 +51,21 @@ Also note:
 
 ---
 
+## Stream Selection & the Source Selector
+
+Stash's ScenePlayer hands the scene's streams to the Video.js `sourceSelector` plugin (`source-selector.ts` in stash-ui): `setSources()` loads `sources[0]` as the default, and its control-bar menu switches between them. Stash TV hides that menu (CSS + the `controlBar.children` override in the `beforesetup` hook) and drives the plugin directly instead:
+
+- `src/components/ScenePlayer/video.js/source-selector-access.ts` — typed access to the plugin's runtime shape. Its `menu`/`items`/`selectedSource` are TypeScript-private in Stash's declarations but stable at runtime; the file re-applies the shape once, at its access boundary (`as unknown as`), rather than patching stash-ui.
+- Reading streams: `getSceneStreamOptions(player)` / `getSelectedSceneStream(player)`
+- Switching: `selectSceneStream(player, source)` triggers the menu item's `selected` event so Stash's own handler performs the switch (preserves playback position/pause state, and marks the selection manual — which blocks the plugin's error auto-advance from overriding it). Sources passed here must come from `getSceneStreamOptions` for the same player (matching is by reference).
+- `ScenePlayer/index.tsx` wraps `player.sourceSelector` (`addSourceSelectorWrappers`): its `setSources` interception reverts preview URLs (see quirks table) and moves the user's `preferredStreamLabel` (tvConfig, set by the resolution action button) to the front of the list so the plugin loads it as the default. Applying the preference by *playing* the stream instead would start playback on preloaded adjacent slides.
+
+⚠️ Components displaying stream state should refresh on the player's `loadstart` event — source switches (manual selection, error fallback, new scene) don't emit anything more specific.
+
+⚠️ Stream labels come from the Stash server (`internal/manager/scene.go`): "Direct stream", an optional "MKV", then "{MP4|WEBM|HLS|DASH} {4K (2160p)|Full HD (1080p)|HD (720p)|…}". Persist labels, not URLs — labels are stable across scenes, URLs are per-scene. In scene/marker preview mode `sceneStreams` is replaced by a single synthetic "Direct stream" entry, so stream UIs see exactly one option there.
+
+---
+
 ## Working with the Player
 
 1. Our ScenePlayer wraps Video.js (via Stash's) — customise via the props above or Video.js plugins/options, not by editing Stash's component
