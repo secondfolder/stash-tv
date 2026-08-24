@@ -80,18 +80,15 @@ export function selectSceneStream(player: VideoJsPlayer, source: SceneStreamSour
 }
 
 /**
- * Whether the source is the scene's direct stream rather than a transcode. Mirrors
- * the `isDirect` check in Stash's ScenePlayer (plus a label check to cover the
- * synthetic direct stream used by scene/marker preview mode).
+ * Whether the source is the scene's direct stream — the file served as-is — rather
+ * than a remuxed/transcoded stream. Label-based: Stash's `isDirect` URL check
+ * (pathname ending `/stream`, `/stream.m3u8` or `/stream.mpd`) matches every
+ * HLS/DASH manifest at any resolution — the resolution is a `?resolution=` query
+ * param, so it isn't part of the pathname — which is what its offset handling wants
+ * but not what "the direct stream" means for display and preference purposes.
  */
 export function isDirectStream(source: SceneStreamSource): boolean {
-  if (source.label === DIRECT_STREAM_LABEL) return true;
-  const { pathname } = new URL(source.src);
-  return (
-    pathname.endsWith("/stream") ||
-    pathname.endsWith("/stream.m3u8") ||
-    pathname.endsWith("/stream.mpd")
-  );
+  return source.label === DIRECT_STREAM_LABEL;
 }
 
 /**
@@ -139,10 +136,26 @@ export function getStreamItemLabel(source: SceneStreamSource): string {
 }
 
 /**
+ * Display order for stream codecs within a group: the direct stream first, then
+ * file containers, then adaptive streaming formats. Matches the server's own order
+ * for an untouched source list.
+ */
+const CODEC_DISPLAY_ORDER = ["Direct stream", "MKV", "MP4", "WEBM", "HLS", "DASH"];
+
+function codecDisplayRank(label: string): number {
+  const { codec } = parseStreamLabel(label);
+  const index = CODEC_DISPLAY_ORDER.indexOf(codec);
+  // Unknown codecs sort after the known ones, keeping their relative order
+  return index === -1 ? CODEC_DISPLAY_ORDER.length : index;
+}
+
+/**
  * Groups streams for display: an "Original" group first (the direct stream, MKV and
  * source-resolution transcodes — all the scene's original resolution), then one group
- * per transcode resolution, highest first. Stream order within a group follows the
- * server's source order.
+ * per transcode resolution, highest first. Streams within a group are sorted by
+ * canonical codec order so the display is stable regardless of the underlying source
+ * list order — the preferred stream is applied by moving it to the front of the source
+ * list, which would otherwise leak into the display order.
  */
 export function groupSceneStreamsByResolution(sources: SceneStreamSource[]): SceneStreamGroup[] {
   const originalGroup: SceneStreamGroup = { id: "original", label: "Original", sources: [] };
@@ -174,6 +187,12 @@ export function groupSceneStreamsByResolution(sources: SceneStreamSource[]): Sce
     if (b === originalGroup) return 1;
     return resolutionHeight(b.id) - resolutionHeight(a.id);
   });
+
+  for (const group of groups) {
+    group.sources.sort(
+      (a, b) => codecDisplayRank(a.label ?? "") - codecDisplayRank(b.label ?? "")
+    );
+  }
 
   return groups.filter(group => group.sources.length > 0);
 }

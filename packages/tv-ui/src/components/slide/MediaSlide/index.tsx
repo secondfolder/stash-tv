@@ -43,6 +43,11 @@ import { useGlobalState } from "../../../store/globalState";
 import { useMediaItemTags } from "../../../hooks/useMediaItemTags";
 import { EditTagsContents } from "../../EditTagsContents";
 import { Modal } from "../../containers/Modal";
+import { useSceneStreamSelection } from "../../../hooks/useSceneStreamSelection";
+import {
+  getShortStreamLabel,
+  isDirectStream,
+} from "../../ScenePlayer/video.js/source-selector-access";
 
 videojs.registerPlugin('styledBigPlayButton', styledBigPlayButton);
 
@@ -610,6 +615,9 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
   const { tags: mediaItemTags, primaryTag: mediaItemPrimaryTag, setTags: setMediaItemTags } = useMediaItemTags(props.mediaItem);
   const [showTagEditor, setShowTagEditor] = useState(false);
 
+  const { selected: selectedSceneStream } = useSceneStreamSelection(videojsPlayerRef);
+  const showStreamIndicator = !!selectedSceneStream && !isDirectStream(selectedSceneStream);
+
   useEffect(() => {
     if (!isCurrentVideo) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -848,6 +856,11 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
               </div>
                 <div className="vjs-custom-control-spacer vjs-spacer">&nbsp;</div>
                 <div className="right-controls">
+                {showStreamIndicator && selectedSceneStream && (
+                  <div className="vjs-control current-stream-indicator">
+                    {getShortStreamLabel(selectedSceneStream)}
+                  </div>
+                )}
                 {gamepadConnectedAt && !gamepadConnectedAWhileAgo && (
                   <FontAwesomeIcon icon={faGamepad} className="vjs-control gamepad-connected-indicator" />
                 )}

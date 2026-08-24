@@ -143,6 +143,14 @@
         overflow: hidden;
         animation: status-indicator-hide 0.4s ease-in 5s forwards;
       }
+
+      .current-stream-indicator {
+        display: flex;
+        align-items: center;
+        font-size: 0.8em;
+        opacity: 0.7;
+        white-space: nowrap;
+      }
     }
     .vjs-loading-spinner {
       --size: 120px;

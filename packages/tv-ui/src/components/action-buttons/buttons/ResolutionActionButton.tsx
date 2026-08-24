@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react"
+import React from "react"
 import * as yup from "yup";
 import { useTvConfig } from "../../../store/tvConfig";
 import ActionButtonBase from "../ActionButtonBase";
@@ -10,15 +10,13 @@ import cx from "classnames";
 import { VideoJsPlayer } from "video.js";
 import { Button } from "react-bootstrap";
 import {
-  getSceneStreamOptions,
-  getSelectedSceneStream,
-  getShortStreamLabel,
   getStreamItemLabel,
   groupSceneStreamsByResolution,
   isDirectStream,
   selectSceneStream,
   type SceneStreamSource,
 } from "../../ScenePlayer/video.js/source-selector-access";
+import { useSceneStreamSelection } from "../../../hooks/useSceneStreamSelection";
 
 const id = "resolution";
 
@@ -43,29 +41,7 @@ export function ResolutionActionButton({
   playerRef: React.RefObject<VideoJsPlayer>,
 }) {
   const { set: setTvConfig } = useTvConfig();
-  const [selection, setSelection] = useState<{
-    options: SceneStreamSource[],
-    selected: SceneStreamSource | null,
-  }>({ options: [], selected: null });
-
-  const refreshSelection = useCallback(() => {
-    const player = playerRef.current;
-    if (!player || player.isDisposed()) return;
-    setSelection({
-      options: getSceneStreamOptions(player),
-      selected: getSelectedSceneStream(player),
-    });
-  }, [playerRef]);
-
-  useEffect(() => {
-    const player = playerRef.current;
-    if (!player) return;
-    // "loadstart" fires whenever the player loads a source, covering switches made by
-    // this button, by the source selector's error fallback, and new scenes
-    refreshSelection();
-    player.on("loadstart", refreshSelection);
-    return () => player.off("loadstart", refreshSelection);
-  }, [playerRef.current, refreshSelection]);
+  const { options, selected: selectedStream } = useSceneStreamSelection(playerRef);
 
   function handleSelectStream(source: SceneStreamSource) {
     const player = playerRef.current;
@@ -77,7 +53,6 @@ export function ResolutionActionButton({
     setTvConfig("preferredStreamLabel", isDirectStream(source) ? undefined : source.label);
   }
 
-  const selectedStream = selection.selected;
   const playingDirectStream = !selectedStream || isDirectStream(selectedStream);
 
   return (
@@ -86,10 +61,9 @@ export function ResolutionActionButton({
       icon={buttonDefinition.icon}
       title={buttonDefinition.title}
       className={cx(buttonDefinition.id, "hide-on-ui-hide")}
-      sideInfo={selectedStream && !playingDirectStream ? getShortStreamLabel(selectedStream) : undefined}
       sidePanelClassName="action-button-resolution"
       sidePanel={<>
-        {groupSceneStreamsByResolution(selection.options).map(group => (
+        {groupSceneStreamsByResolution(options).map(group => (
           <div key={group.id} className="stream-group">
             <div className="stream-group-label">{group.label}</div>
             <div className="stream-group-options">
