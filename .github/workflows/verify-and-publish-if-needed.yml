@@ -13,14 +13,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
-          fetch-depth: 0 # Used by "Validate PR commits with commitlint" step below
+          # The "Validate PR commits with commitlint" step below requires all the commits in the PR to lint their
+          # messages. Otherwise if not a PR we can just fetch the latest commit.
+          fetch-depth: ${{ case(github.event_name == 'pull_request', github.event.pull_request.commits, 1) }}
           path: stash-tv
-          token: ${{ secrets.CI_GITHUB_TOKEN }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 'lts/*'
 
@@ -48,6 +49,7 @@ jobs:
         run: npx commitlint --from ${{ github.event.pull_request.head.sha }}~${{ github.event.pull_request.commits }} --to ${{ github.event.pull_request.head.sha }} --verbose
 
       - name: Set version number for release
+        if: github.event.pull_request.head_repo.fork != true # Secrets are not set when run for a PR by non-maintainers
         working-directory: stash-tv
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -88,7 +90,7 @@ jobs:
 
       - name: Upload npm logs on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: npm-logs
           path: ~/.npm/_logs/*
