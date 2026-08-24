@@ -136,7 +136,7 @@ const Folder = ({
 
   return <>
     <button
-      className="folder hide-on-ui-hide"
+      className={cx("folder", "hide-on-ui-hide", {open: isOpen})}
       ref={buttonRef}
       onClick={() => {
         if (!isOpen) {

@@ -25,7 +25,7 @@
   }
 
   .side-info {
-    transition: opacity 0.2s ease-in-out;
+    transition: opacity 0.2s ease;
     margin-left: 0.5em;
     filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.6));
     font-weight: bold;
@@ -42,7 +42,7 @@
 
     background-color: transparent;
     width: 40px;
-    transition: scale 0.1s ease-in-out;
+    transition: scale 0.1s ease;
     color: inherit;
 
     button& {

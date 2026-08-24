@@ -54,6 +54,11 @@ overflow-x to visible. So we hide it instead to avoid horizontal scrollbars appe
         justify-content: center;
         > * {
           flex: 0 0 0.8em;
+          /*
+          Inline font awesome icons try to make this overflow visible which for some reason stops them from being
+          resized down so we explicitly set it svg's default of overflow hidden.
+          */
+          overflow: hidden;
         }
       }
 
@@ -73,6 +78,12 @@ overflow-x to visible. So we hide it instead to avoid horizontal scrollbars appe
         width: 100%;
         opacity: 0.8;
       }
+    }
+
+    /* Fade out the sideInfo of action buttons under outside the folder incase the folder contents overlaps with them */
+    &:has(.folder.open) .ActionButton .side-info {
+      opacity: 0.3;
+      transition-duration: 0.03s;
     }
   }
 
