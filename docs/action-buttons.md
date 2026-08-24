@@ -12,7 +12,7 @@ The action buttons are the vertical button rail on each media slide (TikTok-styl
 
 | Path | Purpose |
 |---|---|
-| `buttons/index.tsx` | Registry: `allButtonDefinition` (every button definition), the `ActionButtonDefinition` / `ActionButtonConfig` / `ActionButtonProps` types, and `getActionButtonDefinition(type)` for typed lookups |
+| `buttons/index.tsx` | Registry: `allButtonDefinition` (every button definition), the `ActionButtonDefinition` / `ActionButtonConfig` / `ActionButtonProps` types, and `getActionButtonDefinition(type)` for typed lookups (returns the `UnknownActionButton` fallback for unknown types instead of throwing) |
 | `buttons/<Name>ActionButton.tsx` | One file per button: the React component + a `buttonDefinition` export |
 | `ActionButtonBase/` | Presentational shell every button renders through; also exports `ActionButtonIcon` and `ActionButtonTitle` for reuse (settings modal, folder previews) |
 | `ActionButtonStack/` | Renders the configured stack: scrollable unpinned section, pinned section, and folders |
@@ -69,6 +69,8 @@ try {
   return <strong>?</strong>
 }
 ```
+
+⚠️ An unknown `buttonType` in the stack config — e.g. saved by a newer Stash TV instance connected to the same Stash server, then loaded by an older build — must not crash the app. `getActionButtonDefinition` returns `unknownActionButtonDefinition` (`buttons/UnknownActionButton.tsx`) for such types: a non-interactive button with an error icon and `sideInfo` naming the missing type. It is deliberately not in `allButtonDefinition`, so it never shows up in the add-button UI.
 
 ## `ActionButtonBase`
 

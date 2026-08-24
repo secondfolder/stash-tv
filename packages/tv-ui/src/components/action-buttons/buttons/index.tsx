@@ -22,6 +22,7 @@ import { buttonDefinition as settingsButtonDefinition } from "./SettingsActionBu
 import { buttonDefinition as showSceneInfoButtonDefinition } from "./ShowSceneInfoActionButton";
 import { buttonDefinition as subtitlesButtonDefinition } from "./SubtitlesActionButton";
 import { buttonDefinition as uiVisibilityButtonDefinition } from "./UiVisibilityActionButton";
+import { unknownActionButtonDefinition } from "./UnknownActionButton";
 import { buttonDefinition as volumeButtonDefinition } from "./VolumeActionButton";
 
 type ActionButtonProps = {
@@ -36,6 +37,11 @@ type ActionButtonProps = {
 
 export type ActionButtonDefinitionInput<Config extends Record<string, unknown> = Record<string, unknown>> = {
   id: string;
+  /**
+   * `config` can be undefined because `ActionButtonTitle` may render titles for
+   * button definitions that are not instantiated as real buttons yet. For example,
+   * the settings list of addable action buttons has no per-button config.
+   */
   title: Record<string, string> | React.FC<{state: string, config?: Config}>;
   icon: ActionButtonIcon;
   components: {
@@ -71,14 +77,17 @@ export type ActionButtonDefinition = typeof allButtonDefinition[number]
 
 export type ActionButtonConfig = yup.InferType<ActionButtonDefinition["configSchema"]>
 
-export function getActionButtonDefinition<
-  ButtonType extends ActionButtonDefinition["id"]
->(
+/**
+ * Looks up a button definition by its button type. The type comes from untrusted
+ * persisted config — e.g. stack config saved by a different (possibly newer) Stash TV
+ * instance connected to the same Stash server — so unknown types return an
+ * {@link unknownActionButtonDefinition} fallback instead of throwing, keeping the app
+ * rendering.
+ */
+export function getActionButtonDefinition<ButtonType extends ActionButtonDefinition["id"]>(
   type: ButtonType
-): Extract<ActionButtonDefinition, { id: ButtonType }> {
-  const definition = allButtonDefinition.find(def => def.id === type)
-  if (!definition) {
-    throw new Error(`No action button definition found for type ${type}`)
-  }
-  return definition as Extract<ActionButtonDefinition, { id: ButtonType }>
+): Extract<ActionButtonDefinition, { id: ButtonType }>
+export function getActionButtonDefinition(type: string): ActionButtonDefinition | typeof unknownActionButtonDefinition
+export function getActionButtonDefinition(type: string): ActionButtonDefinition | typeof unknownActionButtonDefinition {
+  return allButtonDefinition.find(def => def.id === type) ?? unknownActionButtonDefinition
 }
