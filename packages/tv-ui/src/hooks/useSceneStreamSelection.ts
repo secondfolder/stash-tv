@@ -1,17 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { VideoJsPlayer } from "video.js";
 import {
-  getSceneStreamOptions,
-  getSelectedSceneStream,
-  type SceneStreamSource,
+  getDisplayableVideoSources,
+  getSelectedVideoSource,
+  isPreferredStream,
+  type VideoSource,
 } from "../components/ScenePlayer/video.js/source-selector-access";
-
-export type SceneStreamSelection = {
-  /** The streams available for the player's current scene. */
-  options: SceneStreamSource[];
-  /** The stream currently loaded in the player, or null before sources have been set. */
-  selected: SceneStreamSource | null;
-};
+import { useTvConfig } from "../store/tvConfig";
 
 /**
  * Tracks the source selector plugin's stream selection for the given player.
@@ -20,30 +15,46 @@ export type SceneStreamSelection = {
  * covering every way the selection can change: manual selection via the plugin,
  * its error fallback, and new scenes.
  */
-export function useSceneStreamSelection(
-  playerRef: React.RefObject<VideoJsPlayer | null>
-): SceneStreamSelection {
-  const [selection, setSelection] = useState<SceneStreamSelection>({
-    options: [],
-    selected: null,
-  });
+export function useSceneStreamSelection({
+  playerRef,
+}: {
+  playerRef: React.RefObject<VideoJsPlayer | null>;
+}) {
+  const preferredStreamLabel = useTvConfig(state => state.preferredStreamLabel);
 
+  const [availableStreams, setAvailableStreams] = useState<VideoSource[]>(playerRef.current ? getDisplayableVideoSources(playerRef.current) : []);
+  const [selectedStream, setSelectedStream] = useState<VideoSource | null>(playerRef.current ? getSelectedVideoSource(playerRef.current) : null);
+
+  // Update availableStreams & selectedStream if the player changes them
   useEffect(() => {
+    const refreshSelection = () => {
+      const player = playerRef.current;
+      if (!player) return;
+      setAvailableStreams(getDisplayableVideoSources(player));
+      setSelectedStream(getSelectedVideoSource(player));
+    };
+
     const player = playerRef.current;
     if (!player) return;
-
-    const refreshSelection = () => {
-      if (player.isDisposed()) return;
-      setSelection({
-        options: getSceneStreamOptions(player),
-        selected: getSelectedSceneStream(player),
-      });
-    };
 
     refreshSelection();
     player.on("loadstart", refreshSelection);
     return () => player.off("loadstart", refreshSelection);
   }, [playerRef.current]);
 
-  return selection;
+  const selectedIsPreferred = useMemo<boolean>(
+    () => selectedStream ? isPreferredStream(selectedStream, preferredStreamLabel) : false,
+    [selectedStream, preferredStreamLabel]
+  );
+
+  const preferredStream = useMemo<VideoSource | null>(() => {
+    return availableStreams.find(stream => isPreferredStream(stream, preferredStreamLabel)) ?? null;
+  }, [availableStreams, preferredStreamLabel]);
+
+  return {
+    availableStreams,
+    selectedStream,
+    preferredStream,
+    selectedIsPreferred,
+  };
 }

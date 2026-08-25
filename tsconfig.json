@@ -1,10 +1,10 @@
 {
   "extends": "@tsconfig/recommended/tsconfig.json",
   "compilerOptions": {
-    "target": "ES2023",
+    "target": "es2024",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": ["ES2023", "DOM"],
+    "lib": ["es2024", "DOM"],
     "jsx": "react",
     "resolveJsonModule": true,
     "noEmit": true

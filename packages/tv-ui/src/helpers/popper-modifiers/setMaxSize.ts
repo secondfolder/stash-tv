@@ -40,7 +40,6 @@ export const setMaxSizeModifier: PopperOptions['modifiers'][number] = {
     const mainAxis = getMainAxisFromPlacement(basePlacement);
     let width
     let height
-    console.log("mainAxis", mainAxis)
     if (mainAxis === "x") {
       const availableSpaceSide = basePlacement
       height = (overflow[availableSpaceSide] * -1) + state.rects.popper.height + offsetDistance

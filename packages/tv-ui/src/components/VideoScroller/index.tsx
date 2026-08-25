@@ -455,6 +455,7 @@ const VideoScroller: React.FC<VideoScrollerProps> = memo(() => {
               changeItemHandler={changeItemHandler}
               removeMediaItem={removeMediaItem}
               isCurrentVideo={i === currentIndex}
+              currentIndex={currentIndex}
               index={i}
               key={hashObject([mediaItem.id, scenePreviewOnly, markerPreviewOnly])}
               mediaItem={mediaItem}

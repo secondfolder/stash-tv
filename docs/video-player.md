@@ -51,14 +51,23 @@ Also note:
 
 ---
 
-## Stream Selection & the Source Selector
+## Source Selection
 
 Stash's ScenePlayer hands the scene's streams to the Video.js `sourceSelector` plugin (`source-selector.ts` in stash-ui): `setSources()` loads `sources[0]` as the default, and its control-bar menu switches between them. Stash TV hides that menu (CSS + the `controlBar.children` override in the `beforesetup` hook) and drives the plugin directly instead:
 
 - `src/components/ScenePlayer/video.js/source-selector-access.ts` — typed access to the plugin's runtime shape. Its `menu`/`items`/`selectedSource` are TypeScript-private in Stash's declarations but stable at runtime; the file re-applies the shape once, at its access boundary (`as unknown as`), rather than patching stash-ui.
-- Reading streams: `getSceneStreamOptions(player)` / `getSelectedSceneStream(player)` — or `useSceneStreamSelection(playerRef)` (`src/hooks/`), a hook wrapping them that re-reads on `loadstart`. The current stream indicator in the control bar (`.right-controls`, rendered by `MediaSlide`) and the resolution action button both use it.
-- Switching: `selectSceneStream(player, source)` triggers the menu item's `selected` event so Stash's own handler performs the switch (preserves playback position/pause state, and marks the selection manual — which blocks the plugin's error auto-advance from overriding it). Sources passed here must come from `getSceneStreamOptions` for the same player (matching is by reference).
+- Reading streams: `getVideoSources(player)` / `getSelectedVideoSource(player)` — or `useSceneStreamSelection(playerRef)` (`src/hooks/`), a hook wrapping them that re-reads on `loadstart`. The current stream indicator in the control bar (`.right-controls`, rendered by `MediaSlide`) and the resolution action button both use it. **Note:** the hook assumes the `playerRef` is already guarded against disposed players (MediaSlide uses `useGetterRef` to filter these out), so the hook does not duplicate that check.
+- Applying preferred resolution: `useSyncPlayerWithPreferredStream(playerRef)` owns the source-switch workflow for slide-level propagation.
+- Switching: `switchSceneStream(player, source)` performs a paused-state-preserving source swap: it updates the plugin menu selection, loads the new source, restores `currentTime` on `canplay`, and only calls `play()` if the player was already playing. This avoids starting playback on preloaded offscreen slides when preferences are applied. `switchSceneStream(player, source)` is a thin alias used by UI code. Sources passed here must come from `getSceneStreamOptions` for the same player (matching is by reference).
 - `ScenePlayer/index.tsx` wraps `player.sourceSelector` (`addSourceSelectorWrappers`): its `setSources` interception reverts preview URLs (see quirks table) and moves the user's `preferredStreamLabel` (tvConfig, set by the resolution action button) to the front of the list so the plugin loads it as the default. Applying the preference by *playing* the stream instead would start playback on preloaded adjacent slides.
+
+### Preferred Stream Propagation Across Rendered Slides
+
+The resolution action button generally only updates `tvConfig.preferredStreamLabel`; the exception being if the video
+is out of sync with the preferred stream.
+
+- `MediaSlide` used `useSyncPlayerWithPreferredStream(enabled)`; the hook applies changes via `switchSceneStream(...)`.
+- Scope: apply to the current slide and rendered next slides only (`index >= currentIndex`) *at the moment the preference changes*; rendered previous slides are intentionally left unchanged.
 
 ⚠️ Components displaying stream state should refresh on the player's `loadstart` event — source switches (manual selection, error fallback, new scene) don't emit anything more specific.
 

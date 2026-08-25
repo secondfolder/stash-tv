@@ -44,9 +44,10 @@ import { useMediaItemTags } from "../../../hooks/useMediaItemTags";
 import { EditTagsContents } from "../../EditTagsContents";
 import { Modal } from "../../containers/Modal";
 import { useSceneStreamSelection } from "../../../hooks/useSceneStreamSelection";
+import { useSyncPlayerWithPreferredStream } from "../../../hooks/useSyncPlayerWithPreferredStream";
 import {
-  getShortStreamLabel,
   isDirectStream,
+  ORIGINAL_RESOLUTION_LABEL,
 } from "../../ScenePlayer/video.js/source-selector-access";
 
 videojs.registerPlugin('styledBigPlayButton', styledBigPlayButton);
@@ -59,6 +60,7 @@ export interface MediaSlideProps {
   changeItemHandler: ((newIndex: number | ((currentIndex: number) => number), scrollOptions?: ScrollToIndexOptions) => void);
   removeMediaItem: (id: string) => void;
   isCurrentVideo: boolean;
+  currentIndex: number;
   index: number;
   style?: React.CSSProperties | undefined;
   className?: string;
@@ -615,8 +617,15 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
   const { tags: mediaItemTags, primaryTag: mediaItemPrimaryTag, setTags: setMediaItemTags } = useMediaItemTags(props.mediaItem);
   const [showTagEditor, setShowTagEditor] = useState(false);
 
-  const { selected: selectedSceneStream } = useSceneStreamSelection(videojsPlayerRef);
-  const showStreamIndicator = !!selectedSceneStream && !isDirectStream(selectedSceneStream);
+  const { selectedStream } = useSceneStreamSelection({
+    playerRef: videojsPlayerRef,
+  });
+  useSyncPlayerWithPreferredStream({
+    playerRef: videojsPlayerRef,
+    // Only apply stream preference to current and upcoming loaded slides or hasn't loaded yet so we keep buffered data
+    // on previous slides.
+    enabled: () => props.index >= props.currentIndex || videojsPlayerRef.current?.readyState() === 0,
+  })
 
   useEffect(() => {
     if (!isCurrentVideo) return;
@@ -856,9 +865,10 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
               </div>
                 <div className="vjs-custom-control-spacer vjs-spacer">&nbsp;</div>
                 <div className="right-controls">
-                {showStreamIndicator && selectedSceneStream && (
+                {selectedStream && !isDirectStream(selectedStream) && (
                   <div className="vjs-control current-stream-indicator">
-                    {getShortStreamLabel(selectedSceneStream)}
+                    {selectedStream.resolutionName !== ORIGINAL_RESOLUTION_LABEL && `${selectedStream.resolutionName} `}
+                    {selectedStream.format}
                   </div>
                 )}
                 {gamepadConnectedAt && !gamepadConnectedAWhileAgo && (
