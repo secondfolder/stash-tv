@@ -1,0 +1,29 @@
+{
+  "name": "mock-stash",
+  "version": "1.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:conformance": "vitest run --config vitest.conformance.config.ts",
+    "generate-media": "node scripts/generate-media.mjs"
+  },
+  "dependencies": {
+    "@graphql-tools/schema": "^10.0.31",
+    "graphql": "^16.11.0",
+    "graphql-ws": "^5.16.2",
+    "graphql-yoga": "^5.18.0",
+    "stash-ui": "1.0.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.0",
+    "testcontainers": "^11.5.1",
+    "typescript": "^5.5.4",
+    "vitest": "^3.2.4"
+  }
+}

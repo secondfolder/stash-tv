@@ -16,6 +16,7 @@
     "packages/stash-ui/stash/**/*"
   ],
   "include": [
+    "packages/mock-stash/**/*",
     "packages/tv-ui/**/*",
     "packages/tv-plugin/**/*",
     "packages/stash-ui/wrappers/**/*",
