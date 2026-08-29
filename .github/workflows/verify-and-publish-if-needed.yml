@@ -49,7 +49,7 @@ jobs:
         run: npx commitlint --from ${{ github.event.pull_request.head.sha }}~${{ github.event.pull_request.commits }} --to ${{ github.event.pull_request.head.sha }} --verbose
 
       - name: Set version number for release
-        if: github.event.pull_request.head_repo.fork != true # Secrets are not set when run for a PR by non-maintainers
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')
         working-directory: stash-tv
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
