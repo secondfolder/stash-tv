@@ -335,13 +335,11 @@ Where the perf-critical work lives:
 
 ---
 
-## PR Review Checklist (Documentation & Tests)
-
-Before merging a pull request, verify:
+## Changes Checklist (Documentation & Tests)
 
 - [ ] Documentation changes are in step with the code change, and incorrect statements in `docs/` were fixed.
 - [ ] New concepts that readers would need explained are documented in the relevant doc, not only commented in code.
 - [ ] Any new doc has a row in the Documentation table in this file.
 - [ ] If a repo-wide convention or invariant changed, `AGENTS.md` reflects that change.
-- [ ] Frozen plans under `docs/historical-plans/` were not silently rewritten.
+- [ ] Any plans you implemented placed under under `docs/historical-plans/`.
 - [ ] Tests that verify documented behavior cite the relevant doc with `@see docs/<file>.md § "<heading>"`.
