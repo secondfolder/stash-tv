@@ -20,6 +20,35 @@ When updating, follow the existing style: concise bullet points, clear headings,
 
 ---
 
+## Documentation
+
+Feature-specific documentation lives under `docs/`. Read the one that covers what you are touching — the table below says _when_ to read each:
+
+| Doc                                      | Read it when                                                                                               |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| [Media loading](docs/media-loading.md)   | Touching `useMediaItems`, filters, pagination, the accumulator store, or feed data loading                 |
+| [Video player](docs/video-player.md)     | Touching playback, player DOM, or workarounds for Stash ScenePlayer/Video.js quirks                       |
+| [stash-ui package](docs/stash-ui-package.md) | Integrating or modifying Stash frontend components, understanding wrappers vs patches                  |
+| [State & config](docs/state-and-config.md) | Touching state, adding a config option, or changing how settings persist (Zustand stores, hybrid storage) |
+| [Action buttons](docs/action-buttons.md) | Adding an action button or touching `src/components/action-buttons/` (schemas, config, folders)           |
+| [Release process](docs/release-process.md) | Writing commits, preparing releases, or understanding versioning/deployment flow                          |
+
+Adding a new doc means adding its row to this table. A test validates that every doc in `docs/` is listed here and every link points to a real file — a doc without a row is caught rather than going unnoticed.
+
+### Keeping docs current
+
+Documentation is part of a change, not a follow-up to it.
+
+- A change that makes a statement in `docs/` wrong is not finished until that statement is fixed.
+- A change that adds a concept someone would need explained — a new filter, a new output style, a new config option, a new component — gets it documented in the relevant doc, not only in code comments.
+- A new doc gets a row in the [Documentation](#documentation) table above.
+- `AGENTS.md` itself changes when a repo-wide convention or invariant does: a new build step, a new linting rule, a new architectural pattern, a new directory with rules of its own.
+- Frozen plans under `docs/historical-plans/` are exempt from all of the above. They are not updated as the code moves on. If one has to be edited because it is actively misleading someone, mark the edit inline as post-implementation, dated, with who changed it and why — never a silent rewrite.
+
+Reach for a doc when the material is one feature deep; reach for `AGENTS.md` when it applies across the repo. Link between them rather than repeating.
+
+---
+
 ## Commands
 
 ```bash
@@ -40,19 +69,6 @@ yarn storybook    # Starts on port 6006
 ```
 
 ⚠️ `STASH_ADDRESS` must be set before running `yarn dev` or all API calls will fail. See [Environment Variables & Configuration](#environment-variables--configuration) for the full list of options.
-
----
-
-## Topic Docs
-
-Deeper, tightly-scoped documentation lives under `docs/`. Read the ones relevant to your task — skip the rest:
-
-- [Media loading](docs/media-loading.md) — scene/marker pagination, the accumulator store, custom media modifiers, debugging load issues. *Read when touching `useMediaItems`, filters, or feed data loading.*
-- [Video player](docs/video-player.md) — ScenePlayer/Video.js architecture and every Stash ScenePlayer quirk we work around. *Read when touching playback or player DOM.*
-- [stash-ui package](docs/stash-ui-package.md) — reusing Stash frontend code: wrappers vs patches, import rules, build scripts. *Read when integrating or modifying Stash components.*
-- [State & config](docs/state-and-config.md) — the Zustand stores, the typed setter pattern, hybrid storage, adding settings. *Read when touching state, adding a config option, or changing how settings persist.*
-- [Action buttons](docs/action-buttons.md) — the customizable action button stack: button definitions, config schemas, folders, settings forms, icons. *Read when adding an action button or touching `src/components/action-buttons/`.*
-- [Release process](docs/release-process.md) — conventional commits, release rules, deployment. *Read when writing commits or preparing releases.*
 
 ---
 
@@ -212,6 +228,8 @@ VITE_DEBUG=true                           # Enable extra debug logging
 
 ## Testing & Quality Assurance
 
+- Tests that verify documented behavior should cite the relevant doc with `@see docs/<file>.md § "<heading>"` so the requirement and the explanation stay aligned.
+
 ### Current Status
 
 - **Linting:** No ESLint configuration present (not enforced)
@@ -314,3 +332,16 @@ Where the perf-critical work lives:
 - Add unreplaced `process.env` variables (the plugin build fails on them)
 - Redefine Stash GraphQL types — import from `stash-ui/dist/src/core/generated-graphql`
 - Move media pagination into Apollo cache merging
+
+---
+
+## PR Review Checklist (Documentation & Tests)
+
+Before merging a pull request, verify:
+
+- [ ] Documentation changes are in step with the code change, and incorrect statements in `docs/` were fixed.
+- [ ] New concepts that readers would need explained are documented in the relevant doc, not only commented in code.
+- [ ] Any new doc has a row in the Documentation table in this file.
+- [ ] If a repo-wide convention or invariant changed, `AGENTS.md` reflects that change.
+- [ ] Frozen plans under `docs/historical-plans/` were not silently rewritten.
+- [ ] Tests that verify documented behavior cite the relevant doc with `@see docs/<file>.md § "<heading>"`.
