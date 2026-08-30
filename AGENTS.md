@@ -35,6 +35,23 @@ Feature-specific documentation lives under `docs/`. Read the one that covers wha
 
 Adding a new doc means adding its row to this table. A test validates that every doc in `docs/` is listed here and every link points to a real file — a doc without a row is caught rather than going unnoticed.
 
+### Documentation purpose and style
+
+**DOCS/** files describe **behavior, design decisions, and rationale** — not the process of implementation. They answer "what is this and why does it work this way?" not "how did we build it?".
+
+Examples of appropriate content for `docs/`:
+- How pagination works in the media accumulator and why it's designed that way
+- The hybrid storage system for tvConfig and its trade-offs
+- Video.js workarounds and why they're necessary
+- Architectural patterns like wrappers vs patches for stash-ui
+- Component conventions and testing strategies for future developers
+
+**DOCS/HISTORICAL-PLANS/** stores frozen implementation plans. These are:
+- Complete plans written before work begins
+- Updated only during implementation to record deviations (marked inline, dated, with author)
+- Never silently rewritten after completion
+- Reference material for understanding the original design intent
+
 ### Keeping docs current
 
 Documentation is part of a change, not a follow-up to it.
@@ -44,6 +61,18 @@ Documentation is part of a change, not a follow-up to it.
 - A new doc gets a row in the [Documentation](#documentation) table above.
 - `AGENTS.md` itself changes when a repo-wide convention or invariant does: a new build step, a new linting rule, a new architectural pattern, a new directory with rules of its own.
 - Frozen plans under `docs/historical-plans/` are exempt from all of the above. They are not updated as the code moves on. If one has to be edited because it is actively misleading someone, mark the edit inline as post-implementation, dated, with who changed it and why — never a silent rewrite.
+
+### Historical plans
+
+The `docs/historical-plans/` directory contains frozen implementation plans. These documents:
+- Capture the complete plan before implementation begins
+- Are named with the implementation date as prefix (e.g., `2026-08-30-testing-implementation-plan.md`)
+- May be updated during implementation to record deviations from the original plan
+- Are marked inline, dated, and attributed when edited post-implementation
+- Never silently rewritten after completion
+- Serve as reference for understanding original design intent
+
+Historical plans are **exempt** from the "keep docs current" requirement. They represent a point-in-time planning document, not living documentation of current system behavior.
 
 Reach for a doc when the material is one feature deep; reach for `AGENTS.md` when it applies across the repo. Link between them rather than repeating.
 
