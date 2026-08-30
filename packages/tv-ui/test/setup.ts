@@ -1,10 +1,45 @@
-import { expect, afterEach } from "vitest";
+import { expect, afterEach, afterAll, vi } from "vitest";
 import * as jestDomMatchers from "@testing-library/jest-dom/matchers";
 import { cleanup } from "@testing-library/react";
+import type { Client } from "graphql-ws";
 
 // jest-dom v5 (pinned for React 17 compat) only auto-extends a Jest-style global
 // `expect`; with vitest's explicit-import style we extend manually.
 expect.extend(jestDomMatchers);
+
+// --- Apollo WebSocket client lifecycle management ----------------------------
+//
+// The app's Apollo client is a module-level singleton built on a `graphql-ws`
+// client configured with `retryAttempts: Infinity`. Integration tests re-import
+// app modules fresh per test (`loadFreshAppModules` → `vi.resetModules()`), so a
+// single test file creates MANY ws clients — all of which keep trying to connect/
+// reconnect forever. Without disposal, pending connections reject during jsdom
+// teardown and vitest reports them as unhandled errors.
+//
+// We wrap (not replace) `graphql-ws`'s `createClient` to track every client
+// created in this test file, then dispose them all in `afterAll` — before jsdom
+// teardown. Disposing closes open sockets and stops the retry loop, so teardown
+// is deterministic and tests can run in parallel workers.
+//
+// @see docs/historical-plans/2026-08-30-websocket-cleanup-problem-handoff.md
+const wsClients = vi.hoisted(() => new Set<import("graphql-ws").Client>());
+vi.mock("graphql-ws", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("graphql-ws")>();
+  return {
+    ...actual,
+    createClient: (...args: Parameters<typeof actual.createClient>) => {
+      if (process.env.DEBUG_WS_MOCK) console.log("[ws-mock] createClient wrapped:", args[0]?.url);
+      const client = actual.createClient(...args);
+      wsClients.add(client);
+      return client;
+    },
+  };
+});
+afterAll(async () => {
+  await Promise.allSettled([...wsClients].map((client) => client.dispose()));
+  wsClients.clear();
+});
+// -----------------------------------------------------------------------------
 
 // RTL's auto-cleanup also relies on a global afterEach, which we don't have with
 // explicit imports — unmount after every test centrally instead of per-file.

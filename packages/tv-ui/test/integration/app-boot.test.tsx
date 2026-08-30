@@ -56,14 +56,11 @@ describe("App boots against the mock Stash API", () => {
     const body = (await probe.json()) as { data: { findScenes: { count: number } } };
     expect(body.data.findScenes.count).toBe(8);
 
-    // Tear the app down explicitly: unmount stops watch queries/hooks, and stopping
-    // both Apollo clients cancels in-flight XHRs (apollo-upload-client uses XHR) so
-    // jsdom teardown doesn't turn them into unhandled rejections.
+    // Cleanup: unmount the app; Apollo clients are not stopped (see harness.ts)
+    // The harness explains why: clients hold WebSocket subscriptions with infinite retry,
+    // and stopping them before jsdom teardown produces unhandled error events.
     await act(async () => {
       rendered.unmount();
     });
-    const { getClient } = await import("stash-ui/dist/src/core/StashService");
-    getClient().stop();
-    apolloClient.stop();
   });
 });

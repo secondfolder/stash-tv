@@ -21,8 +21,10 @@ describe("Media loading integration", () => {
     const { default: App } = await loadFreshAppModules();
     const { getApolloClient } = await import("../../src/hooks/getApolloClient");
 
-    let rendered: ReturnType<typeof render>;
     const apolloClient = getApolloClient();
+    // React 17's `act` doesn't propagate callback return values, so use
+    // definite assignment rather than awaiting the result.
+    let rendered!: ReturnType<typeof render>;
     await act(async () => {
       rendered = render(
         <ApolloProvider client={apolloClient}>
@@ -49,12 +51,9 @@ describe("Media loading integration", () => {
     expect(content).toContain("Cascade Calm"); // 2024-04-10
     expect(content).toContain("Blueprint Boulevard"); // 2024-02-15
 
-    // Cleanup
+    // Cleanup: unmount the app; Apollo clients are not stopped (see harness.ts)
     await act(async () => {
       rendered.unmount();
     });
-    const { getClient } = await import("stash-ui/dist/src/core/StashService");
-    getClient().stop();
-    apolloClient.stop();
   });
 });

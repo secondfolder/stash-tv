@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, afterAll, vi } from "vitest";
+import { afterEach, beforeAll, vi } from "vitest";
 import { startMockStash, type MockStashServer } from "mock-stash";
 
 /**

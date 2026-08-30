@@ -88,13 +88,10 @@ describe("Mutation integration", () => {
     const verifyScene = verifyData?.findScenes?.scenes.find((s: any) => s.id === "scene-1");
     expect(verifyScene.o_counter).toBe(initialOCount + 1);
 
-    // Cleanup
+    // Cleanup: unmount the app; Apollo clients are not stopped (see harness.ts)
     await act(async () => {
       rendered.unmount();
     });
-    const { getClient } = await import("stash-ui/dist/src/core/StashService");
-    getClient().stop();
-    apolloClient.stop();
   });
 
   it("decrements scene O-counter when above zero", async () => {
@@ -163,12 +160,9 @@ describe("Mutation integration", () => {
       expect(verifyScene.o_counter).toBe(initialOCount - 1);
     }
 
-    // Cleanup
+    // Cleanup: unmount the app; Apollo clients are not stopped (see harness.ts)
     await act(async () => {
       rendered.unmount();
     });
-    const { getClient } = await import("stash-ui/dist/src/core/StashService");
-    getClient().stop();
-    apolloClient.stop();
   });
 });
