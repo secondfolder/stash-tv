@@ -225,8 +225,6 @@ describe("mediaItemState store", () => {
     it("handles runtime setting with setter methods", () => {
       const store = createMediaItemStore({});
 
-      // The setter methods will still work at runtime even with unknown types
-      // @ts-expect-error -- intentionally testing type safety
       store.getState().set("openFolderId", "test-folder");
 
       expect(store.getState().get("openFolderId")).toBe("test-folder");

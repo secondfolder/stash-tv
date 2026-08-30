@@ -1,7 +1,7 @@
-import { describe, it, expect, afterEach, cleanup, vi } from "vitest"
+import { describe, it, expect, vi } from "vitest"
 import React from "react"
-import { cleanup as cleanupRtl } from "@testing-library/react"
 import { render, screen } from "@testing-library/react"
+// RTL cleanup runs centrally in test/setup.ts
 import { EditTagsContents } from "../../../src/components/EditTagsContents"
 import type { SlimTag } from "../../../src/components/EditTagSelectionForm"
 
@@ -18,22 +18,17 @@ vi.mock("../../../src/components/EditTagSelectionForm", () => ({
 }))
 
 const mockTags: SlimTag[] = [
-  { id: "tag1", name: "Tag 1", aliases: [], __typename: "TagData" },
-  { id: "tag2", name: "Tag 2", aliases: [], __typename: "TagData" }
+  { id: "tag1", name: "Tag 1", aliases: [] },
+  { id: "tag2", name: "Tag 2", aliases: [] }
 ]
 
 const mockPrimaryTag: SlimTag = {
   id: "tag-primary",
   name: "Primary Tag",
   aliases: [],
-  __typename: "TagData"
 }
 
 describe("EditTagsContents", () => {
-  afterEach(() => {
-    cleanupRtl()
-  })
-
   it("renders EditTagSelectionForm", () => {
     const handleSave = vi.fn()
     const handleCancel = vi.fn()
@@ -138,7 +133,6 @@ describe("EditTagsContents", () => {
       id: "custom-primary",
       name: "Custom Primary",
       aliases: [],
-      __typename: "TagData"
     }
     render(
       <EditTagsContents

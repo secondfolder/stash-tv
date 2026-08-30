@@ -1,9 +1,14 @@
-import { expect } from "vitest";
+import { expect, afterEach } from "vitest";
 import * as jestDomMatchers from "@testing-library/jest-dom/matchers";
+import { cleanup } from "@testing-library/react";
 
 // jest-dom v5 (pinned for React 17 compat) only auto-extends a Jest-style global
 // `expect`; with vitest's explicit-import style we extend manually.
 expect.extend(jestDomMatchers);
+
+// RTL's auto-cleanup also relies on a global afterEach, which we don't have with
+// explicit imports — unmount after every test centrally instead of per-file.
+afterEach(cleanup);
 
 // Node's undici fetch (which vitest keeps as global fetch in jsdom) rejects
 // AbortSignals created in the jsdom realm, and Apollo Client attaches one to every

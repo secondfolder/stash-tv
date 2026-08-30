@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clamp, roundTo, roundToNearest, sortPerformers } from "../helpers";
+import { clamp, roundTo, roundToNearest, sortPerformers } from "../../../src/helpers";
 
 describe("clamp", () => {
   it("clamps below the minimum", () => {

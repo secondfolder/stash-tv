@@ -1,25 +1,19 @@
-import { describe, it, expect, vi, afterEach, cleanup } from "vitest"
-import { cleanup as cleanupRtl } from "@testing-library/react"
+import { describe, it, expect, vi } from "vitest"
 import React from "react"
 import { render, screen, fireEvent } from "@testing-library/react"
 import { Tag } from "../../../src/components/tags/tag"
+// RTL cleanup runs centrally in test/setup.ts
 
 // Import the type used by Tag
-import type { SlimTag } from "../../../src/components/tags/EditTagSelectionForm"
+import type { SlimTag } from "../../../src/components/EditTagSelectionForm"
 
 const mockTag: SlimTag = {
   id: "tag1",
   name: "Test Tag",
   aliases: [],
-  __typename: "TagData"
 }
 
 describe("Tag", () => {
-  afterEach(() => {
-    vi.clearAllMocks()
-    cleanupRtl()
-  })
-
   describe("display mode (without onClick)", () => {
     it("renders tag name", () => {
       render(<Tag tag={mockTag} />)
@@ -85,14 +79,6 @@ describe("Tag", () => {
       const { container } = render(<Tag tag={mockTag} />)
       const badge = container.querySelector(".tag-item")
       expect(badge).toHaveClass("badge-secondary")
-    })
-
-    it("includes Tag class and tag-item class", () => {
-      const { container } = render(<Tag tag={mockTag} />)
-      const root = container.querySelector(".Tag")
-      expect(root).toBeInTheDocument()
-      const badge = container.querySelector(".tag-item")
-      expect(badge).toBeInTheDocument()
     })
   })
 })

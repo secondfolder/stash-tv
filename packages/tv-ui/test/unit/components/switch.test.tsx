@@ -1,14 +1,10 @@
-import { describe, it, expect, afterEach, cleanup, vi } from "vitest"
+import { describe, it, expect, vi } from "vitest"
 import React from "react"
-import { cleanup as cleanupRtl } from "@testing-library/react"
 import { render, screen } from "@testing-library/react"
 import Switch from "../../../src/components/settings/Switch"
+// RTL cleanup runs centrally in test/setup.ts
 
 describe("Switch", () => {
-  afterEach(() => {
-    cleanupRtl()
-  })
-
   it("renders as a Form.Switch component", () => {
     render(<Switch label="Test Switch" />)
     const switchElement = screen.getByRole("checkbox")
@@ -18,12 +14,6 @@ describe("Switch", () => {
   it("renders label text", () => {
     render(<Switch label="Enable Feature" />)
     expect(screen.getByText("Enable Feature")).toBeInTheDocument()
-  })
-
-  it("applies Switch className", () => {
-    const { container } = render(<Switch label="Test" />)
-    const switchWrapper = container.querySelector(".Switch")
-    expect(switchWrapper).toBeInTheDocument()
   })
 
   it("applies custom className", () => {

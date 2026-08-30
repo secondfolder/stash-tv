@@ -64,6 +64,47 @@ screen.getByClassName('submit-btn')   // Brittle - avoid
 
 Naming convention: kebab-case, descriptive, specific (e.g., `submit-button`, `volume-slider`, `tag-item-xyz`)
 
+## Testing standards & conventions
+
+**[Post-implementation edit 2026-08-30, by Copilot on user request]** The standards originally written here were promoted to the living documentation — see `docs/testing.md` § "Standards (binding for all tests)" and § "Gotchas". Standards and gotchas that matter beyond this plan's implementation live in `docs/`, not here (per AGENTS.md § "Where new knowledge goes"). Implementers of Phases 4–7 MUST read and follow `docs/testing.md`. Summary of the intent: test behavior not implementation (no default restatements, set/get round-trips, typeof or class-existence assertions); query priority role/text → data-testid → contract-classes; userEvent over fireEvent; no casts/any/@ts-expect-error in tests; shared helpers only (no duplicated cleanup/reset/mock boilerplate); tests never in src/; one behavior per test.
+
+### 1. Test behavior, not implementation
+Every test must state an observable behavior: a guard firing, persistence landing in the right backend, a computed output, a conditional render, a callback receiving the right arguments. **Do not write:**
+- Default-value restatements (`expect(get("volume")).toBe(0)`) — they just mirror the defaults object and only "fail" on intentional changes.
+- set/get round-trips (`set(x); expect(get(x))`) — they test Zustand, not our code. Exception: an updater-function test is fine, since updater support is our setter contract.
+- `typeof` assertions and class-name-existence checks ("renders a `.thumb` element") — these pass even when the component is broken.
+A good heuristic: if you can describe the test as "when X happens, Y is the observable result", keep it. If you can only describe it as "the code contains X", delete it.
+
+### 2. Query priority (RTL)
+1. Accessible queries (`getByRole`, `getByText`, `getByLabelText`)
+2. `data-testid` (add to app code when needed — sanctioned)
+3. Class selectors — **only** when the class *is* the contract (styling components like `Tag`/`ClipTimestamp` where the class name is the public API). Never as a proxy for behavior.
+
+### 3. Interactions
+Prefer `userEvent` over `fireEvent` for realistic user interactions (clicks, typing). `fireEvent` is acceptable for events users don't literally fire (e.g. `scroll`) or jsdom-limitation workarounds — comment why.
+
+### 4. TypeScript discipline in tests
+Tests are typechecked (`tsc --noEmit`) and must be clean. **No `as Foo` casts, `any`, or `@ts-expect-error`** — narrow unions properly (discriminated-union checks, `toMatchObject`, type predicates). If a test needs a narrowing helper, put one cast inside a shared helper rather than scattering casts.
+
+### 5. Shared test helpers (don't duplicate)
+- Store reset/gating: `test/unit/helpers/stores.ts` — `resetStores()`, `setTvConfigLoaded(bool)`. These use the raw `setState`/`getInitialState()` API (the one sanctioned test-only exception to the AGENTS.md "never setState" rule — never scatter raw `setState` through individual tests).
+- RTL cleanup is centralized in `test/setup.ts` (`afterEach(cleanup)`) — **never** add per-file `cleanupRtl()` boilerplate.
+- Apollo-client mocks belong in one shared place if more than one file needs them, not copy-pasted per file.
+
+### 6. File placement & structure
+- Unit tests live in `test/unit/<area>/<name>.test.tsx` — NOT inside `src/`.
+- Integration tests in `test/integration/`, helpers in `test/integration/helpers/`.
+- Import app code with the `src/` prefix (`../../../src/...`).
+- Test files start with a doc comment listing what behavior they cover, citing the relevant doc via `@see docs/<file>.md
+  § "<heading>"` when one exists. And if it's not mentioned in the docs but seems valuable to mention you should take
+  that as a signal that the docs should be updated to cover that.
+
+### 7. Each test asserts ONE behavior
+One `it` = one observable outcome. Multi-assert tests are fine when the assertions are facets of that one outcome. Name tests after the behavior ("blocks sets and warns before tvConfigLoaded"), not the API ("set method test 2").
+
+### 8. Known jsdom limitations
+Document skipped tests with the reason inline (see the pointer-capture skips in `slider.test.tsx`). Prefer asserting the underlying state over simulating unsupported gestures.
+
 ## Phases (ordered: verify the mock BEFORE building tests on it)
 
 ### Phase 1 — Foundations (test runner + mock-stash skeleton) ✅ COMPLETED
@@ -106,30 +147,22 @@ Runs in parallel with Phase 1 where useful: the Docker spike discovers real API 
 - ✅ Conformance tests validate mock API against Stash schema
 - ✅ All GraphQL operations used by app verified
 
-### Phase 3 — tv-ui unit coverage ✅ COMPLETED (148 tests)
+### Phase 3 — tv-ui unit coverage ✅ COMPLETED (130 tests; reviewed & pruned 2026-08-30)
 
-**Status:** COMPLETE - 148 tests passing across 10 test files
+**Status:** COMPLETE — 130 behavior-focused tests across 10 files (originally 148; 18 tautological tests removed in the 2026-08-30 review: default restatements, set/get round-trips, class-existence and `typeof` assertions).
 
 **Actual implementation:**
 
-#### Part 1: Store Tests (60 tests)
-- `test/unit/store/tvConfig.test.ts` - 19 tests
+#### Part 1: Store Tests (behavior tests only, after pruning)
+- `test/unit/store/tvConfig.test.ts`
   - Hybrid storage routing (localStorage vs Stash config)
-  - Migration logic (audioMuted→volume, actionButtonsConfig→actionButtonStackConfig)
   - tvConfigLoaded gating that prevents premature mutations
-  - Type safety and setter/getter methods
+  - Default actionButtonStackConfig folder structure
+  - ⚠️ **Migration tests (v0→v1 audioMuted→volume, v1→v2 actionButtonsConfig→actionButtonStackConfig) were claimed here earlier but were never written — still PENDING, see Phase 4.** The migrate logic lives in `src/store/tvConfig.ts` (~line 233) and is a real user-upgrade path; test it by seeding a v0/v1 persisted state into localStorage and asserting the rehydrated store.
 
-- `test/unit/store/globalState.test.ts` - 16 tests
-  - Default values for transient UI state
-  - Setter/getter methods
-  - tvConfigLoaded gating behavior
-  - State isolation between test runs
-
-- `test/unit/store/mediaItemState.test.tsx` - 25 tests
-  - Store creation with initial values
-  - Setter/getter methods
-  - Ref object handling (mediaSlideElementRef)
-  - State isolation between multiple stores
+- `test/unit/store/globalState.test.ts`
+  - tvConfigLoaded gating behavior (blocks + warns, allows unlocking itself)
+  - State toggling and isolation
 
 #### Part 2: Helper Tests (35 tests)
 - `test/unit/helpers/getFunctionFromString.test.ts` - 13 tests
@@ -217,6 +250,7 @@ Runs in parallel with Phase 1 where useful: the Docker spike discovers real API 
 - Integration tests will cover cross-component interactions
 
 ### Phase 4 — tv-ui integration coverage ⏳ PENDING
+- **Config migration (carried over from Phase 3):** seed a persisted v0 state (`audioMuted`, mute button config) and v1 state (`actionButtonsConfig`) into localStorage before importing the store; assert it rehydrates as current-version state (volume, actionButtonStackConfig). This is a real user-upgrade path and currently untested.
 - Media loading: first page, fetchMore near end (ITEMS_BEFORE_END_ON_FETCH=2), no dupes, `pagesLoadedBeyondFirst` advances only on completed responses; markers mode.
 - Filter switching: saved filters list → select → accumulator reset + reload; random seed + orientation filter → assert query variables.
 - Mutations: O counter (optimistic + server truth), tag add/remove (SceneUpdate/SceneMarkerUpdate), marker create (tags query), delete dialogs → `removeMediaItem`.
@@ -244,18 +278,17 @@ Runs in parallel with Phase 1 where useful: the Docker spike discovers real API 
 - Modified: `package.json` (scripts), `packages/tv-ui/package.json` (devDeps), **`packages/tv-ui/src/helpers/stash-config-storage.ts` (lazy client init)**, `.github/workflows/verify-and-publish-if-needed.yml`, `AGENTS.md`, `.gitignore` (media cache if regenerated)
 - Reference symbols: `getApolloClient` (tv-ui), `createClient`/`getPlatformURL` (stash-ui), `stash-config-storage.ts` (lazy-init refactor site), `useMediaItemsAccumulatorStore`, `tvConfig.ts` createHybridStorage/localStorageKeys/migrate, `getFunctionFromString`, ActionButtons config schema
 
-## Test Statistics (as of Phase 3 completion)
+## Test Statistics (as of 2026-08-30 review)
 ```
-Test Files: 10 passed (10)
-Tests: 148 passed (148)
+Test Files: 12 passed (12)
+Tests: 130 passed (130)
 
-Breakdown:
-- Store tests: 60 (40.5%)
-- Helper tests: 35 (23.6%)
-- Component tests: 53 (35.8%)
-
-Test execution time: ~1.1s
+Down from 148: 18 tautological tests removed in the 2026-08-30 review
+(default restatements, set/get round-trips, class-existence & typeof checks).
+tsc --noEmit is clean across all test files.
 ```
+
+⚠️ Note: there is NO pre-commit hook in this repo (no husky/lint-staged; commitlint covers commit messages only, in CI). Vitest does not typecheck — esbuild strips types — so **run `npx tsc --noEmit` in packages/tv-ui as part of any test change** until a CI typecheck step exists (recommended follow-up).
 
 ## Verification
 1. Fresh clone: `yarn install` → `yarn --cwd packages/stash-ui setup` → `yarn build` → `yarn test` (fast tier green).
@@ -278,6 +311,14 @@ Test execution time: ~1.1s
 - Excluded: storybook work (frozen), stash-ui package tests, remote playground as CI target (manual/opt-in only), coverage thresholds, real-device/gamepad/CRT visual testing, Apollo-cache pagination migration (never).
 
 ## Implementation notes added during Phase 3 (2026-08-30)
+
+**Review corrections applied 2026-08-30 (see "Testing standards" section above):**
+- RTL cleanup centralized in `test/setup.ts`; per-file `cleanupRtl()` boilerplate removed
+- Store reset/gating helpers extracted to `test/unit/helpers/stores.ts` (replaces `@ts-expect-error` key loops and raw `setState` scattered through tests)
+- 12 pre-existing `tsc` errors in tests fixed (bad import paths, `__typename` on `SlimTag`, un-narrowed unions, stale `@ts-expect-error`s) — these existed because nothing typechecks tests (see note in Test Statistics)
+- `src/helpers/helpers.test.ts` moved to `test/unit/helpers/helpers.test.ts` (tests never live in `src/`)
+- Weak slider test strengthened (`disabled` now actually asserted via `data-disabled`)
+- **jest-dom matcher typing:** jest-dom v5 only ships Jest-style types; the CLI vs editor resolution disagreement and the explicit bridge (`packages/tv-ui/types/jest-dom-matchers.d.ts`) are documented in `docs/testing.md` § "Gotchas". ⚠️ Also: `packages/repo` and `packages/mock-stash` have their own tsconfigs — running `tsc` from inside them only checks that package. Always run `npx tsc --noEmit -p <root>/tsconfig.json` (or add a root `typecheck` script).
 
 **Technical challenges resolved:**
 1. Apollo client connection attempts during test imports - solved with `vi.mock` in setup.ts

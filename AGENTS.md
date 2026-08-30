@@ -32,6 +32,7 @@ Feature-specific documentation lives under `docs/`. Read the one that covers wha
 | [State & config](docs/state-and-config.md) | Touching state, adding a config option, or changing how settings persist (Zustand stores, hybrid storage) |
 | [Action buttons](docs/action-buttons.md) | Adding an action button or touching `src/components/action-buttons/` (schemas, config, folders)           |
 | [Release process](docs/release-process.md) | Writing commits, preparing releases, or understanding versioning/deployment flow                          |
+| [Testing](docs/testing.md)              | Writing or modifying any test, running the suites, or touching test infrastructure/polyfills          |
 
 Adding a new doc means adding its row to this table. A test validates that every doc in `docs/` is listed here and every link points to a real file — a doc without a row is caught rather than going unnoticed.
 
@@ -45,6 +46,8 @@ Examples of appropriate content for `docs/`:
 - Video.js workarounds and why they're necessary
 - Architectural patterns like wrappers vs patches for stash-ui
 - Component conventions and testing strategies for future developers
+
+**Where new knowledge goes:** if you discover a gotcha, convention, or technique while implementing that will matter to anyone touching that area again (not just while the current task is running), it belongs in the relevant `docs/` topic doc — or in this file if it's repo-wide. It does **not** belong only in a plan under `docs/historical-plans/` (frozen, point-in-time) or in a commit message. Rule of thumb: plans record *what was done and why then*; `docs/` records *how the system works now*. When you add a gotcha to a plan mid-implementation, also check whether it should be promoted to `docs/`.
 
 **DOCS/HISTORICAL-PLANS/** stores frozen implementation plans. These are:
 - Complete plans written before work begins
@@ -257,13 +260,16 @@ VITE_DEBUG=true                           # Enable extra debug logging
 
 ## Testing & Quality Assurance
 
-- Tests that verify documented behavior should cite the relevant doc with `@see docs/<file>.md § "<heading>"` so the requirement and the explanation stay aligned.
+Full testing reference — tiers, commands, standards, and gotchas: [testing](docs/testing.md). Read it before writing or modifying any test.
+
+- Tests that verify documented behavior should cite the relevant doc with `@see docs/<file>.md § "<heading>"` so the requirement and the explanation stay aligned. And if it's not mentioned in the docs but seems valuable to mention you should take
+  that as a signal that the docs should be updated to cover that.
 
 ### Current Status
 
 - **Linting:** No ESLint configuration present (not enforced)
-- **Testing:** No automated test suite currently configured
-- **Type Checking:** TypeScript provides compile-time checking
+- **Testing:** Vitest suites in `packages/tv-ui` (unit + integration, jsdom), `packages/mock-stash` (meta + Docker conformance), and `packages/repo` (docs validation). Run everything with `yarn test` at the root.
+- **Type Checking:** `tsc --noEmit` — ⚠️ run it from the repo root (packages with their own tsconfig only check themselves), and note nothing typechecks tests automatically (no pre-commit hook; vitest strips types). See [testing](docs/testing.md) § "Gotchas".
 
 ---
 

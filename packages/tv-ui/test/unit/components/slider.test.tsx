@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from "vitest"
+import { describe, it, expect } from "vitest"
 import React from "react"
+// RTL cleanup runs centrally in test/setup.ts
 import { render, screen, fireEvent } from "@testing-library/react"
 import Slider from "../../../src/components/controls/slider"
 
@@ -10,22 +11,6 @@ describe("Slider", () => {
     max: 100,
     step: 1
   }
-
-  it("renders RadixSlider root with Slider class", () => {
-    const { container } = render(<Slider {...defaultProps} />)
-    expect(container.querySelector(".Slider")).toBeInTheDocument()
-  })
-
-  it("renders track and range elements", () => {
-    const { container } = render(<Slider {...defaultProps} />)
-    expect(container.querySelector(".track")).toBeInTheDocument()
-    expect(container.querySelector(".range")).toBeInTheDocument()
-  })
-
-  it("renders thumb element", () => {
-    const { container } = render(<Slider {...defaultProps} />)
-    expect(container.querySelector(".thumb")).toBeInTheDocument()
-  })
 
   it("has aria-label on thumb", () => {
     const { container } = render(<Slider {...defaultProps} />)
@@ -65,8 +50,9 @@ describe("Slider", () => {
     const { container } = render(
       <Slider {...defaultProps} disabled={true} />
     )
+    // Radix reflects the disabled prop as a data attribute on the root
     const slider = container.querySelector(".Slider")
-    expect(slider).toBeInTheDocument()
+    expect(slider).toHaveAttribute("data-disabled")
   })
 
   it("handles step of 10 for 0-100 range", () => {
