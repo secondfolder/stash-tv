@@ -14,7 +14,7 @@
   "scripts": {
     "dev": "yarn --cwd packages/stash-ui build-if-needed && yarn --cwd packages/tv-ui dev",
     "build": "yarn --cwd packages/stash-ui build && yarn --cwd packages/tv-ui build && yarn --cwd packages/tv-plugin build",
-    "test": "yarn --cwd packages/repo test && yarn --cwd packages/mock-stash test && yarn --cwd packages/tv-ui test",
+    "test": "yarn --cwd packages/repo test && yarn --cwd packages/mock-stash test && yarn --cwd packages/tv-ui test && yarn --cwd packages/tv-plugin test",
     "test:watch": "yarn --cwd packages/tv-ui test:watch",
     "test:conformance": "yarn --cwd packages/mock-stash test:conformance",
     "preview": "yarn --cwd packages/tv-ui preview",

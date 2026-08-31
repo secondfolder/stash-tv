@@ -274,7 +274,27 @@ Runs in parallel with Phase 1 where useful: the Docker spike discovers real API 
 - **ScanComplete subscription resolver**: Fixed subscription resolver in [mock-stash](packages/mock-stash/src/resolvers/subscription.ts) to yield `{ scanCompleteSubscribe: true }` instead of raw EventEmitter value to match GraphQL subscription structure.
 - **Integration test module reset**: Addressed issue where vi.resetModules() was clearing env var stub; solution is to avoid multiple module resets in the same test file since Apollo client is created once at module load time.
 
-### Phase 5 — tv-plugin tests ⏳ PENDING
+### Phase 5 — tv-plugin tests ✅ COMPLETED (2026-08-31)
+- `window.PluginApi` fake: mock PluginApi with React, libraries.Bootstrap/FontAwesomeSolid, GQL documents, patch registry recording (instead/before), StashService.getClient → mocked Apollo client (node env).
+- Tests implemented:
+  - Plugin initialization: first-run setup, initialSetupComplete flag handling, setupPlugin idempotency
+  - Navigation button: gating on `interface.menuItems` containing 'tv', loading state handling, CheckboxGroup tv option injection
+  - Settings and reset: ConfigurePlugin mutation persistence, ConfigureInterface mutation, Configuration query, dev JSON inspector gating on showDevOptions, graceful handling of missing config keys
+
+**Test files:**
+- `test/unit/plugin-initialization.test.ts` (4 tests) - plugin setup and idempotency
+- `test/unit/plugin-navigation.test.ts` (5 tests) - nav button and checkbox injection
+- `test/unit/plugin-settings.test.ts` (6 tests) - config persistence and dev inspector
+
+**Total: 15 tests passing**
+
+**Implementation notes:**
+- Plugin tests run in Node environment (no jsdom/browser)
+- PluginApi mock provides React, libraries, GQL hooks, patch registry, and StashService
+- Tests verify plugin behavior without requiring real Stash instance
+- Tests follow behavior-focused testing standards (no implementation details)
+
+**Phase 5 — tv-plugin tests ⏳ PENDING
 - `window.PluginApi` fake: real React, libraries.Bootstrap/FontAwesomeSolid, GQL documents from stash-ui generated-graphql, patch registry recording instead/before + invoking callbacks, StashService.getClient → Apollo client against mock-stash (HTTP, node env).
 - Tests: nav button gating on `interface.menuItems` containing 'tv'; checkbox injection; first-run `setupPlugin()` idempotency; reset-settings writes defaults; dev JSON inspector gating.
 
@@ -293,10 +313,10 @@ Runs in parallel with Phase 1 where useful: the Docker spike discovers real API 
 - Modified: `package.json` (scripts), `packages/tv-ui/package.json` (devDeps), **`packages/tv-ui/src/helpers/stash-config-storage.ts` (lazy client init)**, `.github/workflows/verify-and-publish-if-needed.yml`, `AGENTS.md`, `.gitignore` (media cache if regenerated)
 - Reference symbols: `getApolloClient` (tv-ui), `createClient`/`getPlatformURL` (stash-ui), `stash-config-storage.ts` (lazy-init refactor site), `useMediaItemsAccumulatorStore`, `tvConfig.ts` createHybridStorage/localStorageKeys/migrate, `getFunctionFromString`, ActionButtons config schema
 
-## Test Statistics (as of 2026-09-02, Phase 4 complete)
+## Test Statistics (as of 2026-08-31, Phase 5 complete)
 ```
-Test Files: 20 passed (20)
-Tests: 147 passed (147)
+Test Files: 23 passed (23)
+Tests: 162 passed (162)
 
 Phase 3 (Unit): 137 tests (12 files)
 Phase 4 (Integration): 10 tests (8 files)
@@ -308,6 +328,8 @@ Phase 4 (Integration): 10 tests (8 files)
   - 1 config persistence integration test (config-persistence.test.tsx)
   - 1 ScanComplete subscription test (scan-complete.test.tsx)
   - 2 stream rewriting tests (stream-rewriting.test.tsx)
+  - 1 media items modifier test (media-items-modifier.test.tsx)
+Phase 5 (Plugin): 15 tests (3 files)
   - 1 media items modifier test (media-items-modifier.test.tsx)
 
 tsc --noEmit is clean across all test files.
