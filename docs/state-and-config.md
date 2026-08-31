@@ -52,8 +52,16 @@ useTvConfig.setState({ volume: 0.5 });
 3. Decide the storage backend — add to `localStorageKeys` only if device-specific
 4. Create a UI control in the settings panel (`src/components/settings/`)
 5. Access via `useTvConfig()` in components
+6. Add tests for the new config option (see [Testing](docs/testing.md))
 
 ## Why These Decisions
 
 - **Zustand (not Redux):** less boilerplate, better TypeScript ergonomics at this scale
 - **Hybrid storage:** Stash config syncs preferences across devices; localStorage holds device-specific settings (e.g. forced landscape)
+- **Typed setters:** type safety + automatic persistence routing
+
+## Related docs
+
+- [Testing](docs/testing.md) — How to test config persistence and state management
+- [Media loading](docs/media-loading.md) — Media pagination via accumulator store
+- [Release process](docs/release-process.md) — Versioning and deployment flow

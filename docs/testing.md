@@ -10,9 +10,10 @@ How the automated test suites work, the standards tests must follow, and the got
 | Integration | `packages/tv-ui/test/integration/` | Vitest + RTL against a real in-memory mock Stash API | same command as unit |
 | Mock server meta/conformance | `packages/mock-stash/test/` | Vitest (node env; conformance uses Docker, auto-skips without it) | `yarn --cwd packages/mock-stash test` / `test:conformance` |
 | Docs validation | `packages/repo/test/` | Vitest | `yarn --cwd packages/repo test` |
-| E2E | `packages/tv-ui/test/e2e/` (planned) | Playwright | `yarn test:e2e` (planned) |
+| Plugin | `packages/tv-plugin/test/unit/` | Vitest (node env) | `yarn --cwd packages/tv-plugin test` |
+| E2E | `packages/tv-ui/test/e2e/` | Playwright + Chromium | `yarn test:e2e` |
 
-`yarn test` at the repo root runs repo + mock-stash + tv-ui.
+`yarn test` at the repo root runs repo + mock-stash + tv-ui + tv-plugin.
 
 From `packages/tv-ui` (or with `yarn --cwd packages/tv-ui`):
 
@@ -23,6 +24,22 @@ yarn test test/integration/                    # integration only
 yarn test test/unit/store/globalState.test.ts  # one file
 yarn test --watch                              # watch mode
 yarn test --coverage                           # coverage report
+yarn test:e2e                                  # E2E tests (requires mock-stash + dev server running)
+```
+
+### Running E2E tests
+
+E2E tests require both mock-stash and dev server to be running:
+
+```bash
+# Terminal 1: Start mock-stash (port 4000)
+yarn --cwd packages/mock-stash test:e2e-server
+
+# Terminal 2: Start dev server with STASH_PROXY (port 8888)
+STASH_ADDRESS=http://localhost:4000 STASH_PROXY=true yarn --cwd packages/tv-ui dev
+
+# Terminal 3: Run E2E tests
+yarn --cwd packages/tv-ui test:e2e
 ```
 
 ## Standards (binding for all tests)

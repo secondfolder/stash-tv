@@ -8,7 +8,10 @@
     "preview": "vite preview",
     "build": "vite build",
     "test": "cross-env NODE_OPTIONS=--no-experimental-webstorage vitest run",
-    "test:watch": "cross-env NODE_OPTIONS=--no-experimental-webstorage vitest"
+    "test:watch": "cross-env NODE_OPTIONS=--no-experimental-webstorage vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^6.3.0",
@@ -42,6 +45,7 @@
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^1.7.0",
+    "@playwright/test": "^1.62.1",
     "@storybook/addon-a11y": "^8.2.9",
     "@storybook/addon-essentials": "^8.2.9",
     "@storybook/addon-interactions": "^8.2.9",

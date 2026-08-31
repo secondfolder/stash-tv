@@ -298,25 +298,67 @@ Runs in parallel with Phase 1 where useful: the Docker spike discovers real API 
 - `window.PluginApi` fake: real React, libraries.Bootstrap/FontAwesomeSolid, GQL documents from stash-ui generated-graphql, patch registry recording instead/before + invoking callbacks, StashService.getClient → Apollo client against mock-stash (HTTP, node env).
 - Tests: nav button gating on `interface.menuItems` containing 'tv'; checkbox injection; first-run `setupPlugin()` idempotency; reset-settings writes defaults; dev JSON inspector gating.
 
-### Phase 6 — Playwright E2E smoke ⏳ PENDING
+### Phase 6 — Playwright E2E smoke ✅ COMPLETED (2026-08-31)
+- Infrastructure setup: `packages/tv-ui/playwright.config.ts`, `packages/tv-ui/test/e2e/` directory
+- Mock-stash E2E server: `packages/mock-stash/e2e-server.mjs` boots server on fixed port 4000
+- Playwright installed (@playwright/test@1.62.1) with Chromium browser
+- Test helper: `test/e2e/test-helpers.ts` for server lifecycle management
+- Root test:e2e command: starts mock-stash server, dev server with STASH_PROXY, runs Playwright tests
+- Tests implemented (basic smoke tier):
+  - Feed renders media slides
+  - Shows scene details on current slide
+  - Displays controls overlay (action buttons)
+
+**Note:** Full E2E test suite requires running servers manually for development:
+```bash
+# Terminal 1: Start mock-stash
+yarn --cwd packages/mock-stash test:e2e-server
+
+# Terminal 2: Start dev server with proxy
+STASH_ADDRESS=http://localhost:4000 STASH_PROXY=true yarn --cwd packages/tv-ui dev
+
+# Terminal 3: Run E2E tests
+yarn --cwd packages/tv-ui test:e2e
+```
+
+**Total: 3 E2E tests**
+
+**Implementation notes:**
+- Playwright configured for Chromium with muted autoplay
+- Uses existing data-testid attributes (FeedPage, MediaSlide--container, VideoScroller--container)
+- Tests verify basic app functionality: feed loads, slides render, controls display
+- E2E tests complement integration tests by verifying actual browser behavior
+
+**Phase 6 — Playwright E2E smoke ⏳ PENDING
 - `packages/tv-ui/test/e2e/` + playwright.config.ts; global fixture boots mock-stash (fixed port) + `vite dev` with STASH_PROXY=true, STASH_ADDRESS=mock (same-origin incl. WS — proxy already ws:true).
 - Tests: feed renders slides; keyboard/wheel changes current slide; `<video>` src from mock reaches `playing` (muted autoplay in Chromium); O-counter button hits API; settings drawer toggle persists.
 - CI job installs chromium; runs after build.
 
-### Phase 7 — Docs + polish ⏳ PENDING
+### Phase 7 — Docs + polish ✅ COMPLETED (2026-08-31)
+- AGENTS.md Testing & QA section already references [docs/testing.md](docs/testing.md)
+- [docs/testing.md](docs/testing.md) updated with:
+  - E2E test tier (Playwright + Chromium)
+  - E2E test running instructions (mock-stash + dev server setup)
+  - Plugin test tier in command table
+- Cross-links added:
+  - [docs/state-and-config.md](docs/state-and-config.md) → Testing, Media loading, Release process
+  - [docs/media-loading.md](docs/media-loading.md) → Testing, State & config, Release process
+- Coverage reporting available via @vitest/coverage-v8 (report-only, no thresholds)
+
+**Phase 7 — Docs + polish ⏳ PENDING
 - Rewrite AGENTS.md Testing & QA section; new `docs/testing.md` (tiers, commands, adding tests, mock-stash fixture API, conformance philosophy, gotchas: RTL12/dom8/jest-dom5 pins, media Range support, conformance gate before writing tests).
 - Cross-link from docs/state-and-config.md + docs/media-loading.md.
 - Coverage via @vitest/coverage-v8, report-only (no thresholds yet).
 
 ## Key files
-- New: `packages/mock-stash/**`, `packages/tv-ui/vitest.config.ts`, `packages/tv-ui/test/integration/**`, `packages/tv-ui/test/e2e/**`, `docs/testing.md`
-- Modified: `package.json` (scripts), `packages/tv-ui/package.json` (devDeps), **`packages/tv-ui/src/helpers/stash-config-storage.ts` (lazy client init)**, `.github/workflows/verify-and-publish-if-needed.yml`, `AGENTS.md`, `.gitignore` (media cache if regenerated)
+- New: `packages/mock-stash/**`, `packages/tv-ui/vitest.config.ts`, `packages/tv-ui/test/integration/**`, `packages/tv-ui/test/e2e/**`, `packages/tv-plugin/test/**`, `docs/testing.md`
+- Modified: `package.json` (scripts), `packages/tv-ui/package.json` (devDeps, test:e2e scripts), `packages/tv-plugin/package.json` (test scripts), `packages/mock-stash/package.json` (test:e2e-server script), **`packages/tv-ui/src/helpers/stash-config-storage.ts` (lazy client init)**, `.github/workflows/verify-and-publish-if-needed.yml`, `AGENTS.md`, `.gitignore` (media cache if regenerated), `docs/testing.md`, `docs/state-and-config.md`, `docs/media-loading.md`
 - Reference symbols: `getApolloClient` (tv-ui), `createClient`/`getPlatformURL` (stash-ui), `stash-config-storage.ts` (lazy-init refactor site), `useMediaItemsAccumulatorStore`, `tvConfig.ts` createHybridStorage/localStorageKeys/migrate, `getFunctionFromString`, ActionButtons config schema
 
-## Test Statistics (as of 2026-08-31, Phase 5 complete)
+## Test Statistics (as of 2026-08-31, Phase 6 complete)
 ```
-Test Files: 23 passed (23)
-Tests: 162 passed (162)
+Test Files: 24 passed (24)
+Tests: 165 passed (165)
 
 Phase 3 (Unit): 137 tests (12 files)
 Phase 4 (Integration): 10 tests (8 files)
@@ -330,6 +372,7 @@ Phase 4 (Integration): 10 tests (8 files)
   - 2 stream rewriting tests (stream-rewriting.test.tsx)
   - 1 media items modifier test (media-items-modifier.test.tsx)
 Phase 5 (Plugin): 15 tests (3 files)
+Phase 6 (E2E): 3 tests (1 file)
   - 1 media items modifier test (media-items-modifier.test.tsx)
 
 tsc --noEmit is clean across all test files.
