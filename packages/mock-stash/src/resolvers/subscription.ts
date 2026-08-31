@@ -4,7 +4,11 @@ export const subscriptionResolvers = {
   Subscription: {
     scanCompleteSubscribe: {
       subscribe: (_src: unknown, _args: unknown, ctx: MockContext) =>
-        ctx.store.scanComplete.asyncIterator(),
+        (async function* () {
+          for await (const _ of ctx.store.scanComplete.asyncIterator()) {
+            yield { scanCompleteSubscribe: true };
+          }
+        })(),
     },
     jobsSubscribe: {
       subscribe: (_src: unknown, _args: unknown, ctx: MockContext) =>
