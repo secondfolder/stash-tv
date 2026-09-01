@@ -80,6 +80,11 @@ yarn --cwd packages/stash-ui setup
 yarn dev
 ```
 
+To assist with testing there is a **Developer Options** section that can be enabled in the Settings menu. To enable it
+open the settings and click the settings title at the bottom of the panel 5 times.
+
+![Screenshot of the Settings title](./docs/settings-title.png)
+
 ### Commit info
 Commit messages should use the [Conventional Commits](https://www.conventionalcommits.org/) format as release notes are
 generated automatically from the commit history.

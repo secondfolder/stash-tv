@@ -983,6 +983,33 @@ const SettingsTab = memo(() => {
             </Form.Group>
 
             <Form.Group>
+              <label htmlFor="video-js-events-to-log">
+                Video.js Events To Log
+              </label>
+              <Select<{ label: string; value: string }, true>
+                inputId="video-js-events-to-log"
+                value={videoJsEventsToLog.map(eventName => ({
+                  label: eventName,
+                  value: eventName,
+                }))}
+                onChange={(newValue: readonly { label: string; value: string }[]) => setTvConfig(
+                  "videoJsEventsToLog",
+                  newValue.some((item) => item.value === "all") ? videoJsEvents : newValue.map((item) => item.value)
+                )}
+                options={["all", ...videoJsEvents].map(eventName => ({
+                  label: eventName,
+                  value: eventName,
+                }))}
+                placeholder="Select video.js events to log"
+                isMulti={true}
+                closeMenuOnSelect={false}
+              />
+              <Form.Text className="text-muted">
+                Which video.js events to log to the console.
+              </Form.Text>
+            </Form.Group>
+
+            <Form.Group>
               <label htmlFor="show-debugging-info">
                 Additional Debugging Info
               </label>
@@ -1020,7 +1047,7 @@ const SettingsTab = memo(() => {
 
             <Form.Group>
               <label htmlFor="max-media">
-                Limit of Media to Show
+                Limit Number of Media in Media Filter
               </label>
               <Form.Control
                 type="number"
@@ -1037,7 +1064,8 @@ const SettingsTab = memo(() => {
                 }
               />
               <Form.Text className="text-muted">
-                Stop showing any more media once this limit has been reached. This does not just impact performance but will actually effect what media will get shown.
+                Normally the feed can be scrolled till all media in the media filter have been displayed. But with this
+                set only this many media will be displayed.
               </Form.Text>
             </Form.Group>
 
@@ -1087,33 +1115,6 @@ const SettingsTab = memo(() => {
               <Form.Text className="text-muted">
                 A JavaScript function that can be used to modified the content and ordering of the displayed media items.
                 The function is given the media items array as an argument and it must return an array of media items.
-              </Form.Text>
-            </Form.Group>
-
-            <Form.Group>
-              <label htmlFor="video-js-events-to-log">
-                Video.js Events To Log
-              </label>
-              <Select<{ label: string; value: string }, true>
-                inputId="video-js-events-to-log"
-                value={videoJsEventsToLog.map(eventName => ({
-                  label: eventName,
-                  value: eventName,
-                }))}
-                onChange={(newValue: readonly { label: string; value: string }[]) => setTvConfig(
-                  "videoJsEventsToLog",
-                  newValue.some((item) => item.value === "all") ? videoJsEvents : newValue.map((item) => item.value)
-                )}
-                options={["all", ...videoJsEvents].map(eventName => ({
-                  label: eventName,
-                  value: eventName,
-                }))}
-                placeholder="Select video.js events to log"
-                isMulti={true}
-                closeMenuOnSelect={false}
-              />
-              <Form.Text className="text-muted">
-                Which video.js events to log to the console.
               </Form.Text>
             </Form.Group>
 
