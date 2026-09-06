@@ -255,6 +255,9 @@ export function ActionButtonIcon<State extends string>({
           className={className}
         />
       )
+    } else if (typeof iconSource === "string") {
+      // Data URL or string-based icon source
+      return <img src={iconSource} className={className} alt="" />
     } else if (iconSource && typeof iconSource === "object" && 'icon' in iconSource && 'iconName' in iconSource) {
       return (
         <FontAwesomeIcon
@@ -270,7 +273,9 @@ export function ActionButtonIcon<State extends string>({
         />
       )
     } else {
-      iconSource satisfies never
+      // All non-undefined source shapes are handled above; this check keeps
+      // future additions to ActionButtonIconSource from silently falling through.
+      if (iconSource !== undefined) iconSource satisfies never
       logger.error("Unable to determine icon for action button {*}", {iconDefinition, iconSource, state})
     }
   } catch(error) {

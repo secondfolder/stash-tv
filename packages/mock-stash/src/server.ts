@@ -19,6 +19,10 @@ export interface MockStashServer {
   wsUrl: string;
   /** The live store — mutate entities directly to arrange test scenarios. */
   store: MockStore;
+  /** Count of GraphQL operations executed, by operation name (HTTP and WS). */
+  getRequestCounts(): Readonly<Record<string, number>>;
+  /** Zero the request counts (e.g. to observe only post-trigger traffic). */
+  resetRequestCounts(): void;
   /** Emit a scanComplete event to all subscribers (as a finished scan would). */
   triggerScanComplete(): void;
   stop(): Promise<void>;
@@ -44,6 +48,10 @@ export async function startMockStash(
   const holder: ContextHolder = { store, baseUrl: "" };
   const contextFactory = createContextFactory(holder);
 
+  // Instrument operation execution so tests can observe which GraphQL
+  // operations ran (and how many times) — e.g. proving a refetch happened.
+  const requestCounts: Record<string, number> = {};
+
   const schema = getStashSchema();
 
   const yoga = createYoga({
@@ -54,6 +62,17 @@ export async function startMockStash(
     maskedErrors: false,
     cors: { origin: "*" },
     context: contextFactory,
+    plugins: [
+      {
+        onExecute({ args }: { args: { operationName?: string; variableValues?: unknown } }) {
+          const name = args.operationName ?? "<anonymous>";
+          requestCounts[name] = (requestCounts[name] ?? 0) + 1;
+          if (process.env.DEBUG_MOCK_REQUESTS) {
+            console.log(`[mock-stash] ${name}`, JSON.stringify(args.variableValues));
+          }
+        },
+      },
+    ],
   });
 
   const server = http.createServer((req, res) => {
@@ -90,6 +109,10 @@ export async function startMockStash(
     httpUrl: `${baseUrl}/graphql`,
     wsUrl: `ws://127.0.0.1:${address.port}/graphql`,
     store,
+    getRequestCounts: () => structuredClone(requestCounts),
+    resetRequestCounts: () => {
+      for (const key of Object.keys(requestCounts)) delete requestCounts[key];
+    },
     triggerScanComplete: () => store.scanComplete.emit(),
     stop: async () => {
       for (const client of wss.clients) client.terminate();

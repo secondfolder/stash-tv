@@ -1,67 +1,54 @@
 /**
  * Media items modifier function integration tests.
  *
- * Tests the custom media modifier functionality where users can write
- * custom JavaScript functions (stored as strings) that transform the
- * media list before display.
+ * Tests the custom media modifier feature: a user-supplied JavaScript function
+ * (stored as a string) that transforms the media list before display. With dev
+ * options enabled, setting a filter function should remove non-matching scenes
+ * from the feed DOM.
  *
  * @see docs/media-loading.md § "Media items modifier"
- * @see AGENTS.md § "Custom media modifier functions"
  */
 
 import { describe, expect, it } from "vitest";
-import { render, waitFor, act } from "@testing-library/react";
-import React from "react";
-import { ApolloProvider } from "@apollo/client";
-import { setupIntegrationTest, loadFreshAppModules } from "./helpers/harness";
+import { act, waitFor } from "@testing-library/react";
+import { setupIntegrationTest, bootApp } from "./helpers/harness";
 
 const integration = setupIntegrationTest();
 
+// Keeps only odd-numbered fixture scenes (scene-1/3/5/7)
+const ODD_SCENES_MODIFIER = "(items) => items.filter(item => item.id.endsWith('1') || item.id.endsWith('3') || item.id.endsWith('5') || item.id.endsWith('7'))";
+
 describe("Media items modifier function integration", () => {
-  it("mediaItemsModifierFunction is settable and persisted to config", async () => {
-    const { default: App } = await loadFreshAppModules();
-    const { getApolloClient } = await import("../../src/hooks/getApolloClient");
+  it("filters the feed using the configured modifier function", async () => {
+    const app = await bootApp();
 
-    const apolloClient = getApolloClient();
-    let rendered!: ReturnType<typeof render>;
-    await act(async () => {
-      rendered = render(
-        <ApolloProvider client={apolloClient}>
-          <App />
-        </ApolloProvider>
-      );
-    });
+    // The unmodified first page renders both odd and even scenes
+    const initialContent = app.rendered.container.textContent ?? "";
+    expect(initialContent).toContain("Aurora Ascending"); // scene-1
+    expect(initialContent).toContain("Blueprint Boulevard"); // scene-2
 
-    // Wait for the app to render and load media
-    await waitFor(
-      () => {
-        const content = rendered.container.textContent ?? "";
-        expect(content).toContain("Foothill Flight");
-      },
-      { timeout: 10000 }
-    );
-
-    // Set showDevOptions to enable modifier functions
     const { useTvConfig } = await import("../../src/store/tvConfig");
     const { set: setTvConfig } = useTvConfig.getState();
 
     await act(async () => {
       setTvConfig("showDevOptions", true);
+      setTvConfig("mediaItemsModifierFunction", ODD_SCENES_MODIFIER);
     });
 
-    // Set a modifier function that filters to only scenes with id ending in odd numbers
-    const modifierFunction = "(items) => items.filter(item => item.id.endsWith('1') || item.id.endsWith('3') || item.id.endsWith('5') || item.id.endsWith('7') || item.id.endsWith('9'))";
+    // The modifier only runs with dev options enabled: even-numbered scenes
+    // should disappear from the feed, odd ones remain
+    await waitFor(
+      () => {
+        const content = app.rendered.container.textContent ?? "";
+        expect(content).not.toContain("Blueprint Boulevard"); // scene-2
+        expect(content).not.toContain("Foothill Flight"); // scene-6
+      },
+      { timeout: 5000 }
+    );
+    const content = app.rendered.container.textContent ?? "";
+    expect(content).toContain("Aurora Ascending"); // scene-1
+    expect(content).toContain("Cascade Calm"); // scene-3
 
-    await act(async () => {
-      setTvConfig("mediaItemsModifierFunction", modifierFunction);
-    });
-
-    // Verify that showDevOptions is persisted
-    const showDevOptions = useTvConfig.getState().get("showDevOptions");
-    expect(showDevOptions).toBe(true);
-
-    // Verify that mediaItemsModifierFunction is persisted to config
-    const persistedFunction = useTvConfig.getState().get("mediaItemsModifierFunction");
-    expect(persistedFunction).toBe(modifierFunction);
+    await app.unmount();
   });
 });

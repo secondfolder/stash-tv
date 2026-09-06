@@ -1,9 +1,9 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { PLUGIN_NAMESPACE } from "../tv-ui/src/constants/index.js";
+import { PLUGIN_NAMESPACE } from "../tv-ui/src/constants";
 import { StashTvConfig } from "../tv-ui/src/hooks/useStashTvConfig"
 import { ConfigDataFragment, ConfigInterfaceResult } from "stash-ui/dist/src/core/generated-graphql.js";
 import type { CheckboxGroup } from "stash-ui/dist/src/components/Settings/SettingsInterfacePanel/CheckboxGroup";
-import { tvConfigStorageKey } from "../tv-ui/src/store/tvConfig.js";
+import { tvConfigStorageKey } from "../tv-ui/src/store/tvConfig";
 
 const { PluginApi } = window;
 const { React } = PluginApi;
@@ -103,7 +103,6 @@ PluginApi.patch.instead(
     ];
   }
 );
-PluginApi.patch.instead
 
 // Show Stash TV in the menu bar if it's been enabled in the plugin config
 PluginApi.patch.instead(
@@ -174,8 +173,7 @@ async function updateTvConfig(
   configUpdate: Partial<StashTvConfig> | (
     (tvConfig: StashTvConfig, allStashConfig: Config) => StashTvConfig | null | Promise<StashTvConfig | null>
   )
-) {
-  getStashConfig()
+) {  getStashConfig()
     .then(async config => typeof configUpdate === "function"
           ? await configUpdate(config.plugins[PLUGIN_NAMESPACE], config)
           : {...config.plugins[PLUGIN_NAMESPACE], ...configUpdate}
@@ -217,7 +215,7 @@ async function getStashConfig() {
   return result.data?.configuration as Config;
 }
 
-async function setupPlugin() {
+export async function setupPlugin() {
   // Add Stash TV to nav bar menu items
   updateInterfaceConfig(
     (interfaceConfig) => ({

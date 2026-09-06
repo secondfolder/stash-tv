@@ -236,7 +236,14 @@ export function createDefaultFixtures(): Fixtures {
       mode: "SCENES" as const,
       name: "Alpha Scenes",
       find_filter: { q: "", page: null, per_page: null, sort: "title", direction: "ASC" as const },
-      object_filter: { tags: { value: ["tag-alpha"], modifier: "INCLUDES", depth: -1 } },
+      // Hierarchical criteria are saved by Stash's UI as {items, excluded, depth}
+      // label values — not the flat id-list criterion input the API accepts.
+      object_filter: {
+        tags: {
+          value: { items: [{ id: "tag-alpha", label: "Alpha" }], excluded: [], depth: -1 },
+          modifier: "INCLUDES",
+        },
+      },
       ui_options: null,
     },
     {
@@ -252,7 +259,12 @@ export function createDefaultFixtures(): Fixtures {
       mode: "SCENE_MARKERS" as const,
       name: "Beta Markers",
       find_filter: { q: "", page: null, per_page: null, sort: "scene_id", direction: "ASC" as const },
-      object_filter: { tags: { value: ["tag-beta"], modifier: "INCLUDES", depth: -1 } },
+      object_filter: {
+        tags: {
+          value: { items: [{ id: "tag-beta", label: "Beta" }], excluded: [], depth: -1 },
+          modifier: "INCLUDES",
+        },
+      },
       ui_options: null,
     },
   ];

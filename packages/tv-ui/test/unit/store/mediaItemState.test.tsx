@@ -1,5 +1,6 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it } from "vitest";
 import React from "react";
+import { render, act } from "@testing-library/react";
 import {
   createMediaItemStore,
   MediaItemStateContextProvider,
@@ -8,280 +9,112 @@ import {
 } from "../../../src/store/mediaItemState";
 
 /**
- * Unit tests for the mediaItemState Zustand store.
+ * Unit tests for the per-media-item state store and its React context.
  *
- * These tests cover:
- * - Default values match the defaults object
- * - Setter/getter/setToDefault/getDefault methods work correctly
- * - Initial values override defaults
- * - React context provider usage
- * - useMediaItemState hook throws error outside provider
- * - hasMediaItemStateContext checks for provider existence
- * - Ref object handling
- *
- * @see docs/media-loading.md § "useMediaItemsAccumulatorStore (module-level)"
+ * The store's distinctive behaviors (vs the global Zustand stores) are the
+ * factory + context pattern: each provider mount creates an independent
+ * store, so slides don't share state. Also covered: updater-function
+ * resolution and setToDefault from an overridden initial value.
  */
 
 describe("mediaItemState store", () => {
-  beforeEach(() => {
-    // Reset any existing state before each test
+  it("resolves updater functions against the previous value", () => {
+    const store = createMediaItemStore({
+      initialValues: { preIncrementOCounterValue: 10 },
+    });
+
+    store.getState().set("preIncrementOCounterValue", (prev) => prev * 2);
+
+    expect(store.getState().preIncrementOCounterValue).toBe(20);
   });
 
-  describe("store creation and defaults", () => {
-    it("creates a store with default values", () => {
-      const store = createMediaItemStore({});
-
-      expect(store.getState().openFolderId).toBe("");
-      expect(store.getState().preIncrementOCounterValue).toBe(0);
-      expect(store.getState().mediaSlideElementRef.current).toBeNull();
+  it("resets overridden initial values to defaults with setToDefault", () => {
+    const store = createMediaItemStore({
+      initialValues: { openFolderId: "folder-active", preIncrementOCounterValue: 5 },
     });
 
-    it("allows overriding initial values", () => {
-      const mockRef = { current: document.createElement("div") };
-      const store = createMediaItemStore({
-        initialValues: {
-          openFolderId: "folder-123",
-          preIncrementOCounterValue: 5,
-          mediaSlideElementRef: mockRef,
-        },
-      });
+    store.getState().setToDefault("openFolderId");
 
-      expect(store.getState().openFolderId).toBe("folder-123");
-      expect(store.getState().preIncrementOCounterValue).toBe(5);
-      expect(store.getState().mediaSlideElementRef.current).toBe(mockRef.current);
-    });
-
-    it("partially overrides initial values", () => {
-      const store = createMediaItemStore({
-        initialValues: {
-          openFolderId: "folder-456",
-        },
-      });
-
-      expect(store.getState().openFolderId).toBe("folder-456");
-      expect(store.getState().preIncrementOCounterValue).toBe(0); // Default
-      expect(store.getState().mediaSlideElementRef.current).toBeNull(); // Default
-    });
+    expect(store.getState().openFolderId).toBe("");
+    // Untouched properties keep their values
+    expect(store.getState().preIncrementOCounterValue).toBe(5);
   });
 
-  describe("set/get methods", () => {
-    it("sets and gets a simple value", () => {
-      const store = createMediaItemStore({});
+  it("creates independent stores per createMediaItemStore call", () => {
+    const store1 = createMediaItemStore({ initialValues: { openFolderId: "store1" } });
+    const store2 = createMediaItemStore({});
 
-      store.getState().set("openFolderId", "folder-789");
+    store1.getState().set("openFolderId", "store1-updated");
 
-      expect(store.getState().get("openFolderId")).toBe("folder-789");
+    expect(store1.getState().openFolderId).toBe("store1-updated");
+    expect(store2.getState().openFolderId).toBe("");
+  });
+});
+
+describe("MediaItemStateContext", () => {
+  function Probe({ onChange }: { onChange: (state: ReturnType<typeof useMediaItemState>) => void }) {
+    const state = useMediaItemState();
+    onChange(state);
+    return null;
+  }
+
+  it("provides an independent store per provider mount", () => {
+    const seen1: ReturnType<typeof useMediaItemState>[] = [];
+    const seen2: ReturnType<typeof useMediaItemState>[] = [];
+
+    act(() => {
+      render(
+        <MediaItemStateContextProvider initialValues={{ openFolderId: "a" }}>
+          <Probe onChange={(state) => seen1.push(state)} />
+        </MediaItemStateContextProvider>
+      );
+    });
+    act(() => {
+      render(
+        <MediaItemStateContextProvider initialValues={{ openFolderId: "b" }}>
+          <Probe onChange={(state) => seen2.push(state)} />
+        </MediaItemStateContextProvider>
+      );
     });
 
-    it("sets and gets with an updater function", () => {
-      const store = createMediaItemStore({});
-
-      store.getState().set("preIncrementOCounterValue", (prev) => prev + 10);
-
-      expect(store.getState().get("preIncrementOCounterValue")).toBe(10);
-    });
-
-    it("sets multiple values sequentially", () => {
-      const store = createMediaItemStore({});
-
-      store.getState().set("openFolderId", "folder-abc");
-      store.getState().set("preIncrementOCounterValue", 3);
-
-      expect(store.getState().get("openFolderId")).toBe("folder-abc");
-      expect(store.getState().get("preIncrementOCounterValue")).toBe(3);
-    });
-
-    it("updates ref object", () => {
-      const store = createMediaItemStore({});
-      const mockRef = { current: document.createElement("div") };
-
-      store.getState().set("mediaSlideElementRef", mockRef);
-
-      expect(store.getState().get("mediaSlideElementRef")).toBe(mockRef);
-      expect(store.getState().get("mediaSlideElementRef").current).toBe(mockRef.current);
-    });
+    expect(seen1.at(-1)?.openFolderId).toBe("a");
+    expect(seen2.at(-1)?.openFolderId).toBe("b");
   });
 
-  describe("setToDefault/getDefault methods", () => {
-    it("resets a value to its default", () => {
-      const store = createMediaItemStore({});
+  it("useMediaItemState throws outside a provider", () => {
+    // Silence the expected console error from React's error boundary-less throw
+    const consoleError = console.error;
+    console.error = (...args: unknown[]) => {
+      if (!String(args[0]).includes("useMediaItemState must be used within")) {
+        consoleError(...args);
+      }
+    };
 
-      store.getState().set("openFolderId", "folder-xyz");
-      store.getState().set("preIncrementOCounterValue", 7);
+    expect(() => render(<Probe onChange={() => {}} />)).toThrow(
+      "useMediaItemState must be used within a MediaItemStateContext.Provider"
+    );
 
-      expect(store.getState().get("openFolderId")).toBe("folder-xyz");
-      expect(store.getState().get("preIncrementOCounterValue")).toBe(7);
-
-      store.getState().setToDefault("openFolderId");
-      store.getState().setToDefault("preIncrementOCounterValue");
-
-      expect(store.getState().get("openFolderId")).toBe("");
-      expect(store.getState().get("preIncrementOCounterValue")).toBe(0);
-    });
-
-    it("returns the correct default value", () => {
-      const store = createMediaItemStore({});
-
-      expect(store.getState().getDefault("openFolderId")).toBe("");
-      expect(store.getState().getDefault("preIncrementOCounterValue")).toBe(0);
-      expect(store.getState().getDefault("mediaSlideElementRef")).toEqual({
-        current: null,
-      });
-    });
-
-    it("resets ref to default null", () => {
-      const mockRef = { current: document.createElement("div") };
-      const store = createMediaItemStore({
-        initialValues: { mediaSlideElementRef: mockRef },
-      });
-
-      expect(store.getState().get("mediaSlideElementRef").current).not.toBeNull();
-
-      store.getState().setToDefault("mediaSlideElementRef");
-
-      expect(store.getState().get("mediaSlideElementRef").current).toBeNull();
-    });
+    console.error = consoleError;
   });
 
-  describe("openFolderId behavior", () => {
-    it("updates openFolderId correctly", () => {
-      const store = createMediaItemStore({});
+  it("hasMediaItemStateContext reports provider presence", () => {
+    function ContextFlag({ onChange }: { onChange: (has: boolean) => void }) {
+      onChange(hasMediaItemStateContext());
+      return null;
+    }
 
-      expect(store.getState().openFolderId).toBe("");
+    let outsideProvider = false;
+    let insideProvider = false;
+    render(
+      <div>
+        <ContextFlag onChange={(has) => (outsideProvider = has)} />
+        <MediaItemStateContextProvider>
+          <ContextFlag onChange={(has) => (insideProvider = has)} />
+        </MediaItemStateContextProvider>
+      </div>
+    );
 
-      store.getState().set("openFolderId", "folder-1");
-      expect(store.getState().openFolderId).toBe("folder-1");
-
-      store.getState().set("openFolderId", "folder-2");
-      expect(store.getState().openFolderId).toBe("folder-2");
-    });
-
-    it("clears openFolderId when set to empty string", () => {
-      const store = createMediaItemStore({ initialValues: { openFolderId: "folder-active" } });
-
-      expect(store.getState().openFolderId).toBe("folder-active");
-
-      store.getState().set("openFolderId", "");
-
-      expect(store.getState().openFolderId).toBe("");
-    });
-  });
-
-  describe("preIncrementOCounterValue behavior", () => {
-    it("increments O counter value correctly", () => {
-      const store = createMediaItemStore({});
-
-      expect(store.getState().preIncrementOCounterValue).toBe(0);
-
-      store.getState().set("preIncrementOCounterValue", 1);
-      expect(store.getState().preIncrementOCounterValue).toBe(1);
-
-      store.getState().set("preIncrementOCounterValue", (prev) => prev + 1);
-      expect(store.getState().preIncrementOCounterValue).toBe(2);
-    });
-
-    it("handles larger increments", () => {
-      const store = createMediaItemStore({});
-
-      store.getState().set("preIncrementOCounterValue", 10);
-
-      expect(store.getState().preIncrementOCounterValue).toBe(10);
-
-      store.getState().set("preIncrementOCounterValue", (prev) => prev * 2);
-
-      expect(store.getState().preIncrementOCounterValue).toBe(20);
-    });
-  });
-
-  describe("mediaSlideElementRef behavior", () => {
-    it("updates ref with DOM element", () => {
-      const store = createMediaItemStore({});
-      const mockElement = document.createElement("div");
-      const mockRef = { current: mockElement };
-
-      expect(store.getState().mediaSlideElementRef.current).toBeNull();
-
-      store.getState().set("mediaSlideElementRef", mockRef);
-
-      expect(store.getState().mediaSlideElementRef.current).toBe(mockElement);
-    });
-
-    it("handles null ref values", () => {
-      const mockElement = document.createElement("div");
-      const mockRef = { current: mockElement };
-      const store = createMediaItemStore({
-        initialValues: { mediaSlideElementRef: mockRef },
-      });
-
-      expect(store.getState().mediaSlideElementRef.current).not.toBeNull();
-
-      store.getState().set("mediaSlideElementRef", { current: null });
-
-      expect(store.getState().mediaSlideElementRef.current).toBeNull();
-    });
-  });
-
-  describe("type safety", () => {
-    it("handles runtime setting with setter methods", () => {
-      const store = createMediaItemStore({});
-
-      store.getState().set("openFolderId", "test-folder");
-
-      expect(store.getState().get("openFolderId")).toBe("test-folder");
-    });
-
-    it("enforces correct types for known keys", () => {
-      const store = createMediaItemStore({});
-      const mockRef = { current: document.createElement("div") };
-
-      store.getState().set("openFolderId", "folder-type");
-      store.getState().set("preIncrementOCounterValue", 42);
-      store.getState().set("mediaSlideElementRef", mockRef);
-
-      expect(typeof store.getState().get("openFolderId")).toBe("string");
-      expect(typeof store.getState().get("preIncrementOCounterValue")).toBe("number");
-      expect(typeof store.getState().get("mediaSlideElementRef")).toBe("object");
-    });
-
-    it("handles updater function return types correctly", () => {
-      const store = createMediaItemStore({});
-
-      store.getState().set("openFolderId", (prev) => prev + "-suffix");
-      store.getState().set("preIncrementOCounterValue", (prev) => prev + 5);
-
-      expect(store.getState().get("openFolderId")).toBe("-suffix");
-      expect(store.getState().get("preIncrementOCounterValue")).toBe(5);
-    });
-  });
-
-  describe("state isolation", () => {
-    it("maintains independent state for different properties", () => {
-      const store = createMediaItemStore({});
-
-      store.getState().set("openFolderId", "folder-a");
-      store.getState().set("preIncrementOCounterValue", 10);
-
-      expect(store.getState().openFolderId).toBe("folder-a");
-      expect(store.getState().preIncrementOCounterValue).toBe(10);
-
-      // Reset one property shouldn't affect others
-      store.getState().set("openFolderId", "");
-
-      expect(store.getState().openFolderId).toBe("");
-      expect(store.getState().preIncrementOCounterValue).toBe(10); // Still 10
-    });
-
-    it("multiple stores are independent", () => {
-      const store1 = createMediaItemStore({ initialValues: { openFolderId: "store1" } });
-      const store2 = createMediaItemStore({ initialValues: { openFolderId: "store2" } });
-
-      expect(store1.getState().openFolderId).toBe("store1");
-      expect(store2.getState().openFolderId).toBe("store2");
-
-      store1.getState().set("openFolderId", "store1-updated");
-
-      expect(store1.getState().openFolderId).toBe("store1-updated");
-      expect(store2.getState().openFolderId).toBe("store2"); // Unchanged
-    });
+    expect(outsideProvider).toBe(false);
+    expect(insideProvider).toBe(true);
   });
 });

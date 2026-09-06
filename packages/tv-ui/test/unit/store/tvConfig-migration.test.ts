@@ -7,270 +7,180 @@
  *
  * These are real user-upgrade paths — when a user upgrades the plugin, their
  * persisted config should be automatically migrated to the current version.
+ * The persisted state is seeded in localStorage under the hybrid storage's
+ * local key (`app-state-local`); the Stash-side backend is mocked empty.
  *
  * @see docs/state-and-config.md § "Hybrid Storage"
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { resetGlobalState } from "../helpers/stores";
 
-const TV_CONFIG_STORAGE_KEY = "tv-config-storage";
+// The Apollo client must be mocked: hydration reads the Stash-side config
+// through it, and unit tests must never make real network requests.
+const { apolloQuery } = vi.hoisted(() => ({
+  apolloQuery: vi.fn(() =>
+    Promise.resolve({ data: { configuration: { plugins: {} } } })
+  ),
+}));
+
+vi.mock("../../../src/hooks/getApolloClient", () => ({
+  getApolloClient: vi.fn(() => ({
+    query: apolloQuery,
+    mutate: vi.fn(() => Promise.resolve({ data: {} })),
+    stop: vi.fn(),
+  })),
+}));
+
+const LOCAL_STORAGE_KEY = "app-state-local";
+
+/** Seed persisted config state at the given schema version. */
+function seedPersistedState(version: number, state: Record<string, unknown>) {
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ state, version }));
+}
+
+/** Re-import the store fresh so it rehydrates from the seeded state. */
+async function reimportStore() {
+  vi.resetModules();
+  const { useTvConfig } = await import("../../../src/store/tvConfig");
+  const { useGlobalState } = await import("../../../src/store/globalState");
+  await vi.waitFor(() => {
+    expect(useGlobalState.getState().tvConfigLoaded).toBe(true);
+  });
+  return useTvConfig.getState();
+}
+
+/** Buttons in an action button stack config, with the union narrowed. */
+function buttonsIn(config: { actionButtonStackConfig: { type: string; buttonType?: string }[] }) {
+  return config.actionButtonStackConfig.filter(
+    (item): item is { type: string; buttonType: string } =>
+      item.type === "button" && typeof item.buttonType === "string"
+  );
+}
 
 describe("tvConfig migration", () => {
   beforeEach(() => {
-    // Clear any existing persisted state and reset stores
     localStorage.clear();
-    resetGlobalState({ tvConfigLoaded: false });
-    vi.clearAllMocks();
+    apolloQuery.mockClear();
   });
 
   describe("v0 → v1 migration", () => {
     it("migrates audioMuted: true to volume: 0", async () => {
-      // Seed a v0 state with audioMuted: true
-      const v0State = {
-        audioMuted: true,
-        version: 0,
-      };
-      localStorage.setItem(TV_CONFIG_STORAGE_KEY, JSON.stringify(v0State));
+      seedPersistedState(0, { audioMuted: true });
 
-      // Re-import tvConfig to trigger rehydration and migration
-      vi.resetModules();
-      const { useTvConfig } = await import("../../../src/store/tvConfig");
+      const config = await reimportStore();
 
-      // Wait for rehydration (tvConfigLoaded becomes true)
-      const { useGlobalState } = await import("../../../src/store/globalState");
-      await vi.waitFor(() => {
-        expect(useGlobalState.getState().tvConfigLoaded).toBe(true);
-      });
-
-      // Assert the migrated state
-      const config = useTvConfig.getState();
       expect(config.volume).toBe(0);
-      // audioMuted should no longer exist
       expect("audioMuted" in config).toBe(false);
     });
 
     it("migrates audioMuted: false to volume: 1", async () => {
-      const v0State = {
-        audioMuted: false,
-        version: 0,
-      };
-      localStorage.setItem(TV_CONFIG_STORAGE_KEY, JSON.stringify(v0State));
+      // The default volume is 0, so a migrated 1 is observable proof of the
+      // false → 1 mapping (not just defaults loading)
+      seedPersistedState(0, { audioMuted: false });
 
-      vi.resetModules();
-      const { useTvConfig } = await import("../../../src/store/tvConfig");
-      const { useGlobalState } = await import("../../../src/store/globalState");
+      const config = await reimportStore();
 
-      await vi.waitFor(() => {
-        expect(useGlobalState.getState().tvConfigLoaded).toBe(true);
-      });
-
-      const config = useTvConfig.getState();
-      // audioMuted: false → volume: 1, but 1 matches the default (0)
-      // so persist merges it back to the default value
+      expect(config.volume).toBe(1);
       expect("audioMuted" in config).toBe(false);
     });
 
-    it("converts mute button type to volume button type in actionButtonsConfig", async () => {
-      const v0State = {
+    it("converts mute button type to volume button type", async () => {
+      seedPersistedState(0, {
         audioMuted: false,
         actionButtonsConfig: [
           { type: "mute", folder: "default", position: 0 },
           { type: "settings", folder: "default", position: 1 },
         ],
-        version: 0,
-      };
-      localStorage.setItem(TV_CONFIG_STORAGE_KEY, JSON.stringify(v0State));
-
-      vi.resetModules();
-      const { useTvConfig } = await import("../../../src/store/tvConfig");
-      const { useGlobalState } = await import("../../../src/store/globalState");
-
-      await vi.waitFor(() => {
-        expect(useGlobalState.getState().tvConfigLoaded).toBe(true);
       });
 
-      const config = useTvConfig.getState();
-      // Note: actionButtonsConfig still exists at v0→v1, only button type changes
-      // Since this goes through v1→v2 migration as well, it will be in actionButtonStackConfig
-      if (config.actionButtonStackConfig) {
-        const volumeButton = config.actionButtonStackConfig.find((b: any) => b.buttonType === "volume");
-        const settingsButton = config.actionButtonStackConfig.find((b: any) => b.buttonType === "settings");
-        expect(volumeButton).toBeDefined();
-        expect(settingsButton).toBeDefined();
+      const config = await reimportStore();
 
-        if (volumeButton && 'buttonType' in volumeButton) {
-          expect(volumeButton.type).toBe("button");
-          expect(volumeButton.buttonType).toBe("volume");
-        }
-        if (settingsButton && 'buttonType' in settingsButton) {
-          expect(settingsButton.type).toBe("button");
-          expect(settingsButton.buttonType).toBe("settings");
-        }
-      }
+      // The v1 → v2 step also runs, so the buttons land in the stack config
+      const buttons = buttonsIn(config);
+      expect(buttons.map((button) => button.buttonType)).toEqual(
+        expect.arrayContaining(["volume", "settings"])
+      );
     });
 
-    it("handles missing audioMuted gracefully", async () => {
-      const v0State = {
-        version: 0,
-      };
-      localStorage.setItem(TV_CONFIG_STORAGE_KEY, JSON.stringify(v0State));
+    it("falls back to the default volume when audioMuted is absent", async () => {
+      seedPersistedState(0, {});
 
-      vi.resetModules();
-      const { useTvConfig } = await import("../../../src/store/tvConfig");
-      const { useGlobalState } = await import("../../../src/store/globalState");
+      const config = await reimportStore();
 
-      await vi.waitFor(() => {
-        expect(useGlobalState.getState().tvConfigLoaded).toBe(true);
-      });
-
-      const config = useTvConfig.getState();
-      // Should use default volume
-      expect(config.volume).toBeTypeOf("number");
+      expect(config.volume).toBe(0);
       expect("audioMuted" in config).toBe(false);
     });
   });
 
   describe("v1 → v2 migration", () => {
     it("migrates actionButtonsConfig to actionButtonStackConfig", async () => {
-      const v1State = {
+      seedPersistedState(1, {
         actionButtonsConfig: [
           { type: "volume", folder: "default", position: 0 },
           { type: "settings", folder: "custom", position: 1 },
         ],
         volume: 0.5,
-        version: 1,
-      };
-      localStorage.setItem(TV_CONFIG_STORAGE_KEY, JSON.stringify(v1State));
-
-      vi.resetModules();
-      const { useTvConfig } = await import("../../../src/store/tvConfig");
-      const { useGlobalState } = await import("../../../src/store/globalState");
-
-      await vi.waitFor(() => {
-        expect(useGlobalState.getState().tvConfigLoaded).toBe(true);
       });
 
-      const config = useTvConfig.getState();
-      // Old config should be gone
+      const config = await reimportStore();
+
       expect("actionButtonsConfig" in config).toBe(false);
-
-      // New config should exist with transformed structure
-      if (config.actionButtonStackConfig) {
-        expect(Array.isArray(config.actionButtonStackConfig)).toBe(true);
-        // Check that our custom buttons exist with the right structure
-        const volumeButton = config.actionButtonStackConfig.find((b: any) => b.buttonType === "volume");
-        const settingsButton = config.actionButtonStackConfig.find((b: any) => b.buttonType === "settings");
-
-        expect(volumeButton).toBeDefined();
-        expect(settingsButton).toBeDefined();
-
-        if (volumeButton && 'buttonType' in volumeButton) {
-          expect(volumeButton.type).toBe("button");
-          expect(volumeButton.buttonType).toBe("volume");
-        }
-        if (settingsButton && 'buttonType' in settingsButton) {
-          expect(settingsButton.type).toBe("button");
-          expect(settingsButton.buttonType).toBe("settings");
-        }
-      }
+      const buttons = buttonsIn(config);
+      const buttonTypes = buttons.map((button) => button.buttonType);
+      expect(buttonTypes).toEqual(expect.arrayContaining(["volume", "settings"]));
+      // Non-button config survives the migration
+      expect(config.volume).toBe(0.5);
     });
 
-    it("handles missing actionButtonsConfig gracefully", async () => {
-      const v1State = {
-        volume: 0.5,
-        version: 1,
-      };
-      localStorage.setItem(TV_CONFIG_STORAGE_KEY, JSON.stringify(v1State));
+    it("applies the default stack config when actionButtonsConfig is missing", async () => {
+      seedPersistedState(1, { volume: 0.5 });
 
-      vi.resetModules();
-      const { useTvConfig } = await import("../../../src/store/tvConfig");
-      const { useGlobalState } = await import("../../../src/store/globalState");
+      const config = await reimportStore();
 
-      await vi.waitFor(() => {
-        expect(useGlobalState.getState().tvConfigLoaded).toBe(true);
-      });
-
-      const config = useTvConfig.getState();
       expect("actionButtonsConfig" in config).toBe(false);
-      // Defaults should be applied when actionButtonStackConfig is missing
-      expect(config.actionButtonStackConfig).toBeDefined();
+      expect(config.actionButtonStackConfig.length).toBeGreaterThan(0);
+      expect(buttonsIn(config).length).toBeGreaterThan(0);
     });
   });
 
   describe("full v0 → v2 migration", () => {
     it("migrates through both versions correctly", async () => {
-      const v0State = {
+      seedPersistedState(0, {
         audioMuted: true,
         actionButtonsConfig: [
           { type: "mute", folder: "default", position: 0 },
           { type: "settings", folder: "default", position: 1 },
         ],
-        version: 0,
-      };
-      localStorage.setItem(TV_CONFIG_STORAGE_KEY, JSON.stringify(v0State));
-
-      vi.resetModules();
-      const { useTvConfig } = await import("../../../src/store/tvConfig");
-      const { useGlobalState } = await import("../../../src/store/globalState");
-
-      await vi.waitFor(() => {
-        expect(useGlobalState.getState().tvConfigLoaded).toBe(true);
       });
 
-      const config = useTvConfig.getState();
+      const config = await reimportStore();
 
       // v0 → v1 results
       expect(config.volume).toBe(0);
       expect("audioMuted" in config).toBe(false);
-
       // v1 → v2 results
       expect("actionButtonsConfig" in config).toBe(false);
-      if (config.actionButtonStackConfig) {
-        const volumeButton = config.actionButtonStackConfig.find((b: any) => b.buttonType === "volume");
-        const settingsButton = config.actionButtonStackConfig.find((b: any) => b.buttonType === "settings");
-
-        expect(volumeButton).toBeDefined();
-        expect(settingsButton).toBeDefined();
-
-        if (volumeButton && 'buttonType' in volumeButton) {
-          expect(volumeButton.type).toBe("button");
-          expect(volumeButton.buttonType).toBe("volume"); // Migrated from "mute"
-        }
-        if (settingsButton && 'buttonType' in settingsButton) {
-          expect(settingsButton.type).toBe("button");
-          expect(settingsButton.buttonType).toBe("settings");
-        }
-      }
+      expect(buttonsIn(config).map((button) => button.buttonType)).toEqual(
+        expect.arrayContaining(["volume", "settings"])
+      );
     });
   });
 
   describe("current version (v2) remains unchanged", () => {
-    it("loads v2 state without migration", async () => {
-      // A v2 state with the current structure should load and merge with defaults
-      const v2State = {
+    it("loads v2 state without migrating it", async () => {
+      seedPersistedState(2, {
         volume: 0.5,
         autoPlay: false,
         actionButtonStackConfig: [
           { id: "test-1", type: "button", buttonType: "volume", pinned: false },
         ],
-        version: 2,
-      };
-      localStorage.setItem(TV_CONFIG_STORAGE_KEY, JSON.stringify(v2State));
-
-      vi.resetModules();
-      const { useTvConfig } = await import("../../../src/store/tvConfig");
-      const { useGlobalState } = await import("../../../src/store/globalState");
-
-      await vi.waitFor(() => {
-        expect(useGlobalState.getState().tvConfigLoaded).toBe(true);
       });
 
-      const config = useTvConfig.getState();
-      // Store should be loaded with valid structure
-      expect(config).toBeDefined();
-      // The test is that we can load v2 state without errors
-      // (persist merges with defaults, so not all persisted values survive)
+      const config = await reimportStore();
+
+      expect(config.volume).toBe(0.5);
+      expect(config.autoPlay).toBe(false);
+      expect(buttonsIn(config).some((button) => button.buttonType === "volume")).toBe(true);
     });
   });
 });

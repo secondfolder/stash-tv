@@ -1,73 +1,38 @@
 /**
  * Test harness for tv-plugin tests
  *
- * Provides a mocked PluginApi environment simulating Stash's iframe context.
- * This enables testing plugin initialization, menu injection, settings, and
- * config persistence without requiring a real Stash instance.
+ * Installs a mocked PluginApi on the global window before dynamically
+ * importing the real `main.tsx`, so the plugin's module-level registration
+ * and first-run setup run against the mock.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createPluginApiMock, PluginApiMock } from './plugin-api-mock';
+import { vi } from "vitest";
+import { createPluginApiMock } from "./plugin-api-mock";
 
 /**
- * Sets up the plugin environment before each test.
- * This must be called before importing any plugin code that accesses window.PluginApi.
+ * Install the mocked PluginApi globally and import a fresh copy of main.tsx.
+ *
+ * `configuration` controls what the mocked Configuration query resolves to,
+ * which drives the plugin's first-run setup logic at import time.
  */
-export function setupPluginEnvironment() {
-  const mockPluginApi = createPluginApiMock();
-
-  // Mock window.PluginApi (Node environment)
-  if (typeof window !== 'undefined') {
-    Object.defineProperty(window, 'PluginApi', {
-      value: mockPluginApi,
-      writable: true,
-      configurable: true,
-    });
-  } else {
-    // In Node environment, add to global
-    (global as any).window = {};
-    (global as any).window.PluginApi = mockPluginApi;
-  }
-
-  return mockPluginApi;
-}
-
-/**
- * Cleans up the plugin environment after each test.
- * Clears any mocks and resets state.
- */
-export function cleanupPluginEnvironment() {
-  if (typeof window !== 'undefined') {
-    // @ts-expect-error - we're removing the PluginApi mock
-    delete window.PluginApi;
-  } else {
-    // In Node environment, clean up global
-    (global as any).window = {};
-  }
-  vi.clearAllMocks();
-}
-
-/**
- * Creates a test suite helper that automatically sets up and tears down the plugin environment.
- * Use this instead of describe() for plugin tests.
- */
-export function describePlugin(name: string, fn: () => void) {
-  describe(name, () => {
-    let mockPluginApi: PluginApiMock;
-
-    beforeEach(() => {
-      mockPluginApi = setupPluginEnvironment();
-    });
-
-    afterEach(() => {
-      cleanupPluginEnvironment();
-    });
-
-    fn();
+export async function importPlugin(configuration: {
+  plugins?: Record<string, unknown>;
+  interface?: { menuItems?: string[] };
+}) {
+  const mock = createPluginApiMock();
+  mock.query.mockResolvedValue({
+    data: {
+      configuration: {
+        plugins: configuration.plugins ?? {},
+        interface: configuration.interface ?? { menuItems: [] },
+      },
+    },
   });
-}
 
-/**
- * Re-export types for use in test files
- */
-export type { PluginApiMock };
+  vi.resetModules();
+  (globalThis as { window: unknown }).window = { PluginApi: mock.pluginApi };
+
+  await import("../../main");
+
+  return mock;
+}

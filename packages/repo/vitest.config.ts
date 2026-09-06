@@ -12,6 +12,8 @@ export default defineConfig({
       ".cache",
       "**/*.bench.ts",
     ],
+    // Suppress console logs unless the test fails
+    silent: 'passed-only',
     // Filesystem-based tests don't need heavy instrumentation
     coverage: {
       provider: "v8",

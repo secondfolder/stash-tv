@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { GenderEnum } from "stash-ui/dist/src/core/generated-graphql";
 import { clamp, roundTo, roundToNearest, sortPerformers } from "../../../src/helpers";
 
 describe("clamp", () => {
@@ -44,12 +45,28 @@ describe("roundToNearest", () => {
 });
 
 describe("sortPerformers", () => {
-  it("sorts performers by name", () => {
+  it("sorts performers by name within the same gender", () => {
     const performers = [{ name: "Zoe" }, { name: "Alice" }, { name: "Marge" }];
-    expect(sortPerformers(performers as never).map((p) => p.name)).toEqual([
+    expect(sortPerformers(performers).map((p) => p.name)).toEqual([
       "Alice",
       "Marge",
       "Zoe",
+    ]);
+  });
+
+  it("orders performers by gender, with unknown genders last", () => {
+    // GENDERS order: FEMALE before MALE; undefined gender sorts after all
+    const performers = [
+      { name: "Bob", gender: GenderEnum.Male },
+      { name: "Zara" },
+      { name: "Wendy", gender: GenderEnum.Female },
+      { name: "Alan", gender: GenderEnum.Male },
+    ];
+    expect(sortPerformers(performers).map((p) => p.name)).toEqual([
+      "Wendy",
+      "Alan",
+      "Bob",
+      "Zara",
     ]);
   });
 });

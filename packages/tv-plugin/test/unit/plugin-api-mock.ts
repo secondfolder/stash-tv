@@ -1,208 +1,176 @@
 /**
  * Mock PluginApi for tv-plugin testing
  *
- * Simulates the Stash PluginApi interface that the plugin code expects
- * to find at window.PluginApi. This includes React, libraries, GQL hooks,
- * patch registration, and configuration utilities.
+ * Simulates the Stash PluginApi interface the plugin expects at
+ * `window.PluginApi`: React, libraries, GQL hooks/documents, patch
+ * registration, and the Apollo client from StashService.
+ *
+ * Tests exercise the real `main.tsx` against this mock.
  */
 
-import { vi, expect } from 'vitest';
+import { vi } from "vitest";
 
-/**
- * Type for the mocked PluginApi
- */
-export interface PluginApiMock {
-  React: any;
-  libraries: {
-    Bootstrap: {
-      Button: any;
-    };
-    FontAwesomeSolid: {
-      faCheck: any;
-      faTelevision: any;
-    };
-  };
-  utils: {
-    StashService: {
-      getClient: ReturnType<typeof vi.fn>;
-    };
-  };
-  GQL: {
-    useConfigurationQuery: any;
-    ConfigurePluginDocument: any;
-    ConfigureInterfaceDocument: any;
-    ConfigurationDocument: any;
-  };
-  patch: {
-    instead: ReturnType<typeof vi.fn>;
-    before: ReturnType<typeof vi.fn>;
-  };
-  ReactModule: {
-    useState: any;
-    useEffect: any;
-    useMemo: any;
+export type PatchType = "instead" | "before";
+
+export interface RegisteredPatch {
+  type: PatchType;
+  target: string;
+  implementation: (...args: unknown[]) => unknown;
+}
+
+/** Minimal React element shape produced by the createElement mock. */
+export interface MockReactElement {
+  type: unknown;
+  props: {
+    children?: unknown;
+    [key: string]: unknown;
   };
 }
 
 /**
- * Creates a mock React module that can be used by the plugin code
+ * A React mock whose hooks behave statefully enough to drive the plugin's
+ * function components as plain functions.
+ *
+ * - Call `beginRender()` before each invocation of the component so `useState`
+ *   re-reads the slots allocated on the first render; state persists across
+ *   renders until `resetRenderState()` is called.
+ * - `useEffect` collects callbacks; tests run them via `runEffects()`.
+ * - `useMemo` invokes its callback (recomputed per render — memoization is an
+ *   optimization, not behavior).
+ * - `createElement` returns plain objects (`{ type, props }`).
  */
-function createMockReact() {
-  const useState = vi.fn();
-  const useEffect = vi.fn();
-  const useMemo = vi.fn();
+export function createReactMock() {
+  const stateSlots: unknown[] = [];
+  let hookCursor = 0;
+
+  const createElement = vi.fn(
+    (type: unknown, props: Record<string, unknown> | null, ...children: unknown[]): MockReactElement => ({
+      type,
+      props: {
+        ...(props ?? {}),
+        ...(children.length > 0 ? { children: children.length === 1 ? children[0] : children } : {}),
+      },
+    })
+  );
+
+  const useState = vi.fn(<T,>(initial: T | (() => T)) => {
+    const index = hookCursor++;
+    stateSlots[index] ??= typeof initial === "function" ? (initial as () => T)() : initial;
+    const setState = (value: unknown) => {
+      stateSlots[index] =
+        typeof value === "function" ? (value as (prev: T) => T)(stateSlots[index] as T) : value;
+    };
+    return [stateSlots[index], setState] as const;
+  });
+
+  const effects: (() => void)[] = [];
+  const useEffect = vi.fn((effect: () => void) => {
+    effects.push(effect);
+  });
+
+  const useMemo = vi.fn(<T,>(fn: () => T) => fn());
 
   return {
+    createElement,
     useState,
     useEffect,
     useMemo,
-    // Basic mock for createElement (React.createElement is used internally)
-    createElement: vi.fn((type: any, props: any, ...children: any[]) => ({
-      type,
-      props: { ...props, children },
-    })),
+    /** Reset the hook cursor so the next component invocation re-reads existing slots. */
+    beginRender: () => {
+      hookCursor = 0;
+    },
+    /** Clear hook state so the next component invocation starts fresh. */
+    resetRenderState: () => {
+      stateSlots.length = 0;
+      hookCursor = 0;
+      effects.length = 0;
+    },
+    /** Read the current hook state slots (for debugging). */
+    debugState: () => [...stateSlots],
+    /** Run the callbacks registered by useEffect during the last render. */
+    runEffects: () => {
+      for (const effect of [...effects]) effect();
+      effects.length = 0;
+    },
   };
 }
 
 /**
- * Creates a mock for GQL hooks and documents
+ * Creates the complete PluginApi mock. Returns the mock plus typed handles
+ * for assertions.
  */
-function createMockGQL() {
-  const useConfigurationQuery = vi.fn();
-  const ConfigurePluginDocument = 'ConfigurePluginDocument';
-  const ConfigureInterfaceDocument = 'ConfigureInterfaceDocument';
-  const ConfigurationDocument = 'ConfigurationDocument';
+export function createPluginApiMock() {
+  const react = createReactMock();
 
-  return {
-    useConfigurationQuery,
-    ConfigurePluginDocument,
-    ConfigureInterfaceDocument,
-    ConfigurationDocument,
-  };
-}
+  const mutate = vi.fn().mockResolvedValue({});
+  const query = vi.fn().mockResolvedValue({
+    data: {
+      configuration: {
+        plugins: { "stash-tv": {} },
+        interface: { menuItems: [] },
+      },
+    },
+  });
 
-/**
- * Creates a mock Bootstrap library
- */
-function createMockBootstrap() {
-  const Button = vi.fn(({ children, onClick, variant }) => ({
-    type: 'button',
-    props: { children, onClick, variant },
-  }));
+  const Button = (props: { children?: unknown; onClick?: () => void; variant?: string }) => props;
 
-  return { Button };
-}
-
-/**
- * Creates a mock for FontAwesomeSolid icons
- */
-function createMockFontAwesomeSolid() {
-  return {
-    faCheck: { iconName: 'check', prefix: 'fas' },
-    faTelevision: { iconName: 'television', prefix: 'fas' },
-  };
-}
-
-/**
- * Creates a mock for StashService.getClient that returns a mocked Apollo client
- */
-function createMockStashService() {
-  const mockClient = {
-    query: vi.fn(),
-    mutate: vi.fn(),
-  };
-
-  const getClient = vi.fn(() => mockClient);
-
-  return {
-    getClient,
-    mockClient,
-  };
-}
-
-/**
- * Creates the complete PluginApi mock
- */
-export function createPluginApiMock(): PluginApiMock {
-  const mockReact = createMockReact();
-  const mockGQL = createMockGQL();
-  const mockBootstrap = createMockBootstrap();
-  const mockFontAwesomeSolid = createMockFontAwesomeSolid();
-  const mockStashService = createMockStashService();
-
-  // Track patches registered by the plugin
-  const patches: Record<string, any[]> = {};
-
+  const patches: RegisteredPatch[] = [];
   const patch = {
-    instead: vi.fn((target: string, implementation: Function) => {
-      if (!patches[target]) {
-        patches[target] = [];
-      }
-      patches[target].push({ type: 'instead', implementation });
+    instead: vi.fn((target: string, implementation: (...args: unknown[]) => unknown) => {
+      patches.push({ type: "instead" as const, target, implementation });
     }),
-    before: vi.fn((target: string, implementation: Function) => {
-      if (!patches[target]) {
-        patches[target] = [];
-      }
-      patches[target].push({ type: 'before', implementation });
+    before: vi.fn((target: string, implementation: (...args: unknown[]) => unknown) => {
+      patches.push({ type: "before" as const, target, implementation });
     }),
   };
 
-  return {
-    React: mockReact,
-    ReactModule: mockReact, // Alias for PluginApi.React
+  const useConfigurationQuery = vi.fn<(data?: unknown, loading?: boolean) => { data: unknown; loading: boolean }>(
+    () => ({ data: undefined, loading: true })
+  );
+
+  const pluginApi = {
+    React: react,
     libraries: {
-      Bootstrap: mockBootstrap,
-      FontAwesomeSolid: mockFontAwesomeSolid,
+      Bootstrap: { Button },
+      FontAwesomeSolid: {
+        faCheck: { iconName: "check", prefix: "fas" },
+        faTelevision: { iconName: "television", prefix: "fas" },
+      },
     },
     utils: {
-      StashService: mockStashService,
+      StashService: {
+        getClient: () => ({ query, mutate }),
+      },
     },
-    GQL: mockGQL,
+    GQL: {
+      useConfigurationQuery,
+      ConfigurePluginDocument: "ConfigurePluginDocument",
+      ConfigureInterfaceDocument: "ConfigureInterfaceDocument",
+      ConfigurationDocument: "ConfigurationDocument",
+    },
     patch,
-    // Expose internals for test assertions
-    _mocks: {
-      react: mockReact,
-      gql: mockGQL,
-      bootstrap: mockBootstrap,
-      fontAwesome: mockFontAwesomeSolid,
-      stashService: mockStashService,
-      patches,
+  };
+
+  return {
+    pluginApi,
+    /** Assertable handles. */
+    query,
+    mutate,
+    useConfigurationQuery,
+    react,
+    /** All patches registered by the plugin, in registration order. */
+    patches,
+    /** Get the single registered implementation for a patch target. */
+    patchFor: (target: string) => {
+      const registered = patches.filter((p) => p.target === target);
+      if (registered.length !== 1) {
+        throw new Error(
+          `Expected exactly one patch registered for ${target}, found ${registered.length}`
+        );
+      }
+      return registered[0];
     },
   };
 }
 
-/**
- * Helper to reset all mock call histories
- */
-export function resetPluginApiMocks(mockPluginApi: PluginApiMock) {
-  const { _mocks } = mockPluginApi as any;
-  _mocks.react.useState.mockClear();
-  _mocks.react.useEffect.mockClear();
-  _mocks.react.useMemo.mockClear();
-  _mocks.gql.useConfigurationQuery.mockClear();
-  _mocks.utils.StashService.getClient.mockClear();
-  _mocks.utils.StashService.getClient().query.mockClear();
-  _mocks.utils.StashService.getClient().mutate.mockClear();
-  _mocks.patch.instead.mockClear();
-  _mocks.patch.before.mockClear();
-}
-
-/**
- * Helper to assert that a patch was registered
- */
-export function assertPatchRegistered(
-  mockPluginApi: PluginApiMock,
-  target: string,
-  type: 'instead' | 'before'
-) {
-  const { _mocks } = mockPluginApi as any;
-  const targetPatches = _mocks.patches[target];
-
-  if (!targetPatches) {
-    throw new Error(`No patches registered for target: ${target}`);
-  }
-
-  const hasExpectedPatch = targetPatches.some((p: any) => p.type === type);
-  expect(hasExpectedPatch).toBe(true);
-}
+export type PluginApiMock = ReturnType<typeof createPluginApiMock>;

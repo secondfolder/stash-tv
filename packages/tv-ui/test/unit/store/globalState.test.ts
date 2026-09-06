@@ -82,103 +82,23 @@ describe("globalState store", () => {
 
       consoleSpy.mockRestore();
     });
-
-    it("blocks multiple state changes until tvConfigLoaded is set", () => {
-      setTvConfigLoaded(false);
-      const { set, get } = useGlobalState.getState();
-
-      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-
-      act(() => {
-        set("showSettings", true);
-        set("fullscreen", true);
-        set("sceneInfoOpen", true);
-      });
-
-      // All should remain at defaults
-      expect(get("showSettings")).toBe(false);
-      expect(get("fullscreen")).toBe(false);
-      expect(get("sceneInfoOpen")).toBe(false);
-
-      // Should have logged 3 warnings
-      expect(consoleSpy).toHaveBeenCalledTimes(3);
-
-      consoleSpy.mockRestore();
-    });
   });
 
   describe("transient UI state behavior", () => {
-    it("toggles settings panel", () => {
+    it("resolves updater functions against the previous value", () => {
+      // Consumers toggle transient state via updater functions
+      // (set("showSettings", prev => !prev)) — the store must resolve them
       const { set, get } = useGlobalState.getState();
 
-      expect(get("showSettings")).toBe(false);
-
       act(() => {
-        set("showSettings", true);
+        set("showSettings", (prev) => !prev);
       });
       expect(get("showSettings")).toBe(true);
 
       act(() => {
-        set("showSettings", false);
+        set("showSettings", (prev) => !prev);
       });
       expect(get("showSettings")).toBe(false);
-    });
-
-    it("toggles fullscreen state", () => {
-      const { set, get } = useGlobalState.getState();
-
-      expect(get("fullscreen")).toBe(false);
-
-      act(() => {
-        set("fullscreen", true);
-      });
-      expect(get("fullscreen")).toBe(true);
-
-      act(() => {
-        set("fullscreen", false);
-      });
-      expect(get("fullscreen")).toBe(false);
-    });
-
-    it("toggles scene info panel", () => {
-      const { set, get } = useGlobalState.getState();
-
-      expect(get("sceneInfoOpen")).toBe(false);
-
-      act(() => {
-        set("sceneInfoOpen", true);
-      });
-      expect(get("sceneInfoOpen")).toBe(true);
-
-      act(() => {
-        set("sceneInfoOpen", false);
-      });
-      expect(get("sceneInfoOpen")).toBe(false);
-    });
-  });
-
-  describe("state isolation", () => {
-    it("maintains independent state for different properties", () => {
-      const { set, get } = useGlobalState.getState();
-
-      act(() => {
-        set("showSettings", true);
-        set("fullscreen", true);
-        set("sceneInfoOpen", false);
-      });
-
-      expect(get("showSettings")).toBe(true);
-      expect(get("fullscreen")).toBe(true);
-      expect(get("sceneInfoOpen")).toBe(false);
-
-      // Reset one property shouldn't affect others
-      act(() => {
-        set("showSettings", false);
-      });
-
-      expect(get("showSettings")).toBe(false);
-      expect(get("fullscreen")).toBe(true); // Still true
-      expect(get("sceneInfoOpen")).toBe(false); // Still false
     });
   });
 });

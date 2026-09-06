@@ -1,174 +1,90 @@
 import { describe, it, expect, vi } from "vitest"
 import React from "react"
 import { render, screen } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 // RTL cleanup runs centrally in test/setup.ts
 import { EditTagsContents } from "../../../src/components/EditTagsContents"
 import type { SlimTag } from "../../../src/components/EditTagSelectionForm"
 
-// Mock EditTagSelectionForm since it's complex
+/**
+ * EditTagsContents is a thin composition around EditTagSelectionForm (mocked
+ * here) plus the marker primary-tag note. The tests verify prop forwarding
+ * through the mock and the note's conditional rendering.
+ */
+
+// The mock echoes its props so tests can assert what was actually forwarded.
 vi.mock("../../../src/components/EditTagSelectionForm", () => ({
-  EditTagSelectionForm: ({ initialTags, save, cancel }: any) => (
+  EditTagSelectionForm: ({
+    initialTags,
+    pinnedTagIds,
+    save,
+    cancel,
+  }: {
+    initialTags: SlimTag[]
+    pinnedTagIds?: string[]
+    save: (tags: SlimTag[]) => void
+    cancel: () => void
+  }) => (
     <div data-testid="edit-tag-form">
       <div data-testid="tags-count">{initialTags.length}</div>
+      <div data-testid="pinned-tag-ids">{pinnedTagIds?.join(",") ?? ""}</div>
       <button onClick={() => save(initialTags)}>Save</button>
       <button onClick={cancel}>Cancel</button>
     </div>
   ),
-  SlimTag: {}
 }))
 
 const mockTags: SlimTag[] = [
   { id: "tag1", name: "Tag 1", aliases: [] },
-  { id: "tag2", name: "Tag 2", aliases: [] }
+  { id: "tag2", name: "Tag 2", aliases: [] },
 ]
 
-const mockPrimaryTag: SlimTag = {
-  id: "tag-primary",
-  name: "Primary Tag",
-  aliases: [],
+function renderContents(
+  overrides: Partial<Parameters<typeof EditTagsContents>[0]> = {}
+) {
+  const props = {
+    initialTags: mockTags,
+    save: vi.fn(),
+    cancel: vi.fn(),
+    ...overrides,
+  }
+  render(<EditTagsContents {...props} />)
+  return props
 }
 
 describe("EditTagsContents", () => {
-  it("renders EditTagSelectionForm", () => {
-    const handleSave = vi.fn()
-    const handleCancel = vi.fn()
-    render(
-      <EditTagsContents
-        initialTags={mockTags}
-        save={handleSave}
-        cancel={handleCancel}
-      />
-    )
-    expect(screen.getByTestId("edit-tag-form")).toBeInTheDocument()
-  })
-
-  it("passes initialTags to EditTagSelectionForm", () => {
-    const handleSave = vi.fn()
-    const handleCancel = vi.fn()
-    render(
-      <EditTagsContents
-        initialTags={mockTags}
-        save={handleSave}
-        cancel={handleCancel}
-      />
-    )
+  it("forwards initialTags to the tag selection form", () => {
+    renderContents()
     expect(screen.getByTestId("tags-count")).toHaveTextContent("2")
   })
 
-  it("passes save callback to EditTagSelectionForm", () => {
-    const handleSave = vi.fn()
-    const handleCancel = vi.fn()
-    render(
-      <EditTagsContents
-        initialTags={mockTags}
-        save={handleSave}
-        cancel={handleCancel}
-      />
-    )
-    const saveButton = screen.getByText("Save")
-    saveButton.click()
-    expect(handleSave).toHaveBeenCalledWith(mockTags)
+  it("forwards pinnedTagIds to the tag selection form", () => {
+    renderContents({ pinnedTagIds: ["tag1", "tag2"] })
+    expect(screen.getByTestId("pinned-tag-ids")).toHaveTextContent("tag1,tag2")
   })
 
-  it("passes cancel callback to EditTagSelectionForm", () => {
-    const handleSave = vi.fn()
-    const handleCancel = vi.fn()
-    render(
-      <EditTagsContents
-        initialTags={mockTags}
-        save={handleSave}
-        cancel={handleCancel}
-      />
-    )
-    const cancelButton = screen.getByText("Cancel")
-    cancelButton.click()
-    expect(handleCancel).toHaveBeenCalled()
+  it("wires the form's save and cancel actions to its props", async () => {
+    const props = renderContents()
+
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+    expect(props.save).toHaveBeenCalledWith(mockTags)
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
+    expect(props.cancel).toHaveBeenCalledTimes(1)
   })
 
-  it("passes pinnedTagIds to EditTagSelectionForm when provided", () => {
-    const handleSave = vi.fn()
-    const handleCancel = vi.fn()
-    render(
-      <EditTagsContents
-        initialTags={mockTags}
-        pinnedTagIds={["tag1"]}
-        save={handleSave}
-        cancel={handleCancel}
-      />
-    )
-    expect(screen.getByTestId("edit-tag-form")).toBeInTheDocument()
+  it("shows the marker's primary tag name when provided", () => {
+    renderContents({ primaryTag: { id: "tag-primary", name: "Primary Tag", aliases: [] } })
+    expect(
+      screen.getByText('Marker\'s primary tag is "Primary Tag".')
+    ).toBeInTheDocument()
   })
 
-  it("does not render primary tag note when primaryTag is not provided", () => {
-    const handleSave = vi.fn()
-    const handleCancel = vi.fn()
-    render(
-      <EditTagsContents
-        initialTags={mockTags}
-        save={handleSave}
-        cancel={handleCancel}
-      />
-    )
-    expect(screen.queryByTestId("primary-tag-note")).not.toBeInTheDocument()
-  })
+  it("hides the primary tag note when there is no primary tag", () => {
+    renderContents()
+    expect(screen.queryByText(/Marker's primary tag is/)).not.toBeInTheDocument()
 
-  it("renders primary tag note when primaryTag is provided", () => {
-    const handleSave = vi.fn()
-    const handleCancel = vi.fn()
-    render(
-      <EditTagsContents
-        initialTags={mockTags}
-        primaryTag={mockPrimaryTag}
-        save={handleSave}
-        cancel={handleCancel}
-      />
-    )
-    expect(screen.getByText(`Marker's primary tag is "${mockPrimaryTag.name}".`)).toBeInTheDocument()
-  })
-
-  it("renders primary tag note with correct tag name", () => {
-    const handleSave = vi.fn()
-    const handleCancel = vi.fn()
-    const customPrimaryTag: SlimTag = {
-      id: "custom-primary",
-      name: "Custom Primary",
-      aliases: [],
-    }
-    render(
-      <EditTagsContents
-        initialTags={mockTags}
-        primaryTag={customPrimaryTag}
-        save={handleSave}
-        cancel={handleCancel}
-      />
-    )
-    expect(screen.getByText(`Marker's primary tag is "${customPrimaryTag.name}".`)).toBeInTheDocument()
-  })
-
-  it("handles empty initialTags array", () => {
-    const handleSave = vi.fn()
-    const handleCancel = vi.fn()
-    render(
-      <EditTagsContents
-        initialTags={[]}
-        save={handleSave}
-        cancel={handleCancel}
-      />
-    )
-    expect(screen.getByTestId("tags-count")).toHaveTextContent("0")
-  })
-
-  it("handles primaryTag as null", () => {
-    const handleSave = vi.fn()
-    const handleCancel = vi.fn()
-    render(
-      <EditTagsContents
-        initialTags={mockTags}
-        primaryTag={null}
-        save={handleSave}
-        cancel={handleCancel}
-      />
-    )
-    expect(screen.queryByTestId("primary-tag-note")).not.toBeInTheDocument()
+    renderContents({ primaryTag: null })
+    expect(screen.queryByText(/Marker's primary tag is/)).not.toBeInTheDocument()
   })
 })

@@ -94,6 +94,8 @@ export type ActionButtonIconSource = React.FunctionComponent<React.SVGProps<SVGS
   | FontAwesomeIconDefinition
   | BootstrapIcon
   | React.Component
+  // Image URL (data URL or path) rendered as an <img>
+  | string
 export type ActionButtonIcon = ActionButtonIconSource
   | Record<string, ActionButtonIconSource>
   | React.FC<{ state: unknown }>

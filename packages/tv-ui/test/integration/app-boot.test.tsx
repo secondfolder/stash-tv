@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { render, waitFor, act } from "@testing-library/react";
-import React from "react";
-import { ApolloProvider } from "@apollo/client";
-import { setupIntegrationTest, loadFreshAppModules } from "./helpers/harness";
+import { setupIntegrationTest, bootApp } from "./helpers/harness";
 
 /**
  * End-to-end smoke: the real App component tree boots against the mock Stash API —
@@ -14,38 +11,12 @@ const integration = setupIntegrationTest();
 
 describe("App boots against the mock Stash API", () => {
   it("loads config and renders the feed", async () => {
-    const { default: App } = await loadFreshAppModules();
-    const { getApolloClient } = await import("../../src/hooks/getApolloClient");
+    const app = await bootApp();
 
-    let rendered: ReturnType<typeof render>;
-    const apolloClient = getApolloClient();
-    await act(async () => {
-      rendered = render(
-        <ApolloProvider client={apolloClient}>
-          <App />
-        </ApolloProvider>
-      );
-    });
+    // The feed (not, e.g., a settings or feedback overlay) rendered
+    expect(app.rendered.container.querySelector(".FeedPage")).toBeTruthy();
 
-    // The app renders nothing until config has loaded (tvConfigLoaded gate)
-    await waitFor(
-      () => {
-        expect(rendered.container.querySelector(".FeedPage, [class*='Feed']")).toBeTruthy();
-      },
-      { timeout: 10000 }
-    );
-
-    // The first page of scenes actually made it into the feed DOM. jsdom can't run
-    // videojs players, but the slide markup + titles should exist.
-    await waitFor(
-      () => {
-        const content = rendered.container.textContent ?? "";
-        expect(content).toContain("Aurora Ascending");
-      },
-      { timeout: 10000 }
-    );
-
-    // And the mock server actually served the scene query
+    // The mock server actually served the scene data behind it
     const probe = await fetch(`${integration.server.url}/graphql`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -56,11 +27,7 @@ describe("App boots against the mock Stash API", () => {
     const body = (await probe.json()) as { data: { findScenes: { count: number } } };
     expect(body.data.findScenes.count).toBe(8);
 
-    // Cleanup: unmount the app; Apollo clients are not stopped (see harness.ts)
-    // The harness explains why: clients hold WebSocket subscriptions with infinite retry,
-    // and stopping them before jsdom teardown produces unhandled error events.
-    await act(async () => {
-      rendered.unmount();
-    });
+    // Apollo clients are not stopped — see the harness NOTE
+    await app.unmount();
   });
 });

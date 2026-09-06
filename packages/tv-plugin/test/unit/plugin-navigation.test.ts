@@ -1,114 +1,104 @@
 /**
- * Plugin navigation button tests
+ * Plugin navigation tests
  *
- * Tests the MainNavBar.MenuItems patch that injects the TV navigation button,
- * including gating on interface.menuItems configuration and checkbox injection.
+ * Drives the real patch implementations from main.tsx: the CheckboxGroup
+ * injection of the tv menu-item checkbox, and the MainNavBar.MenuItems
+ * gating of the TV nav button on interface.menuItems.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi } from "vitest";
+import type { MockReactElement } from "./plugin-api-mock";
+import { importPlugin } from "./test-harness";
 
-describe('Plugin navigation button', () => {
-  it('shows nav button when tv is in interface.menuItems', async () => {
-    // Mock configuration query with tv in menuItems
-    const mockUseConfigurationQuery = vi.fn().mockReturnValue({
-      data: {
-        configuration: {
-          interface: {
-            menuItems: ['tv', 'scenes', 'images'],
-          },
-        },
-      },
-      loading: false,
-    });
+// See plugin-initialization.test.ts for why StashService is stubbed.
+vi.mock("stash-ui/dist/src/core/StashService", () => ({
+  getClient: () => ({ cache: {}, link: undefined }),
+}));
 
-    const result = mockUseConfigurationQuery();
-    const showNavButton = result.data?.configuration?.interface?.menuItems?.includes('tv');
+/** Recursively collect all elements in a mock React tree. */
+function flatten(node: unknown): MockReactElement[] {
+  if (Array.isArray(node)) return node.flatMap(flatten);
+  if (node && typeof node === "object" && "type" in node && "props" in node) {
+    const element = node as MockReactElement;
+    return [element, ...flatten(element.props.children)];
+  }
+  return [];
+}
 
-    expect(showNavButton).toBe(true);
+const Original = () => "original";
+
+describe("CheckboxGroup patch", () => {
+  it("adds the tv checkbox to the menu-items group", async () => {
+    const mock = await importPlugin({ plugins: { "stash-tv": { initialSetupComplete: true } } });
+    const patch = mock.patchFor("CheckboxGroup");
+
+    const items = [
+      { id: "scenes", headingID: "Scenes" },
+      { id: "images", headingID: "Images" },
+    ];
+    const result = patch.implementation({ groupId: "menu-items", items }) as [
+      { groupId: string; items: unknown[] }
+    ];
+
+    expect(result[0].items).toEqual([...items, { id: "tv", headingID: "TV" }]);
   });
 
-  it('hides nav button when tv is not in interface.menuItems', async () => {
-    // Mock configuration query without tv in menuItems
-    const mockUseConfigurationQuery = vi.fn().mockReturnValue({
-      data: {
-        configuration: {
-          interface: {
-            menuItems: ['scenes', 'images', 'markers'],
-          },
-        },
-      },
-      loading: false,
-    });
+  it("leaves other checkbox groups untouched", async () => {
+    const mock = await importPlugin({ plugins: { "stash-tv": { initialSetupComplete: true } } });
+    const patch = mock.patchFor("CheckboxGroup");
 
-    const result = mockUseConfigurationQuery();
-    const showNavButton = result.data?.configuration?.interface?.menuItems?.includes('tv');
+    const props = { groupId: "other-group", items: [{ id: "a", headingID: "A" }] };
+    const result = patch.implementation(props) as unknown[];
 
-    expect(showNavButton).toBe(false);
+    expect(result[0]).toBe(props);
+  });
+});
+
+describe("MainNavBar.MenuItems patch", () => {
+  async function renderNavButton(
+    configuration: unknown,
+    loading: boolean
+  ): Promise<MockReactElement[]> {
+    const mock = await importPlugin({ plugins: { "stash-tv": { initialSetupComplete: true } } });
+    const patch = mock.patchFor("MainNavBar.MenuItems");
+    mock.useConfigurationQuery.mockReturnValue({ data: configuration, loading });
+
+    const result = patch.implementation({ children: [] }, undefined, Original);
+    const root = Array.isArray(result) ? result : [result];
+    return root.flatMap(flatten);
+  }
+
+  it("shows the TV nav button when tv is in interface.menuItems", async () => {
+    const elements = await renderNavButton(
+      { configuration: { interface: { menuItems: ["scenes", "tv"] } } },
+      false
+    );
+
+    expect(elements.some((el) => (el.type as { name?: string })?.name === "StashTVButtonInner")).toBe(
+      true
+    );
+    expect(elements.some((el) => el.type === Original)).toBe(true);
   });
 
-  it('shows nav button only when config is not loading', async () => {
-    // Mock configuration query in loading state
-    const mockUseConfigurationQuery = vi.fn().mockReturnValue({
-      data: undefined,
-      loading: true,
-    });
+  it("hides the TV nav button when tv is not in interface.menuItems", async () => {
+    const elements = await renderNavButton(
+      { configuration: { interface: { menuItems: ["scenes"] } } },
+      false
+    );
 
-    const result = mockUseConfigurationQuery();
-    const showNavButton = !result.loading && result.data?.configuration?.interface?.menuItems?.includes('tv');
-
-    expect(showNavButton).toBe(false);
+    expect(elements.some((el) => (el.type as { name?: string })?.name === "StashTVButtonInner")).toBe(
+      false
+    );
   });
 
-  it('injects TV checkbox into menu-items CheckboxGroup', () => {
-    // Mock CheckboxGroup props
-    const props = {
-      groupId: 'menu-items',
-      items: [
-        { id: 'scenes', headingID: 'Scenes' },
-        { id: 'images', headingID: 'Images' },
-        { id: 'markers', headingID: 'Markers' },
-      ],
-    };
+  it("hides the TV nav button while the configuration is loading", async () => {
+    const elements = await renderNavButton(
+      { configuration: { interface: { menuItems: ["tv"] } } },
+      true
+    );
 
-    // Simulate the plugin's CheckboxGroup patch
-    const patchedProps =
-      props.groupId !== 'menu-items'
-        ? props
-        : {
-            ...props,
-            items: [
-              ...props.items,
-              { id: 'tv', headingID: 'TV' },
-            ],
-          };
-
-    expect(patchedProps.items).toHaveLength(4);
-    expect(patchedProps.items).toContainEqual({ id: 'tv', headingID: 'TV' });
-  });
-
-  it('does not modify CheckboxGroup for other groupIds', () => {
-    // Mock CheckboxGroup props for a different group
-    const props = {
-      groupId: 'some-other-group',
-      items: [
-        { id: 'item1', headingID: 'Item 1' },
-        { id: 'item2', headingID: 'Item 2' },
-      ],
-    };
-
-    // Simulate the plugin's CheckboxGroup patch
-    const patchedProps =
-      props.groupId !== 'menu-items'
-        ? props
-        : {
-            ...props,
-            items: [
-              ...props.items,
-              { id: 'tv', headingID: 'TV' },
-            ],
-          };
-
-    expect(patchedProps.items).toHaveLength(2);
-    expect(patchedProps.items).not.toContainEqual({ id: 'tv', headingID: 'TV' });
+    expect(elements.some((el) => (el.type as { name?: string })?.name === "StashTVButtonInner")).toBe(
+      false
+    );
   });
 });

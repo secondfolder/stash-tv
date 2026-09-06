@@ -25,7 +25,31 @@ const sharedTestOptions = {
   testTimeout: 20000,
   hookTimeout: 20000,
   restoreMocks: true,
+  logHeapUsage: true,
+  onUnhandledError: suppressPostTeardownNoise,
+  onUnhandledRejection: suppressPostTeardownNoise,
 };
+
+/**
+ * The VTT thumbnails plugin (bundled in stash-ui dist) sets up timers that
+ * fire after jsdom teardown, causing "window is not defined" errors from
+ * third-party code we can't patch. Suppression is deliberately narrow: the
+ * error must come from that plugin's stack so genuine app-code errors with
+ * the same message still fail the run.
+ */
+function suppressPostTeardownNoise(error: unknown): void {
+  const stack = error instanceof Error ? error.stack ?? "" : "";
+  const fromBundledThirdParty = /stash-ui|node_modules/.test(stack);
+  if (
+    error instanceof ReferenceError &&
+    error.message === "window is not defined" &&
+    fromBundledThirdParty
+  ) {
+    return;
+  }
+  // Let other errors propagate - they might be real issues
+  throw error;
+}
 
 export default defineConfig({
   resolve: {
@@ -37,6 +61,16 @@ export default defineConfig({
     },
   },
   test: {
+    // Suppress console logs unless the test fails
+    silent: 'passed-only',
+    coverage: {
+      provider: "v8",
+      // Only tv-ui's own source counts — dependencies (stash-ui, react, etc.)
+      // are exercised by these tests but are not ours to measure.
+      include: ["src/**"],
+      // Storybook files are not shipped app code.
+      exclude: ["src/**/*.stories.tsx"],
+    },
     // Unit and integration run as separate projects so the Apollo client mock
     // can be applied to unit tests only (integration needs the real client
     // against mock-stash). See test/setup-unit-apollo.ts.

@@ -1,189 +1,118 @@
 /**
- * Plugin settings and reset tests
+ * Plugin settings tests
  *
- * Tests the PluginSettings patch that adds reset functionality and
- * the dev options JSON inspector, including config persistence.
+ * Drives the real PluginSettings patch from main.tsx: pass-through for other
+ * plugins, the reset button persisting an empty config via ConfigurePlugin,
+ * and the dev-options JSON inspector gated on showDevOptions.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi } from "vitest";
+import type { MockReactElement } from "./plugin-api-mock";
+import { importPlugin } from "./test-harness";
 
-describe('Plugin settings and reset', () => {
-  it('resets all settings to defaults when reset button is clicked', async () => {
-    const mockMutate = vi.fn().mockResolvedValue({});
+// See plugin-initialization.test.ts for why StashService is stubbed.
+vi.mock("stash-ui/dist/src/core/StashService", () => ({
+  getClient: () => ({ cache: {}, link: undefined }),
+}));
 
-    const mockClient = {
-      mutate: mockMutate,
-    };
+const Original = () => "original";
 
-    // Simulate the resetStashTvSettings function behavior
-    const emptyConfig = {};
+const ownProps = { pluginID: "stash-tv" };
+const otherProps = { pluginID: "some-other-plugin" };
 
-    await mockClient.mutate({
-      mutation: 'ConfigurePluginDocument',
-      variables: {
-        plugin_id: 'stash-tv',
-        input: emptyConfig,
+function stashConfigWithAppState(showDevOptions: boolean) {
+  return {
+    plugins: {
+      "stash-tv": {
+        "app-state": JSON.stringify({ state: { showDevOptions } }),
       },
-    });
+    },
+    interface: { menuItems: [] },
+  };
+}
 
-    expect(mockMutate).toHaveBeenCalledWith({
-      mutation: 'ConfigurePluginDocument',
-      variables: {
-        plugin_id: 'stash-tv',
-        input: {},
-      },
-    });
+/** Recursively collect all elements in a mock React tree. */
+function flatten(node: unknown): MockReactElement[] {
+  if (Array.isArray(node)) return node.flatMap(flatten);
+  if (node && typeof node === "object" && "type" in node && "props" in node) {
+    const element = node as MockReactElement;
+    return [element, ...flatten(element.props.children)];
+  }
+  return [];
+}
+
+/** Let pending promise chains (config fetch → setState) settle. */
+async function flushAsyncWork() {
+  await new Promise((resolve) => setTimeout(resolve, 10));
+}
+
+/** Invoke a patch implementation as a component render. */
+function render(
+  mock: Awaited<ReturnType<typeof importPlugin>>,
+  patch: { implementation: (...args: unknown[]) => unknown },
+  props: unknown
+) {
+  mock.react.beginRender();
+  return patch.implementation(props, undefined, Original);
+}
+
+describe("PluginSettings patch", () => {
+  it("renders the original settings for other plugins", async () => {
+    const mock = await importPlugin({ plugins: { "stash-tv": { initialSetupComplete: true } } });
+    const patch = mock.patchFor("PluginSettings");
+
+    const result = render(mock, patch, otherProps);
+
+    expect(Array.isArray(result)).toBe(false);
+    expect((result as { type: unknown }).type).toBe(Original);
   });
 
-  it('persists config via ConfigurePlugin mutation', async () => {
-    const mockMutate = vi.fn().mockResolvedValue({
-      data: {
-        configurePlugin: {
-          plugin_id: 'stash-tv',
-          value: { volume: 50, muted: false },
-        },
-      },
+  it("resets all Stash TV settings to an empty config when Reset is clicked", async () => {
+    const mock = await importPlugin({
+      plugins: { "stash-tv": { volume: 50, initialSetupComplete: true } },
     });
+    const patch = mock.patchFor("PluginSettings");
+    mock.mutate.mockClear();
 
-    const mockClient = {
-      mutate: mockMutate,
-    };
+    const result = render(mock, patch, ownProps) as unknown[];
+    const buttons = flatten(result).filter(
+      (element) => element.type === mock.pluginApi.libraries.Bootstrap.Button
+    );
+    expect(buttons.length).toBeGreaterThan(0);
 
-    const newConfig = { volume: 50, muted: false };
+    const onClick = buttons[0].props.onClick as () => Promise<void>;
+    await onClick();
+    await flushAsyncWork();
 
-    await mockClient.mutate({
-      mutation: 'ConfigurePluginDocument',
-      variables: {
-        plugin_id: 'stash-tv',
-        input: newConfig,
-      },
-    });
-
-    expect(mockMutate).toHaveBeenCalledWith(
+    expect(mock.mutate).toHaveBeenCalledWith(
       expect.objectContaining({
-        variables: expect.objectContaining({
-          plugin_id: 'stash-tv',
-          input: newConfig,
-        }),
+        mutation: "ConfigurePluginDocument",
+        variables: expect.objectContaining({ plugin_id: "stash-tv", input: {} }),
       })
     );
   });
 
-  it('updates interface config via ConfigureInterface mutation', async () => {
-    const mockMutate = vi.fn().mockResolvedValue({
-      data: {
-        configureInterface: {
-          menuItems: ['tv', 'scenes'],
-          soundOnPreview: true,
-        },
-      },
-    });
+  it("does not show the dev options JSON inspector when showDevOptions is false", async () => {
+    const mock = await importPlugin(stashConfigWithAppState(false));
+    const patch = mock.patchFor("PluginSettings");
 
-    const mockClient = {
-      mutate: mockMutate,
-    };
+    render(mock, patch, ownProps);
+    mock.react.runEffects();
+    await flushAsyncWork();
+    const rerendered = render(mock, patch, ownProps);
 
-    const newInterfaceConfig = { menuItems: ['tv', 'scenes'], soundOnPreview: true };
-
-    await mockClient.mutate({
-      mutation: 'ConfigureInterfaceDocument',
-      variables: {
-        input: newInterfaceConfig,
-      },
-    });
-
-    expect(mockMutate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        variables: expect.objectContaining({
-          input: newInterfaceConfig,
-        }),
-      })
-    );
+    expect(JSON.stringify(rerendered)).not.toContain("Stash TV settings JSON");
   });
 
-  it('reads config via Configuration query', async () => {
-    const mockQuery = vi.fn().mockResolvedValue({
-      data: {
-        configuration: {
-          plugins: {
-            'stash-tv': {
-              volume: 50,
-              muted: false,
-            },
-          },
-          interface: {
-            menuItems: ['tv', 'scenes'],
-          },
-        },
-      },
-    });
+  it("shows the dev options JSON inspector when showDevOptions is true", async () => {
+    const mock = await importPlugin(stashConfigWithAppState(true));
+    const patch = mock.patchFor("PluginSettings");
 
-    const mockClient = {
-      query: mockQuery,
-    };
+    render(mock, patch, ownProps);
+    mock.react.runEffects();
+    await flushAsyncWork();
+    const rerendered = render(mock, patch, ownProps);
 
-    const result = await mockClient.query({
-      query: 'ConfigurationDocument',
-    });
-
-    expect(result.data?.configuration?.plugins?.['stash-tv']).toEqual({
-      volume: 50,
-      muted: false,
-    });
-  });
-
-  it('shows JSON inspector only when showDevOptions is true', () => {
-    // Test case 1: showDevOptions is true
-    const stashTvConfig1 = {
-      'stash-tv-config': JSON.stringify({
-        state: {
-          showDevOptions: true,
-        },
-      }),
-    };
-
-    const isDevOptionsEnabled1 = JSON.parse(
-      stashTvConfig1['stash-tv-config'] || '{}'
-    )?.state?.showDevOptions;
-
-    expect(isDevOptionsEnabled1).toBe(true);
-
-    // Test case 2: showDevOptions is false
-    const stashTvConfig2 = {
-      'stash-tv-config': JSON.stringify({
-        state: {
-          showDevOptions: false,
-        },
-      }),
-    };
-
-    const isDevOptionsEnabled2 = JSON.parse(
-      stashTvConfig2['stash-tv-config'] || '{}'
-    )?.state?.showDevOptions;
-
-    expect(isDevOptionsEnabled2).toBe(false);
-
-    // Test case 3: showDevOptions is not set (undefined)
-    const stashTvConfig3 = {
-      'stash-tv-config': JSON.stringify({
-        state: {},
-      }),
-    };
-
-    const isDevOptionsEnabled3 = JSON.parse(
-      stashTvConfig3['stash-tv-config'] || '{}'
-    )?.state?.showDevOptions;
-
-    expect(isDevOptionsEnabled3).toBeUndefined();
-  });
-
-  it('handles missing tv config key gracefully', () => {
-    const stashTvConfig = {};
-
-    // This should not throw even when tvConfigStorageKey is missing
-    const configValue = stashTvConfig['stash-tv-config'] || '{}';
-
-    expect(() => JSON.parse(configValue)).not.toThrow();
-    expect(JSON.parse(configValue)).toEqual({});
+    expect(JSON.stringify(rerendered)).toContain("Stash TV settings JSON");
   });
 });

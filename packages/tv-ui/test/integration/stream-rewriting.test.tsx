@@ -1,88 +1,65 @@
 /**
  * Stream rewriting integration tests.
  *
- * Tests the preview-only modes that rewrite scene streams:
- * - scenePreviewOnly mode rewrites streams to single "Direct stream"
+ * Tests the preview-only mode where scene data is rewritten so the only
+ * available stream is the scene preview ("Direct stream") with an estimated
+ * duration — observable through the dev-options `window.mediaItems` export.
  *
  * @see docs/media-loading.md § "Preview-only modes"
  * @see docs/video-player.md § "Stream labels"
  */
 
 import { describe, expect, it } from "vitest";
-import { render, waitFor, act } from "@testing-library/react";
-import React from "react";
-import { ApolloProvider } from "@apollo/client";
-import { setupIntegrationTest, loadFreshAppModules } from "./helpers/harness";
+import { act, waitFor } from "@testing-library/react";
+import { setupIntegrationTest, bootApp } from "./helpers/harness";
+import type { MediaItem } from "../../src/hooks/useMediaItems";
 
 const integration = setupIntegrationTest();
 
+function sceneItems(): Extract<MediaItem, { entityType: "scene" }>[] {
+  const items = window.mediaItems ?? [];
+  return items.filter(
+    (item): item is Extract<MediaItem, { entityType: "scene" }> => item.entityType === "scene"
+  );
+}
+
 describe("Stream rewriting integration", () => {
-  it("scenePreviewOnly mode is settable and persisted to config", async () => {
-    const { default: App } = await loadFreshAppModules();
-    const { getApolloClient } = await import("../../src/hooks/getApolloClient");
+  it("scenePreviewOnly rewrites scene streams to a single Direct stream", async () => {
+    const app = await bootApp();
 
-    const apolloClient = getApolloClient();
-    let rendered!: ReturnType<typeof render>;
-    await act(async () => {
-      rendered = render(
-        <ApolloProvider client={apolloClient}>
-          <App />
-        </ApolloProvider>
-      );
-    });
-
-    // Wait for the app to render and load media
-    await waitFor(
-      () => {
-        const content = rendered.container.textContent ?? "";
-        expect(content).toContain("Foothill Flight");
-      },
-      { timeout: 10000 }
-    );
-
-    // Enable scene preview mode
     const { useTvConfig } = await import("../../src/store/tvConfig");
     const { set: setTvConfig } = useTvConfig.getState();
 
+    // Dev options expose window.mediaItems (the final, transformed item list)
+    await act(async () => {
+      setTvConfig("showDevOptions", true);
+    });
     await act(async () => {
       setTvConfig("scenePreviewOnly", true);
     });
 
-    // Verify that scenePreviewOnly is true in the config
-    const scenePreviewOnly = useTvConfig.getState().get("scenePreviewOnly");
-    expect(scenePreviewOnly).toBe(true);
-  });
-
-  it("markerPreviewOnly mode is settable and persisted to config", async () => {
-    const { default: App } = await loadFreshAppModules();
-    const { getApolloClient } = await import("../../src/hooks/getApolloClient");
-
-    const apolloClient = getApolloClient();
-    let rendered!: ReturnType<typeof render>;
-    await act(async () => {
-      rendered = render(
-        <ApolloProvider client={apolloClient}>
-          <App />
-        </ApolloProvider>
-      );
-    });
-
-    // Wait for the app to render and load media
     await waitFor(
       () => {
-        const content = rendered.container.textContent ?? "";
-        expect(content).toContain("Foothill Flight");
+        const items = sceneItems();
+        expect(items.length).toBeGreaterThan(0);
+        for (const item of items) {
+          // The only available stream is the preview, masquerading as a direct stream
+          expect(item.entity.sceneStreams).toHaveLength(1);
+          expect(item.entity.sceneStreams[0].label).toBe("Direct stream");
+          expect(item.entity.sceneStreams[0].url).toBe(item.entity.paths.preview);
+        }
       },
-      { timeout: 10000 }
+      { timeout: 5000 }
     );
 
-    // Enable marker preview mode
-    const { useTvConfig } = await import("../../src/store/tvConfig");
-    const { set: setTvConfig } = useTvConfig.getState();
-    setTvConfig("markerPreviewOnly", true);
+    // Duration is estimated from the preview segment config until real metadata
+    // loads (fixtures: 12s scene, 12 × 0.75s segments → 9s estimate)
+    const [first] = sceneItems();
+    expect(first.entity.files[0].duration).toBe(9);
+    // Playback-affecting fields that preview mode must neutralise
+    expect(first.entity.resume_time).toBeNull();
+    expect(first.entity.scene_markers).toEqual([]);
 
-    // Verify that markerPreviewOnly is true in the config
-    const markerPreviewOnly = useTvConfig.getState().get("markerPreviewOnly");
-    expect(markerPreviewOnly).toBe(true);
+    await app.unmount();
   });
 });

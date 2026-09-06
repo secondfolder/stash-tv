@@ -24,23 +24,39 @@ yarn test test/integration/                    # integration only
 yarn test test/unit/store/globalState.test.ts  # one file
 yarn test --watch                              # watch mode
 yarn test --coverage                           # coverage report
-yarn test:e2e                                  # E2E tests (requires mock-stash + dev server running)
+yarn test:e2e                                  # E2E tests (servers are managed for you)
 ```
 
 ### Running E2E tests
 
-E2E tests require both mock-stash and dev server to be running:
+Playwright manages both servers itself via `webServer` entries in
+`packages/tv-ui/playwright.config.ts`:
 
-```bash
-# Terminal 1: Start mock-stash (port 4000)
-yarn --cwd packages/mock-stash test:e2e-server
+- mock-stash on port 4000 (`yarn --cwd packages/mock-stash test:e2e-server` —
+  a Vitest "test" that boots the TS server and holds the process open; reused
+  if already running)
+- the tv-ui dev server on port 8888, with `STASH_PROXY=true` pointing at
+  mock-stash, and `VITE_APP_PLATFORM_URL=http://localhost:8888` so the app's
+  API/WebSocket URLs stay same-origin. ⚠️ Without that var, stash-ui's
+  `getPlatformURL` forces port **9999** (Stash's default) in dev mode, so the
+  app talks past the proxy to whatever runs on 9999 and the feed dies with
+  `Error: Failed to fetch`.
 
-# Terminal 2: Start dev server with STASH_PROXY (port 8888)
-STASH_ADDRESS=http://localhost:4000 STASH_PROXY=true yarn --cwd packages/tv-ui dev
+So `yarn --cwd packages/tv-ui test:e2e` is self-contained. ⚠️ The dev server's
+proxy settings come from `packages/tv-ui/.env` *and* the command's env vars
+(command wins); if e2e shows `Error: Failed to fetch`, check nothing stale is
+holding port 4000/8888 (`lsof -nP -iTCP:4000 -sTCP:LISTEN`) — a leftover
+mock-stash makes the new server's listen promise hang until timeout.
 
-# Terminal 3: Run E2E tests
-yarn --cwd packages/tv-ui test:e2e
-```
+### Integration harness
+
+Integration tests boot the full app through `bootApp()` from
+`test/integration/helpers/harness.tsx`: it renders `<App />` against the mock
+server, waits for a ready text (default `"Aurora Ascending"`, the first-page
+fixture — pass your own when booting a different filter), and returns
+`{ rendered, apolloClient, unmount }`. `afterEach` resets localStorage *and*
+the mock server's plugin/ui config so tests can't rehydrate each other's
+writes.
 
 ## Standards (binding for all tests)
 
@@ -85,40 +101,28 @@ describe("feature being tested", () => {
 });
 ```
 
-Integration — note React 17's `act` doesn't propagate callback return values, so use definite assignment for `rendered`:
+Integration — `bootApp()` handles the module reset, render, readiness wait, and unmount:
 
 ```typescript
 import { describe, expect, it } from "vitest";
-import { render, waitFor, act } from "@testing-library/react";
-import { ApolloProvider } from "@apollo/client";
-import { setupIntegrationTest, loadFreshAppModules } from "./helpers/harness";
+import { act, waitFor } from "@testing-library/react";
+import { setupIntegrationTest, bootApp } from "./helpers/harness";
 
 const integration = setupIntegrationTest();
 
 describe("integration feature", () => {
   it("behaves correctly with mock API", async () => {
-    const { default: App } = await loadFreshAppModules();
-    const { getApolloClient } = await import("../../src/hooks/getApolloClient");
+    const app = await bootApp();
 
-    let rendered!: ReturnType<typeof render>;
-    const apolloClient = getApolloClient();
-    await act(async () => {
-      rendered = render(
-        <ApolloProvider client={apolloClient}>
-          <App />
-        </ApolloProvider>
-      );
-    });
-
+    // Assert on observable outcomes: DOM content, server state, or request
+    // counts (integration.server.getRequestCounts()).
     await waitFor(() => {
-      expect(rendered.container.textContent).toContain("expected text");
+      expect(app.rendered.container.textContent).toContain("expected text");
     });
 
     // Cleanup: unmount only — Apollo clients are deliberately not stopped (see
     // the harness NOTE and the graphql-ws disposal gotcha above).
-    await act(async () => {
-      rendered.unmount();
-    });
+    await app.unmount();
   });
 });
 ```
@@ -137,6 +141,18 @@ describe("integration feature", () => {
 
 ⚠️ **`graphql-ws` clients need disposal before jsdom teardown.** The Apollo client singleton uses `retryAttempts: Infinity`; integration tests create many clients via `vi.resetModules()` re-imports. `tv-ui/test/setup.ts` wraps `graphql-ws`'s `createClient` to track and dispose all clients in `afterAll`. If you see unhandled `ECONNREFUSED`/reconnect errors in teardown, this wrapper is the place to look.
 
+⚠️ **`vi.mock` calls must live in the test file itself.** Vitest hoists `vi.mock` to the top of the *file that declares it* — mocks placed in an imported helper module (e.g. `test-harness.ts`) are applied too late and the real module loads. This bit the tv-plugin tests: mocks for `stash-ui/dist/src/core/StashService` etc. must be declared in each test file (a shared comment pointing at the reasoning is the pattern used in `packages/tv-plugin/test/unit/`).
+
+⚠️ **Persisted-config tests must seed the hybrid storage's local key.** tvConfig persists through `createJSONStorage` over the hybrid storage: the localStorage half lives under **`app-state-local`** (the `-local` suffix), not the plugin-name key. Tests that seed any other key pass vacuously on defaults — this silently gutted the original migration tests.
+
+⚠️ **A stale process on mock-stash's port makes `startMockStash` hang, not error.** If port 4000 (e2e) is held by a leftover vitest/node process, the new server's `listen` promise never settles and the vitest hook times out at 60s. Check `lsof -nP -iTCP:4000 -sTCP:LISTEN` and kill leftovers before debugging "server won't start".
+
+⚠️ **`DEBUG_MOCK_REQUESTS=1` logs every GraphQL operation mock-stash executes** (operation name + variables) — the fastest way to see what the app actually sends when debugging integration/e2e tests.
+
+⚠️ **Action buttons have no `data-testid`.** The per-type button components don't thread unknown props to the DOM, so e2e asserts on the `ActionButton` root class (the component's contract). If buttons ever gain a testid, prefer it (see "Known gaps").
+
+⚠️ **Saved-filter fixtures must use Stash's UI shape for hierarchical criteria.** Stash's frontend saves tag/performer criteria in saved filters as `{value: {items: [{id, label}], excluded, depth}, modifier}` — *not* the flat `{value: [ids], modifier, depth}` criterion input the GraphQL API accepts. The mock's fixtures originally used the flat shape, which `ListFilterModel.configureFromSavedFilter` silently parses to an empty item list — tag filters matched nothing and nothing errored. Any new fixture with a tags/performers criterion must use the `items` shape.
+
 ⚠️ **Node 26 shadowing jsdom localStorage:** tests must run with `--no-experimental-webstorage` (already in the package `test` scripts — keep it there).
 
 ⚠️ **Known jsdom limitations:** no pointer capture (Radix drag tests are skipped with reasons inline), no Gamepad API (stubbed in `setup.ts`), `HTMLMediaElement.play` stubbed. Document skipped tests inline.
@@ -145,6 +161,41 @@ describe("integration feature", () => {
 
 - `useStore.setState` — forbidden in app code (bypasses typed setters and persistence routing), permitted **only** inside the shared test helpers in `test/unit/helpers/stores.ts` for resetting to a known state. Never scatter raw `setState` through individual tests.
 - Apollo client mocks prevent real connection attempts in unit tests; integration tests use the real client against `mock-stash` instead. The unit/integration split is a Vitest "projects" config (`tv-ui/vitest.config.ts`): the mock lives in `tv-ui/test/setup-unit-apollo.ts` and is only in the unit project's `setupFiles` — putting it in the shared `test/setup.ts` breaks integration tests.
+
+## Known gaps & deferred improvements
+
+Issues found in the 2026-09 test-suite review that were **not** fixed — pick these up incrementally.
+
+### Enforcement (highest leverage)
+
+- **No lint enforcement of the standards.** The `any`/`as`-cast/`fireEvent` drift the review found would be caught by a minimal ESLint config (`@typescript-eslint/no-explicit-any`, `no-unnecessary-type-assertion`, RTL-specific rules) scoped to test files. Until then, the standards are manual.
+- **Nothing typechecks tests in CI.** A `tsc --noEmit` step run from the repo root would close the "esbuild strips types" hole permanently (cheaper than adopting full lint).
+- **No coverage thresholds.** Coverage is scoped to `src/**` (stories excluded) but nothing prevents regressions. Consider `coverage.thresholds` once the numbers stabilise.
+
+### Known coverage holes (from the v8 report)
+
+- `useViewportRotate` (~42%) — a whole advertised feature, barely tested
+- `useMediaItemTags` (~27%), `useSceneUpdate` (~32%), `useStashTvConfig` (~48%)
+- Media-modifier hooks `openModifier` (~36%) and `shuffleModifier` (~25%) — integration coverage exists for the modifier *pipeline*, not these implementations
+- `popper-modifiers/setMaxSize.ts` (~15%) and the other popper modifiers
+- `action-buttons/button-config.ts` (~15%)
+- `MediaSlide` (~63%) and `Feed` error/empty-state paths
+
+### Test-quality debt
+
+- **mock-stash `meta.test.ts`**: the `scanCompleteSubscribe` test uses a fixed 250 ms delay for subscription establishment — a CI flake risk (signal readiness instead); the marker create/update/destroy test bundles three behaviours in one `it`.
+- **Conformance suite** (`packages/mock-stash/test/conformance/`): scattered `as` casts on projections (centralise a typed-projection helper); "findScenes sorts by path consistently" sorts inside its own projection, weakening what it verifies.
+- **`docs.test.ts`**: only scans top-level `docs/` (a nested doc escapes validation); a citation pointing at a nonexistent file crashes with a raw ENOENT instead of a clean failure; `](docs/...)` links are matched anywhere in AGENTS.md, not just the Documentation table.
+- **E2E is still smoke-level**: no interaction tests (scroll advancing the slide, clicking an action button, opening settings).
+- **`EditTagsContents` unit tests mock `EditTagSelectionForm`** — a real-form integration test would cover the prop forwarding for free and exercise the actual editing flow.
+
+### App-code smells surfaced by the review (fix in app code, not tests)
+
+- **Scan-complete cache reset doesn't exist in tv-ui.** `resetStore()` on `ScanComplete` lives on stash-ui's `createClient()` client, which the app doesn't use for its queries — a finished scan won't refresh the feed. The original integration test asserted this fiction and was deleted. If the behaviour is wanted, wire the subscription in tv-ui and restore the test (the mock-server request counting added during the review is still available).
+- **`ActionButtonIcon` silently mis-handles a top-level string `iconDefinition`**: it falls into the per-state indexing branch (`iconDefinition[state]`), which is `undefined` for strings — only strings *inside* a per-state map (or config `iconId` states) reach the `<img>` branch.
+- **`propertyRemap`'s map-to-property-name mode only works for accessor (getter) properties** — data properties crash. Every in-repo use maps via a function; consider dropping or fixing the name mode.
+- **`MediaItemStateContextProvider` uses `useMemo(..., [])`** — changing `initialValues` props after mount is silently ignored.
+- **`Slider`'s mark count uses `max || 1` / `step || 1`** — a legitimate `0` value for `min`/`step` falls back to the default.
 
 ## History
 

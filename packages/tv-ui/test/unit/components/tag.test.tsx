@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest"
 import React from "react"
-import { render, screen, fireEvent } from "@testing-library/react"
+import { render, screen } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { Tag } from "../../../src/components/tags/tag"
 // RTL cleanup runs centrally in test/setup.ts
 
@@ -26,9 +27,9 @@ describe("Tag", () => {
     })
 
     it("renders as Badge without Button wrapper", () => {
-      const { container } = render(<Tag tag={mockTag} />)
-      expect(container.querySelector("Button")).not.toBeInTheDocument()
-      expect(container.querySelector(".tag-item")).toBeInTheDocument()
+      render(<Tag tag={mockTag} />)
+      expect(screen.queryByRole("button")).not.toBeInTheDocument()
+      expect(screen.getByText("Test Tag")).toBeInTheDocument()
     })
 
     it("does not render add icon when icon is not specified", () => {
@@ -41,24 +42,19 @@ describe("Tag", () => {
     it("renders as Button when onClick is provided", () => {
       const handleClick = vi.fn()
       render(<Tag tag={mockTag} onClick={handleClick} />)
-      const button = screen.getByRole("button")
-      expect(button).toBeInTheDocument()
+      expect(screen.getByRole("button")).toBeInTheDocument()
     })
 
-    it("calls onClick when clicked", () => {
+    it("calls onClick when clicked", async () => {
       const handleClick = vi.fn()
       render(<Tag tag={mockTag} onClick={handleClick} />)
-      const button = screen.getByRole("button")
-      fireEvent.click(button)
+      await userEvent.click(screen.getByRole("button"))
       expect(handleClick).toHaveBeenCalledTimes(1)
     })
 
     it("applies custom className to Button", () => {
-      const { container } = render(
-        <Tag tag={mockTag} onClick={vi.fn()} className="custom-class" />
-      )
-      const button = container.querySelector("Button")
-      expect(button).toHaveClass("custom-class")
+      render(<Tag tag={mockTag} onClick={vi.fn()} className="custom-class" />)
+      expect(screen.getByRole("button")).toHaveClass("custom-class")
     })
   })
 

@@ -2,167 +2,93 @@
  * Mutation integration tests.
  *
  * Tests mutations against the mock Stash API:
- * - Scene mutations (O-counter increment/decrement)
- * - Optimistic updates and server truth
+ * - Scene mutations (O-counter increment/decrement) persist to server truth
  *
  * @see docs/media-loading.md § "Data flow"
  */
 
 import { describe, expect, it } from "vitest";
-import { render, waitFor, act, screen } from "@testing-library/react";
-import React from "react";
-import { ApolloProvider } from "@apollo/client";
 import { gql } from "@apollo/client";
-import { setupIntegrationTest, loadFreshAppModules } from "./helpers/harness";
+import { setupIntegrationTest, bootApp } from "./helpers/harness";
 
 const integration = setupIntegrationTest();
 
+interface SceneOCounter {
+  id: string;
+  o_counter: number | null;
+}
+
+const scenesOQuery = gql`
+  query ScenesOCounters {
+    findScenes(filter: { per_page: -1 }) {
+      scenes {
+        id
+        o_counter
+      }
+    }
+  }
+`;
+
+function isScene(value: unknown): value is SceneOCounter {
+  return typeof value === "object" && value !== null && "id" in value && "o_counter" in value;
+}
+
+async function oCounterFor(
+  apolloClient: Awaited<ReturnType<typeof import("../../src/hooks/getApolloClient").getApolloClient>>,
+  sceneId: string,
+  fetchPolicy: "cache-first" | "network-only" = "cache-first"
+) {
+  const { data } = await apolloClient.query({ query: scenesOQuery, fetchPolicy });
+  const scene = data.findScenes.scenes.find(
+    (s: unknown): s is SceneOCounter => isScene(s) && s.id === sceneId
+  );
+  expect(scene).toBeDefined();
+  return scene.o_counter;
+}
+
 describe("Mutation integration", () => {
   it("increments scene O-counter and persists to server", async () => {
-    const { default: App } = await loadFreshAppModules();
-    const { getApolloClient } = await import("../../src/hooks/getApolloClient");
+    const app = await bootApp();
 
-    let rendered: ReturnType<typeof render>;
-    const apolloClient = getApolloClient();
-    await act(async () => {
-      rendered = render(
-        <ApolloProvider client={apolloClient}>
-          <App />
-        </ApolloProvider>
-      );
-    });
+    // From fixtures, scene-1 has two o_history entries
+    expect(await oCounterFor(app.apolloClient, "scene-1")).toBe(2);
 
-    // Wait for the app to render
-    await waitFor(
-      () => {
-        const content = rendered.container.textContent ?? "";
-        expect(content).toContain("Foothill Flight");
-      },
-      { timeout: 10000 }
-    );
-
-    // Query the initial O-counter for scene-1 (Aurora Ascending)
-    // From fixtures, scene-1 has o_history: ["2024-03-02T10:00:00Z", "2024-03-03T11:00:00Z"]
-    // which gives o_counter: 2
-    const initialOQuery = gql`
-      query Scene1InitialO {
-        findScenes(filter: { per_page: -1 }) {
-          scenes {
-            id
-            title
-            o_counter
-          }
+    const { data } = await app.apolloClient.mutate({
+      mutation: gql`
+        mutation IncrementO($id: ID!) {
+          sceneIncrementO(id: $id)
         }
-      }
-    `;
-
-    const { data: initialData } = await apolloClient.query({ query: initialOQuery });
-    const auroraScene = initialData?.findScenes?.scenes.find((s: any) => s.id === "scene-1");
-
-    expect(auroraScene).toBeDefined();
-    expect(auroraScene.title).toBe("Aurora Ascending");
-    const initialOCount = auroraScene.o_counter;
-    expect(initialOCount).toBe(2);
-
-    // Increment the O-counter using the mutation
-    const incrementOMutation = gql`
-      mutation IncrementO($id: ID!) {
-        sceneIncrementO(id: $id)
-      }
-    `;
-
-    const { data: incrementData } = await apolloClient.mutate({
-      mutation: incrementOMutation,
+      `,
       variables: { id: "scene-1" },
     });
+    expect(data?.sceneIncrementO).toBe(3);
 
-    expect(incrementData?.sceneIncrementO).toBeDefined();
-    expect(incrementData.sceneIncrementO).toBe(initialOCount + 1);
+    // Server truth, not cache
+    expect(await oCounterFor(app.apolloClient, "scene-1", "network-only")).toBe(3);
 
-    // Verify the increment persisted by querying again
-    const { data: verifyData } = await apolloClient.query({
-      query: initialOQuery,
-      fetchPolicy: "network-only" // Skip cache to get server truth
-    });
-
-    const verifyScene = verifyData?.findScenes?.scenes.find((s: any) => s.id === "scene-1");
-    expect(verifyScene.o_counter).toBe(initialOCount + 1);
-
-    // Cleanup: unmount the app; Apollo clients are not stopped (see harness.ts)
-    await act(async () => {
-      rendered.unmount();
-    });
+    await app.unmount();
   });
 
-  it("decrements scene O-counter when above zero", async () => {
-    const { default: App } = await loadFreshAppModules();
-    const { getApolloClient } = await import("../../src/hooks/getApolloClient");
+  it("decrements scene O-counter and persists to server", async () => {
+    const app = await bootApp();
 
-    let rendered: ReturnType<typeof render>;
-    const apolloClient = getApolloClient();
-    await act(async () => {
-      rendered = render(
-        <ApolloProvider client={apolloClient}>
-          <App />
-        </ApolloProvider>
-      );
-    });
+    const initial = await oCounterFor(app.apolloClient, "scene-1");
+    // The decrement path is only defined above zero — assert the precondition
+    // rather than silently skipping when the fixture changes
+    expect(initial).toBeGreaterThan(0);
 
-    // Wait for the app to render
-    await waitFor(
-      () => {
-        const content = rendered.container.textContent ?? "";
-        expect(content).toContain("Foothill Flight");
-      },
-      { timeout: 10000 }
-    );
-
-    // Get initial O-count for scene-1
-    const sceneQuery = gql`
-      query {
-        findScenes(filter: { per_page: -1 }) {
-          scenes {
-            id
-            o_counter
-          }
+    const { data } = await app.apolloClient.mutate({
+      mutation: gql`
+        mutation DecrementO($id: ID!) {
+          sceneDecrementO(id: $id)
         }
-      }
-    `;
-
-    const { data: initialData } = await apolloClient.query({ query: sceneQuery });
-    const scene = initialData?.findScenes?.scenes.find((s: any) => s.id === "scene-1");
-    const initialOCount = scene.o_counter;
-
-    // Decrement the O-counter
-    const decrementOMutation = gql`
-      mutation DecrementO($id: ID!) {
-        sceneDecrementO(id: $id)
-      }
-    `;
-
-    // Only decrement if count > 0
-    if (initialOCount > 0) {
-      const { data: decrementData } = await apolloClient.mutate({
-        mutation: decrementOMutation,
-        variables: { id: "scene-1" },
-      });
-
-      expect(decrementData?.sceneDecrementO).toBeDefined();
-      expect(decrementData.sceneDecrementO).toBe(initialOCount - 1);
-
-      // Verify the decrement persisted
-      const { data: verifyData } = await apolloClient.query({
-        query: sceneQuery,
-        fetchPolicy: "network-only"
-      });
-
-      const verifyScene = verifyData?.findScenes?.scenes.find((s: any) => s.id === "scene-1");
-      expect(verifyScene.o_counter).toBe(initialOCount - 1);
-    }
-
-    // Cleanup: unmount the app; Apollo clients are not stopped (see harness.ts)
-    await act(async () => {
-      rendered.unmount();
+      `,
+      variables: { id: "scene-1" },
     });
+    expect(data?.sceneDecrementO).toBe(initial - 1);
+
+    expect(await oCounterFor(app.apolloClient, "scene-1", "network-only")).toBe(initial - 1);
+
+    await app.unmount();
   });
 });

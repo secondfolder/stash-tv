@@ -1,59 +1,40 @@
 /**
  * Media loading integration tests.
  *
- * Tests the media pagination and accumulation behavior against the mock Stash API:
- * - First page loads correctly and renders in the UI
- * - Multiple scenes are displayed from the first page
+ * The first page of scenes (default "All Scenes" filter, sorted by date desc,
+ * page size 5) loads and renders in the feed.
  *
- * @see docs/media-loading.md § "Architecture"
+ * @see docs/media-loading.md § "Data flow"
  */
 
 import { describe, expect, it } from "vitest";
-import { render, waitFor, act, screen } from "@testing-library/react";
-import React from "react";
-import { ApolloProvider } from "@apollo/client";
-import { setupIntegrationTest, loadFreshAppModules } from "./helpers/harness";
+import { setupIntegrationTest, bootApp } from "./helpers/harness";
 
 const integration = setupIntegrationTest();
 
+// First page of the default filter: 5 newest scenes by date desc
+const FIRST_PAGE_TITLES = [
+  "Grotto Glow", // 2025-02-14
+  "Foothill Flight", // 2025-01-20
+  "Cascade Calm", // 2024-04-10
+  "Aurora Ascending", // 2024-03-01
+  "Blueprint Boulevard", // 2024-02-15
+];
+// Older fixtures that must wait for page 2
+const SECOND_PAGE_TITLES = ["Drift Duration", "Ember Evening", "Horizon Hush"];
+
 describe("Media loading integration", () => {
-  it("loads first page of scenes and renders them in the feed", async () => {
-    const { default: App } = await loadFreshAppModules();
-    const { getApolloClient } = await import("../../src/hooks/getApolloClient");
+  it("loads the first page of scenes and renders them in the feed", async () => {
+    const app = await bootApp();
 
-    const apolloClient = getApolloClient();
-    // React 17's `act` doesn't propagate callback return values, so use
-    // definite assignment rather than awaiting the result.
-    let rendered!: ReturnType<typeof render>;
-    await act(async () => {
-      rendered = render(
-        <ApolloProvider client={apolloClient}>
-          <App />
-        </ApolloProvider>
-      );
-    });
+    const content = app.rendered.container.textContent ?? "";
+    for (const title of FIRST_PAGE_TITLES) {
+      expect(content).toContain(title);
+    }
+    for (const title of SECOND_PAGE_TITLES) {
+      expect(content).not.toContain(title);
+    }
 
-    // Wait for the app to render and load the first page of scenes
-    await waitFor(
-      () => {
-        const content = rendered.container.textContent ?? "";
-        expect(content).toContain("Foothill Flight");
-      },
-      { timeout: 10000 }
-    );
-
-    // Verify multiple scenes from the first page are rendered
-    // Default pageSize is 5, scenes are ordered by date desc
-    const content = rendered.container.textContent ?? "";
-    expect(content).toContain("Foothill Flight"); // 2025-01-20
-    expect(content).toContain("Grotto Glow"); // 2025-02-14
-    expect(content).toContain("Aurora Ascending"); // 2024-03-01
-    expect(content).toContain("Cascade Calm"); // 2024-04-10
-    expect(content).toContain("Blueprint Boulevard"); // 2024-02-15
-
-    // Cleanup: unmount the app; Apollo clients are not stopped (see harness.ts)
-    await act(async () => {
-      rendered.unmount();
-    });
+    await app.unmount();
   });
 });

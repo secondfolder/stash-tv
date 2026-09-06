@@ -1,23 +1,29 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { act } from "@testing-library/react";
+import { act, waitFor } from "@testing-library/react";
 import { useTvConfig } from "../../../src/store/tvConfig";
 import { resetStores, setTvConfigLoaded } from "../helpers/stores";
 
 /**
  * Unit tests for the tvConfig Zustand store.
  *
- * Only behavior tests live here — guards, persistence routing, and migration.
- * Deliberately excluded: default-value restatements and set/get round-trips
- * (tautologies that mirror the source without testing behavior).
+ * Only behavior tests live here — guards, persistence routing, and the
+ * render-debugging side effect. Deliberately excluded: default-value
+ * restatements and set/get round-trips (tautologies that mirror the source
+ * without testing behavior).
  *
  * @see docs/state-and-config.md § "Hybrid Storage"
  */
 
-// Mock the Apollo client to prevent connection attempts
+// Mock the Apollo client to prevent connection attempts. A single hoisted
+// mutate mock lets tests assert what was written to the Stash backend.
+const { apolloMutate } = vi.hoisted(() => ({
+  apolloMutate: vi.fn(() => Promise.resolve({ data: {} })),
+}));
+
 vi.mock("../../../src/hooks/getApolloClient", () => ({
   getApolloClient: vi.fn(() => ({
     query: vi.fn(() => Promise.resolve({ data: { configuration: { plugins: {} } } })),
-    mutate: vi.fn(() => Promise.resolve({ data: {} })),
+    mutate: apolloMutate,
     stop: vi.fn(),
   })),
 }));
@@ -26,6 +32,7 @@ describe("tvConfig store", () => {
   beforeEach(() => {
     resetStores();
     localStorage.clear();
+    apolloMutate.mockClear();
   });
 
   describe("set", () => {
@@ -52,12 +59,7 @@ describe("tvConfig store", () => {
       });
 
       expect(get("volume")).toBe(0); // Should remain at default
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Tried to set volume")
-      );
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining("before config was loaded")
-      );
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("before config was loaded"));
 
       consoleSpy.mockRestore();
     });
@@ -81,7 +83,7 @@ describe("tvConfig store", () => {
 
       expect(get("volume")).toBe(0.7); // Should remain unchanged
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Tried to set volume to default before store was loaded")
+        expect.stringContaining("before store was loaded")
       );
 
       consoleSpy.mockRestore();
@@ -96,94 +98,85 @@ describe("tvConfig store", () => {
         set("forceLandscape", true);
       });
 
-      // forceLandscape should be in localStorage with -local suffix
-      const localData = localStorage.getItem("app-state-local");
-      expect(localData).toBeTruthy();
-      if (localData) {
-        const parsed = JSON.parse(localData);
-        expect(parsed.state.forceLandscape).toBe(true);
-      }
+      const parsed = JSON.parse(localStorage.getItem("app-state-local") ?? "null");
+      expect(parsed?.state.forceLandscape).toBe(true);
     });
 
-    it("stores non-localStorageKeys in Stash config (simulated)", () => {
+    it("routes non-localStorage keys to the Stash config backend", async () => {
       const { set } = useTvConfig.getState();
 
       act(() => {
         set("volume", 0.5);
-        set("autoPlay", false);
       });
 
-      // These should NOT be in localStorage - they should be in the Stash config
-      // Since we mock the Apollo client, we can't actually test Stash config storage
-      // but we can verify they don't end up in localStorage
-      const localData = localStorage.getItem("app-state-local");
-      // The localStorage might have empty state or not exist at all
-      // If it exists, it should not contain volume or autoPlay
-      if (localData) {
-        const parsed = JSON.parse(localData);
-        expect(parsed.state.volume).toBeUndefined();
-        expect(parsed.state.autoPlay).toBeUndefined();
-      }
-    });
-
-    it("splits state correctly between both storage backends", () => {
-      const { set } = useTvConfig.getState();
-
-      act(() => {
-        set("forceLandscape", true); // Goes to localStorage
-        set("volume", 0.6); // Goes to Stash config
-        set("autoPlay", false); // Goes to Stash config
+      // Written through ConfigurePlugin, not localStorage
+      await waitFor(() => {
+        expect(apolloMutate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            variables: expect.objectContaining({
+              plugin_id: "stash-tv",
+              input: expect.objectContaining({
+                "app-state": expect.stringContaining('"volume":0.5'),
+              }),
+            }),
+          })
+        );
       });
-
-      const localData = localStorage.getItem("app-state-local");
-      expect(localData).toBeTruthy();
-      if (localData) {
-        const parsed = JSON.parse(localData);
-        expect(parsed.state.forceLandscape).toBe(true);
-        expect(parsed.state.volume).toBeUndefined();
-        expect(parsed.state.autoPlay).toBeUndefined();
-      }
+      const localParsed = JSON.parse(localStorage.getItem("app-state-local") ?? "null");
+      expect(localParsed?.state.volume).toBeUndefined();
     });
   });
 
-  describe("actionButtonStackConfig structure", () => {
-    it("has the correct nested folder structure", () => {
-      const { actionButtonStackConfig } = useTvConfig.getState();
+  describe("showDebuggingInfo render-debugging side effect", () => {
+    it("persists enableRenderDebugging and reloads when render-debugging is toggled", async () => {
+      vi.useFakeTimers();
+      try {
+        const reloadSpy = vi.fn();
+          Object.defineProperty(window, "location", {
+          value: { ...window.location, reload: reloadSpy },
+          writable: true,
+        });
 
-      const folder12 = actionButtonStackConfig.find((item) => item.id === "12");
-      expect(folder12).toBeDefined();
-      expect(folder12?.type).toBe("folder");
-      expect(folder12?.pinned).toBe(false);
+        const { set } = useTvConfig.getState();
 
-      const folder13 = actionButtonStackConfig.find((item) => item.id === "13");
-      expect(folder13).toBeDefined();
-      expect(folder13?.type).toBe("folder");
-      expect(folder13?.pinned).toBe(false);
+        act(() => {
+          set("showDebuggingInfo", ["render-debugging"]);
+        });
 
-      // Narrow the union before accessing folder-only properties
-      const contents12 = folder12?.type === "folder" ? folder12.contents : undefined;
-      const contents13 = folder13?.type === "folder" ? folder13.contents : undefined;
-      expect(contents12).toHaveLength(5);
-      expect(contents13).toHaveLength(4);
+        // The write + reload happen on a delay, after zustand persists
+        await vi.advanceTimersByTimeAsync(400);
+
+        expect(localStorage.getItem("enableRenderDebugging")).toBe("true");
+        expect(reloadSpy).toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
-    it("has correct buttonType values after v1→v2 migration", () => {
-      const { actionButtonStackConfig } = useTvConfig.getState();
-
-      // All type: "button" items should have buttonType property
-      const buttons = actionButtonStackConfig.filter((item) => item.type === "button");
-      buttons.forEach((button) => {
-        expect(button).toHaveProperty("buttonType");
-        expect(typeof button.buttonType).toBe("string");
-      });
-
-      // All folder contents should also have buttonType
-      const folders = actionButtonStackConfig.filter((item) => item.type === "folder");
-      folders.forEach((folder) => {
-        folder.contents?.forEach((content) => {
-          expect(content).toHaveProperty("buttonType");
+    it("does not reload when the render-debugging state is unchanged", async () => {
+      localStorage.setItem("enableRenderDebugging", "false");
+      vi.useFakeTimers();
+      try {
+        const reloadSpy = vi.fn();
+        Object.defineProperty(window, "location", {
+          value: { ...window.location, reload: reloadSpy },
+          writable: true,
         });
-      });
+
+        const { set } = useTvConfig.getState();
+
+        act(() => {
+          // Some other debugging option — render-debugging is still off
+          set("showDebuggingInfo", ["onscreen-info"]);
+        });
+
+        await vi.advanceTimersByTimeAsync(400);
+
+        expect(localStorage.getItem("enableRenderDebugging")).toBe("false");
+        expect(reloadSpy).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 });

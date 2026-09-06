@@ -99,6 +99,25 @@ if (!window.scrollTo) {
   window.scrollTo = () => {};
 }
 
+// jsdom implements no part of the Pointer Capture API. Radix's slider calls
+// these unconditionally from its own pointer handlers, so without them a
+// pointerdown/pointerup on a thumb throws inside an event listener — surfacing
+// as an unhandled error that fails the run even when every test passes.
+if (!Element.prototype.hasPointerCapture) {
+  const captured = new WeakMap<Element, Set<number>>();
+  Element.prototype.setPointerCapture = function (pointerId: number) {
+    const ids = captured.get(this) ?? new Set<number>();
+    ids.add(pointerId);
+    captured.set(this, ids);
+  };
+  Element.prototype.releasePointerCapture = function (pointerId: number) {
+    captured.get(this)?.delete(pointerId);
+  };
+  Element.prototype.hasPointerCapture = function (pointerId: number) {
+    return captured.get(this)?.has(pointerId) ?? false;
+  };
+}
+
 // HTMLMediaElement.play returns a promise in modern browsers
 if (!HTMLMediaElement.prototype.play) {
   HTMLMediaElement.prototype.play = () => Promise.resolve();
@@ -142,3 +161,18 @@ if (typeof globalThis.VisualViewport === "undefined") {
     });
   }
 }
+
+// --- External Video.js plugin mocks -----------------------------------------
+//
+// The Chromecast plugin sets up timers/native bridges that don't exist under
+// jsdom. Mock it with a no-op plugin registration.
+//
+vi.mock("@silvermine/videojs-chromecast", () => {
+  const mockPlugin = vi.fn((videojs: { registerPlugin?: (name: string, fn: () => unknown) => void }) => {
+    videojs?.registerPlugin?.("chromecast", () => undefined);
+  });
+  return {
+    default: mockPlugin,
+  };
+});
+

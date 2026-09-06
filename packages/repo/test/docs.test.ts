@@ -141,11 +141,10 @@ describe("the doc references in tests", () => {
   })();
 
   it("finds citations (so later checks cannot pass vacuously)", () => {
-    // This is a meta-test: if no citations are found, we don't want the next test
-    // to pass vacuously. The next test should only pass if:
-    // 1. There are citations AND they all point to real sections, OR
-    // 2. There are no citations (which is fine, but we want to know)
-    expect(references.length).toBeGreaterThanOrEqual(0);
+    // Guards against the citation corpus silently emptying (e.g. a regex or
+    // path change): with zero references found, the next test would pass
+    // without checking anything.
+    expect(references.length).toBeGreaterThan(0);
   });
 
   it("cites sections that actually exist in the docs", () => {

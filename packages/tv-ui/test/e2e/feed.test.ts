@@ -1,53 +1,50 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * E2E test: Basic feed rendering
- *
- * Tests that the feed page loads and renders media slides.
- * @see docs/media-loading.md § "Media pagination"
+ * E2E tests: the feed boots in a real browser against the mock Stash API.
+ * @see docs/media-loading.md § "Data flow"
  */
 
 test.describe('Feed', () => {
-  test('renders media slides', async ({ page }) => {
+  test('renders media slides from the mock Stash API', async ({ page }) => {
     await page.goto('/');
 
     // Wait for the feed to load
     await page.waitForSelector('[data-testid="FeedPage"]', { timeout: 10000 });
 
-    // Check that at least one slide is rendered
-    const slides = await page.locator('[data-testid="MediaSlide--container"]').count();
-    expect(slides).toBeGreaterThan(0);
-
-    // Check that the first slide is visible
-    const firstSlide = page.locator('[data-testid="MediaSlide--container"]').first();
-    await expect(firstSlide).toBeVisible();
+    // Slides render (auto-retrying visibility — slides arrive async). The feed is
+    // virtualized, so only the visible slide plus its buffer mounts — with 5
+    // first-page items that's at least 3 slide containers.
+    const slides = page.locator('[data-testid="MediaSlide--container"]');
+    await expect(slides.first()).toBeVisible({ timeout: 10000 });
+    expect(await slides.count()).toBeGreaterThanOrEqual(3);
   });
 
-  test('shows scene details on current slide', async ({ page }) => {
+  test("shows the first scene's details and a player on the current slide", async ({ page }) => {
     await page.goto('/');
 
     await page.waitForSelector('[data-testid="MediaSlide--container"]', { timeout: 10000 });
 
-    // Check that scene details are displayed (title, tags, etc.)
+    // The current slide is the first page's newest scene by date desc
     const firstSlide = page.locator('[data-testid="MediaSlide--container"]').first();
     await expect(firstSlide).toBeVisible();
+    await expect(firstSlide).toContainText('Grotto Glow', { timeout: 10000 });
 
-    // The slide should contain a video player
-    const videoPlayer = firstSlide.locator('video-js').first();
-    await expect(videoPlayer).toBeVisible();
+    // ...and it contains a video player
+    await expect(firstSlide.locator('video-js').first()).toBeVisible();
   });
 
-  test('displays controls overlay', async ({ page }) => {
+  test('displays action buttons on the current slide', async ({ page }) => {
     await page.goto('/');
 
     await page.waitForSelector('[data-testid="MediaSlide--container"]', { timeout: 10000 });
 
-    // Check that playback controls are present (ActionButtons includes controls)
-    const firstSlide = page.locator('[data-testid="MediaSlide--container"]').first();
-
-    // The slide should have action buttons
-    const actionButtons = firstSlide.locator('[data-testid="action-button"]');
-    const buttonCount = await actionButtons.count();
-    expect(buttonCount).toBeGreaterThan(0);
+    // The default stack: ui-visibility, settings, show-scene-info, force-landscape,
+    // volume, letterboxing, and folders of nested buttons. The root class is the
+    // action button component's contract (no data-testid is threaded through the
+    // per-type button components).
+    const actionButtons = page.locator('.ActionButton');
+    await expect(actionButtons.first()).toBeVisible({ timeout: 10000 });
+    expect(await actionButtons.count()).toBeGreaterThan(5);
   });
 });

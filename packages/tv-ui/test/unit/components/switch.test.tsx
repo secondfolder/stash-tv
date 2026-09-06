@@ -1,57 +1,26 @@
-import { describe, it, expect, vi } from "vitest"
+import { describe, it, expect } from "vitest"
 import React from "react"
+// RTL cleanup runs centrally in test/setup.ts
 import { render, screen } from "@testing-library/react"
 import Switch from "../../../src/components/settings/Switch"
-// RTL cleanup runs centrally in test/setup.ts
+
+/**
+ * Tests the Switch wrapper's own behaviour: the label is wrapped in a span
+ * (so it can be styled) and custom classes merge with the base class.
+ * React Bootstrap's switch behaviour is not re-tested.
+ */
 
 describe("Switch", () => {
-  it("renders as a Form.Switch component", () => {
-    render(<Switch label="Test Switch" />)
-    const switchElement = screen.getByRole("checkbox")
-    expect(switchElement).toBeInTheDocument()
+  it("renders its label text", () => {
+    render(<Switch id="test-switch" label="CRT Effect" />)
+
+    expect(screen.getByLabelText("CRT Effect")).toBeInTheDocument()
   })
 
-  it("renders label text", () => {
-    render(<Switch label="Enable Feature" />)
-    expect(screen.getByText("Enable Feature")).toBeInTheDocument()
-  })
+  it("merges custom classes onto the base Switch class", () => {
+    render(<Switch id="test-switch" label="CRT Effect" className="custom-class" />)
 
-  it("applies custom className", () => {
-    const { container } = render(<Switch label="Test" className="custom-class" />)
-    const switchWrapper = container.querySelector(".Switch")
-    expect(switchWrapper).toHaveClass("custom-class")
-  })
-
-  it("passes through checked prop", () => {
-    const { container } = render(<Switch label="Test" checked={true} />)
-    const switchElement = container.querySelector('input[type="checkbox"]')
-    expect(switchElement).toBeChecked()
-  })
-
-  it("passes through disabled prop", () => {
-    const { container } = render(<Switch label="Test" disabled={true} />)
-    const switchElement = container.querySelector('input[type="checkbox"]')
-    expect(switchElement).toBeDisabled()
-  })
-
-  it("passes through onChange prop", () => {
-    const handleChange = vi.fn()
-    const { container } = render(<Switch label="Test" onChange={handleChange} />)
-    const switchElement = container.querySelector('input[type="checkbox"]') as HTMLInputElement
-    switchElement.click()
-    expect(handleChange).toHaveBeenCalled()
-  })
-
-  it("passes through id prop", () => {
-    const { container } = render(<Switch label="Test" id="test-switch" />)
-    const switchElement = container.querySelector("#test-switch")
-    expect(switchElement).toBeInTheDocument()
-  })
-
-  it("renders label as span", () => {
-    const { container } = render(<Switch label="Test Label" />)
-    const labelSpan = container.querySelector(".Switch span")
-    expect(labelSpan).toBeInTheDocument()
-    expect(labelSpan).toHaveTextContent("Test Label")
+    const input = screen.getByRole("checkbox")
+    expect(input.closest("div")).toHaveClass("Switch", "custom-class")
   })
 })
