@@ -35,7 +35,7 @@ jobs:
       - name: Install project packages
         working-directory: stash-tv
         run: |
-          yarn install
+          yarn install --frozen-lockfile
           yarn --cwd packages/stash-ui setup
 
       - name: Validate current commit (last commit) with commitlint
@@ -63,7 +63,9 @@ jobs:
       # We check types after building because GraphQL related types are generated during build
       - name: TypeScript check
         working-directory: stash-tv
-        run: tsc --noEmit
+        run: |
+          yarn tsc --version
+          yarn tsc --noEmit
 
       - name: Run tests
         working-directory: stash-tv
