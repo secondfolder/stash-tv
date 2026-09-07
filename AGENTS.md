@@ -20,6 +20,67 @@ When updating, follow the existing style: concise bullet points, clear headings,
 
 ---
 
+## Documentation
+
+Feature-specific documentation lives under `docs/`. Read the one that covers what you are touching — the table below says _when_ to read each:
+
+| Doc                                      | Read it when                                                                                               |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| [Media loading](docs/media-loading.md)   | Touching `useMediaItems`, filters, pagination, the accumulator store, or feed data loading                 |
+| [Video player](docs/video-player.md)     | Touching playback, player DOM, or workarounds for Stash ScenePlayer/Video.js quirks                       |
+| [stash-ui package](docs/stash-ui-package.md) | Integrating or modifying Stash frontend components, understanding wrappers vs patches                  |
+| [State & config](docs/state-and-config.md) | Touching state, adding a config option, or changing how settings persist (Zustand stores, hybrid storage) |
+| [Action buttons](docs/action-buttons.md) | Adding an action button or touching `src/components/action-buttons/` (schemas, config, folders)           |
+| [Release process](docs/release-process.md) | Writing commits, preparing releases, or understanding versioning/deployment flow                          |
+| [Testing](docs/testing.md)              | Writing or modifying any test, running the suites, or touching test infrastructure/polyfills          |
+
+Adding a new doc means adding its row to this table. A test validates that every doc in `docs/` is listed here and every link points to a real file — a doc without a row is caught rather than going unnoticed.
+
+### Documentation purpose and style
+
+**DOCS/** files describe **behavior, design decisions, and rationale** — not the process of implementation. They answer "what is this and why does it work this way?" not "how did we build it?".
+
+Examples of appropriate content for `docs/`:
+- How pagination works in the media accumulator and why it's designed that way
+- The hybrid storage system for tvConfig and its trade-offs
+- Video.js workarounds and why they're necessary
+- Architectural patterns like wrappers vs patches for stash-ui
+- Component conventions and testing strategies for future developers
+
+**Where new knowledge goes:** if you discover a gotcha, convention, or technique while implementing that will matter to anyone touching that area again (not just while the current task is running), it belongs in the relevant `docs/` topic doc — or in this file if it's repo-wide. It does **not** belong only in a plan under `docs/historical-plans/` (frozen, point-in-time) or in a commit message. Rule of thumb: plans record *what was done and why then*; `docs/` records *how the system works now*. When you add a gotcha to a plan mid-implementation, also check whether it should be promoted to `docs/`.
+
+**DOCS/HISTORICAL-PLANS/** stores frozen implementation plans. These are:
+- Complete plans written before work begins
+- Updated only during implementation to record deviations (marked inline, dated, with author)
+- Never silently rewritten after completion
+- Reference material for understanding the original design intent
+
+### Keeping docs current
+
+Documentation is part of a change, not a follow-up to it.
+
+- A change that makes a statement in `docs/` wrong is not finished until that statement is fixed.
+- A change that adds a concept someone would need explained — a new filter, a new output style, a new config option, a new component — gets it documented in the relevant doc, not only in code comments.
+- A new doc gets a row in the [Documentation](#documentation) table above.
+- `AGENTS.md` itself changes when a repo-wide convention or invariant does: a new build step, a new linting rule, a new architectural pattern, a new directory with rules of its own.
+- Frozen plans under `docs/historical-plans/` are exempt from all of the above. They are not updated as the code moves on. If one has to be edited because it is actively misleading someone, mark the edit inline as post-implementation, dated, with who changed it and why — never a silent rewrite.
+
+### Historical plans
+
+The `docs/historical-plans/` directory contains frozen implementation plans. These documents:
+- Capture the complete plan before implementation begins
+- Are named with the implementation date as prefix (e.g., `2026-08-30-testing-implementation-plan.md`)
+- May be updated during implementation to record deviations from the original plan
+- Are marked inline, dated, and attributed when edited post-implementation
+- Never silently rewritten after completion
+- Serve as reference for understanding original design intent
+
+Historical plans are **exempt** from the "keep docs current" requirement. They represent a point-in-time planning document, not living documentation of current system behavior.
+
+Reach for a doc when the material is one feature deep; reach for `AGENTS.md` when it applies across the repo. Link between them rather than repeating.
+
+---
+
 ## Commands
 
 ```bash
@@ -40,19 +101,6 @@ yarn storybook    # Starts on port 6006
 ```
 
 ⚠️ `STASH_ADDRESS` must be set before running `yarn dev` or all API calls will fail. See [Environment Variables & Configuration](#environment-variables--configuration) for the full list of options.
-
----
-
-## Topic Docs
-
-Deeper, tightly-scoped documentation lives under `docs/`. Read the ones relevant to your task — skip the rest:
-
-- [Media loading](docs/media-loading.md) — scene/marker pagination, the accumulator store, custom media modifiers, debugging load issues. *Read when touching `useMediaItems`, filters, or feed data loading.*
-- [Video player](docs/video-player.md) — ScenePlayer/Video.js architecture and every Stash ScenePlayer quirk we work around. *Read when touching playback or player DOM.*
-- [stash-ui package](docs/stash-ui-package.md) — reusing Stash frontend code: wrappers vs patches, import rules, build scripts. *Read when integrating or modifying Stash components.*
-- [State & config](docs/state-and-config.md) — the Zustand stores, the typed setter pattern, hybrid storage, adding settings. *Read when touching state, adding a config option, or changing how settings persist.*
-- [Action buttons](docs/action-buttons.md) — the customizable action button stack: button definitions, config schemas, folders, settings forms, icons. *Read when adding an action button or touching `src/components/action-buttons/`.*
-- [Release process](docs/release-process.md) — conventional commits, release rules, deployment. *Read when writing commits or preparing releases.*
 
 ---
 
@@ -212,11 +260,16 @@ VITE_DEBUG=true                           # Enable extra debug logging
 
 ## Testing & Quality Assurance
 
+Full testing reference — tiers, commands, standards, and gotchas: [testing](docs/testing.md). Read it before writing or modifying any test.
+
+- Tests that verify documented behavior should cite the relevant doc with `@see docs/<file>.md § "<heading>"` so the requirement and the explanation stay aligned. And if it's not mentioned in the docs but seems valuable to mention you should take
+  that as a signal that the docs should be updated to cover that.
+
 ### Current Status
 
 - **Linting:** No ESLint configuration present (not enforced)
-- **Testing:** No automated test suite currently configured
-- **Type Checking:** TypeScript provides compile-time checking
+- **Testing:** Vitest suites in `packages/tv-ui` (unit + integration, jsdom), `packages/mock-stash` (meta + Docker conformance), and `packages/repo` (docs validation). Run everything with `yarn test` at the root.
+- **Type Checking:** `tsc --noEmit` — ⚠️ run it from the repo root (packages with their own tsconfig only check themselves), and note nothing typechecks tests automatically (no pre-commit hook; vitest strips types). See [testing](docs/testing.md) § "Gotchas".
 
 ---
 
@@ -314,3 +367,14 @@ Where the perf-critical work lives:
 - Add unreplaced `process.env` variables (the plugin build fails on them)
 - Redefine Stash GraphQL types — import from `stash-ui/dist/src/core/generated-graphql`
 - Move media pagination into Apollo cache merging
+
+---
+
+## Changes Checklist (Documentation & Tests)
+
+- [ ] Documentation changes are in step with the code change, and incorrect statements in `docs/` were fixed.
+- [ ] New concepts that readers would need explained are documented in the relevant doc, not only commented in code.
+- [ ] Any new doc has a row in the Documentation table in this file.
+- [ ] If a repo-wide convention or invariant changed, `AGENTS.md` reflects that change.
+- [ ] Any plans you implemented placed under under `docs/historical-plans/`.
+- [ ] Tests that verify documented behavior cite the relevant doc with `@see docs/<file>.md § "<heading>"`.

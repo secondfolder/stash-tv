@@ -240,12 +240,12 @@ export function ActionButtonIcon<State extends string>({
       iconSource = actionButtonIcons[config.iconId as keyof typeof actionButtonIcons].states[state]
     } else if (typeof iconDefinition === "function") {
       iconSource = iconDefinition
-    } else if ('icon' in iconDefinition && 'iconName' in iconDefinition) {
+    } else if (iconDefinition && typeof iconDefinition === "object" && 'icon' in iconDefinition && 'iconName' in iconDefinition) {
       iconSource = iconDefinition
-    } else if ('render' in iconDefinition) {
+    } else if (iconDefinition && typeof iconDefinition === "object" && 'render' in iconDefinition) {
       iconSource = iconDefinition
     } else {
-      iconSource = iconDefinition[state]
+      iconSource = (iconDefinition as any)?.[state]
     }
 
     if (typeof iconSource === "function") {
@@ -255,14 +255,17 @@ export function ActionButtonIcon<State extends string>({
           className={className}
         />
       )
-    } else if ('icon' in iconSource && 'iconName' in iconSource) {
+    } else if (typeof iconSource === "string") {
+      // Data URL or string-based icon source
+      return <img src={iconSource} className={className} alt="" />
+    } else if (iconSource && typeof iconSource === "object" && 'icon' in iconSource && 'iconName' in iconSource) {
       return (
         <FontAwesomeIcon
           icon={iconSource}
           className={className}
         />
       )
-    } else if ('render' in iconSource) {
+    } else if (iconSource && typeof iconSource === "object" && 'render' in iconSource) {
       const IconComponent = iconSource as unknown as React.ComponentType<{className?: string}>
       return (
         <IconComponent
@@ -270,7 +273,9 @@ export function ActionButtonIcon<State extends string>({
         />
       )
     } else {
-      iconSource satisfies never
+      // All non-undefined source shapes are handled above; this check keeps
+      // future additions to ActionButtonIconSource from silently falling through.
+      if (iconSource !== undefined) iconSource satisfies never
       logger.error("Unable to determine icon for action button {*}", {iconDefinition, iconSource, state})
     }
   } catch(error) {

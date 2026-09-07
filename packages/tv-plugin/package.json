@@ -4,7 +4,13 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "build": "vite build"
+    "build": "vite build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.7"
   },
   "dependencies": {
     "tv-ui": "1.0.0",

@@ -24,7 +24,9 @@ const Slider = (props: props) => {
           <RadixSlider.Range className="range" />
           {marks && <div className="marks">
             {new Array(numMarks).fill(0).map((_, i) => (
-              <div className="mark" key={i} style={{ left: `${(i / (numMarks - 1)) * 100}%` }} />
+              // Guard the divisor: a single mark (min === max) has no span to
+              // divide by, and would otherwise render at left: NaN%
+              <div className="mark" key={i} style={{ left: `${(i / Math.max(numMarks - 1, 1)) * 100}%` }} />
             ))}
           </div>}
         </RadixSlider.Track>

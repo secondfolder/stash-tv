@@ -3,7 +3,13 @@ import { PLUGIN_NAMESPACE } from '../constants';
 import { getApolloClient } from '../hooks/getApolloClient';
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 
-const graphqlClient = getApolloClient()
+// Lazily created so that importing this module (which happens on any import of the tvConfig
+// store) neither constructs an Apollo client nor opens the ScanComplete WebSocket
+// subscription — both of which permanently capture the API URL at creation time.
+let graphqlClient: ReturnType<typeof getApolloClient> | undefined;
+function client() {
+    return (graphqlClient ??= getApolloClient());
+}
 
 export const stashConfigStorage = {
   getItem: async (key: string) => await getStashTvConfig()
@@ -22,7 +28,7 @@ export const stashConfigStorage = {
 }
 
 async function getStashTvConfig() {
-  const result = await graphqlClient.query({
+  const result = await client().query({
     query: GQL.ConfigurationDocument,
   });
   return result.data?.configuration.plugins[PLUGIN_NAMESPACE];
@@ -33,7 +39,7 @@ async function updateTvConfig(
 ) {
   getStashTvConfig()
     .then(config => {
-      return graphqlClient.mutate({
+      return client().mutate({
         mutation: GQL.ConfigurePluginDocument,
         variables: {
           plugin_id: PLUGIN_NAMESPACE,

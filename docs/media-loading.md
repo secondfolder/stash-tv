@@ -69,3 +69,17 @@ Users can define custom JavaScript functions to filter/transform media items (po
 3. Check `useMediaItems()` store state — `window.mediaItems` / `window.modifiedMediaItems` in the console
 4. Enable debug logging: `showDebugInfo: ['render-debugging']` in tvConfig
 5. Check `VITE_APP_PLATFORM_URL` is correctly set
+
+## Testing Media Loading
+
+Media loading behavior is tested in:
+- Integration tests: [test/integration/media-loading.test.tsx](packages/tv-ui/test/integration/media-loading.test.tsx) — verifies first page loads and renders against mock API
+- Unit tests: [test/unit/helpers/getFunctionFromString.test.ts](packages/tv-ui/test/unit/helpers/getFunctionFromString.test.ts) — tests modifier function parsing
+
+See [Testing](docs/testing.md) for full test suite details.
+
+## Related docs
+
+- [Testing](docs/testing.md) — How to test media loading and pagination
+- [State & config](docs/state-and-config.md) — Config options that affect media loading
+- [Release process](docs/release-process.md) — Versioning and deployment flow

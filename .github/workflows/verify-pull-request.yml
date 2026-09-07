@@ -1,0 +1,45 @@
+name: Verify pull request
+
+on:
+  pull_request:
+  workflow_call:
+
+jobs:
+  lint:
+    name: Verify pull request
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          path: stash-tv
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 'lts/*'
+
+      - name: Print versions
+        run: |
+          git --version
+          node --version
+          npm --version
+          npx commitlint --version
+
+      - name: Install project packages
+        working-directory: stash-tv
+        run: yarn install --frozen-lockfile
+
+      - name: Validate commit messages of all commits in the PR
+        if: github.event_name == 'pull_request'
+        working-directory: stash-tv
+        run: npx commitlint --from ${{ github.event.pull_request.head.sha }}~${{ github.event.pull_request.commits }} --to ${{ github.event.pull_request.head.sha }} --verbose
+
+      - name: Upload npm logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: npm-logs
+          path: ~/.npm/_logs/*
+          if-no-files-found: ignore

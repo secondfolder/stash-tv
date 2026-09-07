@@ -80,6 +80,20 @@ yarn --cwd packages/stash-ui setup
 yarn dev
 ```
 
+To assist with testing there is a **Developer Options** section that can be enabled in the Settings menu. To enable it
+open the settings and click the settings title at the bottom of the panel 5 times.
+
+![Screenshot of the Settings title](./docs/settings-title.png)
+
+### Run the tests
+```shell
+yarn test
+```
+The mock Stash server used by the tests streams video fixtures that it generates with
+[ffmpeg](https://ffmpeg.org/) the first time it starts, so ffmpeg needs to be on your `PATH`. The generated files live
+in `packages/mock-stash/src/media` and are gitignored; run `yarn --cwd packages/mock-stash generate-media` to rebuild
+them by hand.
+
 ### Commit info
 Commit messages should use the [Conventional Commits](https://www.conventionalcommits.org/) format as release notes are
 generated automatically from the commit history.

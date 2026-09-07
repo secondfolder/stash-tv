@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - '**'
-  pull_request: # We also run on PRs to verify the commit messages of all commits in the PR
   workflow_call:
 
 jobs:
@@ -15,9 +14,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          # The "Validate PR commits with commitlint" step below requires all the commits in the PR to lint their
-          # messages. Otherwise if not a PR we can just fetch the latest commit.
-          fetch-depth: ${{ case(github.event_name == 'pull_request', github.event.pull_request.commits, 1) }}
           path: stash-tv
 
       - name: Setup Node.js
@@ -25,28 +21,27 @@ jobs:
         with:
           node-version: 'lts/*'
 
+      - name: Setup ffmpeg
+        uses: AnimMouse/setup-ffmpeg@v1
+
       - name: Print versions
         run: |
           git --version
           node --version
           npm --version
           npx commitlint --version
+          ffmpeg -version | head -n 1
 
       - name: Install project packages
         working-directory: stash-tv
         run: |
-          yarn install
+          yarn install --frozen-lockfile
           yarn --cwd packages/stash-ui setup
 
-      - name: Validate current commit (last commit) with commitlint
+      - name: Validate message of latest commit with commitlint
         if: github.event_name == 'push'
         working-directory: stash-tv
         run: npx commitlint --last --verbose
-
-      - name: Validate PR commits with commitlint
-        if: github.event_name == 'pull_request'
-        working-directory: stash-tv
-        run: npx commitlint --from ${{ github.event.pull_request.head.sha }}~${{ github.event.pull_request.commits }} --to ${{ github.event.pull_request.head.sha }} --verbose
 
       - name: Set version number for release
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')
@@ -63,7 +58,13 @@ jobs:
       # We check types after building because GraphQL related types are generated during build
       - name: TypeScript check
         working-directory: stash-tv
-        run: tsc --noEmit
+        run: |
+          yarn tsc --version
+          yarn tsc --noEmit
+
+      - name: Run tests
+        working-directory: stash-tv
+        run: yarn test
 
       - name: Release
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')
