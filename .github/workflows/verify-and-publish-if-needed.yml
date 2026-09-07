@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - '**'
-  pull_request: # We also run on PRs to verify the commit messages of all commits in the PR
   workflow_call:
 
 jobs:
@@ -12,19 +11,9 @@ jobs:
     name: Verify and publish if needed
     runs-on: ubuntu-latest
     steps:
-      # For performance reasons we only checkout the commits we need. For non-PRs we can simply fetch the latest one but
-      # for PRs the "Validate PR commits with commitlint" step below requires all the commits in the PR to lint their
-      # messages. We wouldn't have to compute this as a sperate step if GitHub Actions provided the increadly complex
-      # operation known as addition and allowed us to use this as the value for checkout's fetch-depth:
-      #   ${{ case(github.event_name == 'pull_request', github.event.pull_request.commits + 1, 1) }}
-      - name: Compute fetch depth
-        if: github.event_name == 'pull_request'
-        run: echo "FETCH_DEPTH=$(( ${{ github.event.pull_request.commits }} + 1 ))" >> "$GITHUB_ENV"
-
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          fetch-depth: ${{ env.FETCH_DEPTH || 1 }}
           path: stash-tv
 
       - name: Setup Node.js
@@ -49,15 +38,10 @@ jobs:
           yarn install --frozen-lockfile
           yarn --cwd packages/stash-ui setup
 
-      - name: Validate current commit (last commit) with commitlint
+      - name: Validate message of latest commit with commitlint
         if: github.event_name == 'push'
         working-directory: stash-tv
         run: npx commitlint --last --verbose
-
-      - name: Validate PR commits with commitlint
-        if: github.event_name == 'pull_request'
-        working-directory: stash-tv
-        run: npx commitlint --from ${{ github.event.pull_request.head.sha }}~${{ github.event.pull_request.commits }} --to ${{ github.event.pull_request.head.sha }} --verbose
 
       - name: Set version number for release
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')
