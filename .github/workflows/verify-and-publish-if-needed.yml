@@ -12,12 +12,19 @@ jobs:
     name: Verify and publish if needed
     runs-on: ubuntu-latest
     steps:
+      # For performance reasons we only checkout the commits we need. For non-PRs we can simply fetch the latest one but
+      # for PRs the "Validate PR commits with commitlint" step below requires all the commits in the PR to lint their
+      # messages. We wouldn't have to compute this as a sperate step if GitHub Actions provided the increadly complex
+      # operation known as addition and allowed us to use this as the value for checkout's fetch-depth:
+      #   ${{ case(github.event_name == 'pull_request', github.event.pull_request.commits + 1, 1) }}
+      - name: Compute fetch depth
+        if: github.event_name == 'pull_request'
+        run: echo "FETCH_DEPTH=$(( ${{ github.event.pull_request.commits }} + 1 ))" >> "$GITHUB_ENV"
+
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          # The "Validate PR commits with commitlint" step below requires all the commits in the PR to lint their
-          # messages. Otherwise if not a PR we can just fetch the latest commit.
-          fetch-depth: ${{ case(github.event_name == 'pull_request', github.event.pull_request.commits, 1) }}
+          fetch-depth: ${{ env.FETCH_DEPTH || 1 }}
           path: stash-tv
 
       - name: Setup Node.js
