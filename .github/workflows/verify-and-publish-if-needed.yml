@@ -25,12 +25,16 @@ jobs:
         with:
           node-version: 'lts/*'
 
+      - name: Setup ffmpeg
+        uses: AnimMouse/setup-ffmpeg@v1
+
       - name: Print versions
         run: |
           git --version
           node --version
           npm --version
           npx commitlint --version
+          ffmpeg -version | head -n 1
 
       - name: Install project packages
         working-directory: stash-tv

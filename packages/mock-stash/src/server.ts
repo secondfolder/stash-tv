@@ -6,6 +6,7 @@ import { useServer } from "graphql-ws/lib/use/ws";
 import { getStashSchema } from "./schema";
 import { createStore, type MockStore } from "./store";
 import { createDefaultFixtures } from "./fixtures";
+import { ensureMediaFixtures } from "./generate-media";
 import { handleMediaRoute } from "./media";
 import { createContextFactory, type ContextHolder } from "./context";
 import type { Fixtures } from "./types";
@@ -43,6 +44,10 @@ export interface StartMockStashOptions {
 export async function startMockStash(
   options: StartMockStashOptions = {},
 ): Promise<MockStashServer> {
+  // Fixtures are gitignored (ffmpeg regenerates them byte-identically), and
+  // `createDefaultFixtures` reads their sizes — so this must run first.
+  ensureMediaFixtures();
+
   const store = createStore(options.fixtures ?? createDefaultFixtures());
 
   const holder: ContextHolder = { store, baseUrl: "" };
