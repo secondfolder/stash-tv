@@ -789,6 +789,18 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
     },
     [currentlyPlayingMarkers]
   );
+  const updateCurrentlyPlayingMarkers = useCallback((currentTime: number) => {
+    const markers = findCurrentlyPlayingMarkers(currentTime);
+    if (markers.length === currentlyPlayingMarkers.length && markers.every(marker => currentlyPlayingMarkers.includes(marker))) return
+    logger.debug(`Marker playback update{*}`, {currentTime, markers});
+    setCurrentlyPlayingMarkers(markers)
+  }, [currentlyPlayingMarkers, props.mediaItem]);
+  // Also update when the scene's markers change (e.g. one was just added), not only as the video plays, so it's right
+  // while paused too
+  useEffect(() => {
+    const currentTime = videojsPlayerRef.current?.currentTime();
+    if (currentTime !== undefined) updateCurrentlyPlayingMarkers(currentTime);
+  }, [props.mediaItem]);
   const handleOnTimeUpdate = useCallback(() => {
     const currentTime = videojsPlayerRef.current?.currentTime();
     if (currentTime === undefined) return;
@@ -796,11 +808,8 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
       logger.debug(`End timestamp reached at ${currentTime}s (end: ${endTimestamp}s)`);
       videojsPlayerRef.current?.trigger('ended');
     }
-    const markers = findCurrentlyPlayingMarkers(currentTime);
-    if (markers.length === currentlyPlayingMarkers.length && markers.every(marker => currentlyPlayingMarkers.includes(marker))) return
-    logger.debug(`Marker playback update{*}`, {currentTime, markers});
-    setCurrentlyPlayingMarkers(markers)
-  }, [endTimestamp, currentlyPlayingMarkers, goToItem, props.mediaItem]);
+    updateCurrentlyPlayingMarkers(currentTime);
+  }, [endTimestamp, updateCurrentlyPlayingMarkers]);
 
   /* -------------------------------- Component ------------------------------- */
 

@@ -9,7 +9,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { fireEvent, waitFor } from "@testing-library/react";
+import { act, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { setupIntegrationTest, bootApp, type BootedApp } from "./helpers/harness";
 import { bootWithTvConfig, currentSlide, goToNextSlide, sceneIdOf, slides } from "./helpers/feed";
@@ -59,6 +59,23 @@ describe("Deleting a media item", () => {
     await deleteCurrentItem(app);
 
     await waitFor(() => expect(sceneIdOf(currentSlide(app))).toBe(nextSceneId));
+
+    await app.unmount();
+  });
+
+  // A deleted scene leaves its slide's data incomplete, like a field Stash's mutations evict, but there's nothing to
+  // refetch. (Other slides' scenes are refetched: deleting evicts fields they share, like tag and performer counts.)
+  // See docs/media-loading.md § "Live item data"
+  it("doesn't try to refetch the deleted scene", async () => {
+    const app = await bootApp();
+    integration.server.resetRequestCounts();
+
+    const deletedSceneId = await deleteCurrentItem(app);
+    // Give a refetch time to happen
+    await act(() => new Promise((resolve) => setTimeout(resolve, 300)));
+
+    const sceneRefetches = integration.server.getRequests().filter((request) => request.operationName === "FindScene");
+    expect(sceneRefetches.map((request) => request.variables.id)).not.toContain(deletedSceneId);
 
     await app.unmount();
   });

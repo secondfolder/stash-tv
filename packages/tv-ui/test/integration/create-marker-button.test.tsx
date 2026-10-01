@@ -299,6 +299,20 @@ describe("Create-marker button with defaults", () => {
     await app.unmount();
   });
 
+  it("shows the new marker as playing straight away, even while the video is paused", async () => {
+    const app = await bootApp();
+    await pinDefaultsButton();
+
+    click(await defaultsButton(app));
+
+    // Unlike displayedPlayingMarker, doesn't fire `timeupdate`: a paused video doesn't either
+    await waitFor(() =>
+      expect(currentSlide(app).querySelector(".currently-playing-marker")?.textContent).toBe("Quick mark")
+    );
+
+    await app.unmount();
+  });
+
   it("opens a panel instead of creating another once the scene has a matching marker", async () => {
     const app = await bootApp();
     await pinDefaultsButton();

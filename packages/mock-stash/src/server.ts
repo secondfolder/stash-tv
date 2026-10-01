@@ -22,7 +22,9 @@ export interface MockStashServer {
   store: MockStore;
   /** Count of GraphQL operations executed, by operation name (HTTP and WS). */
   getRequestCounts(): Readonly<Record<string, number>>;
-  /** Zero the request counts (e.g. to observe only post-trigger traffic). */
+  /** Every GraphQL operation executed, in order, with its variables (HTTP and WS). */
+  getRequests(): readonly { operationName: string; variables: Record<string, unknown> }[];
+  /** Clear the request counts and log (e.g. to observe only post-trigger traffic). */
   resetRequestCounts(): void;
   /** Emit a scanComplete event to all subscribers (as a finished scan would). */
   triggerScanComplete(): void;
@@ -56,6 +58,7 @@ export async function startMockStash(
   // Instrument operation execution so tests can observe which GraphQL
   // operations ran (and how many times) — e.g. proving a refetch happened.
   const requestCounts: Record<string, number> = {};
+  const requests: { operationName: string; variables: Record<string, unknown> }[] = [];
 
   const schema = getStashSchema();
 
@@ -72,6 +75,11 @@ export async function startMockStash(
         onExecute({ args }: { args: { operationName?: string; variableValues?: unknown } }) {
           const name = args.operationName ?? "<anonymous>";
           requestCounts[name] = (requestCounts[name] ?? 0) + 1;
+          const variables = args.variableValues;
+          requests.push({
+            operationName: name,
+            variables: typeof variables === "object" && variables !== null ? structuredClone({ ...variables }) : {},
+          });
           if (process.env.DEBUG_MOCK_REQUESTS) {
             console.log(`[mock-stash] ${name}`, JSON.stringify(args.variableValues));
           }
@@ -125,8 +133,10 @@ export async function startMockStash(
     wsUrl: `ws://127.0.0.1:${address.port}/graphql`,
     store,
     getRequestCounts: () => structuredClone(requestCounts),
+    getRequests: () => structuredClone(requests),
     resetRequestCounts: () => {
       for (const key of Object.keys(requestCounts)) delete requestCounts[key];
+      requests.length = 0;
     },
     triggerScanComplete: () => store.scanComplete.emit(),
     stop: async () => {

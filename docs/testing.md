@@ -163,6 +163,8 @@ describe("integration feature", () => {
 
 ⚠️ **`startMockStash` rejects with `EADDRINUSE` when its fixed port is taken** (it used to hang until the hook timeout). Find leftovers with `lsof -nP -iTCP:4000 -sTCP:LISTEN`. The WebSocket server is attached only after `listen` succeeds, because `ws` re-emits HTTP server errors and graphql-ws would log them as a noisy "internal error".
 
+⚠️ **To assert on which requests were made, use the mock server's request log.** `server.getRequestCounts()` counts operations by name, and `server.getRequests()` lists each one in order with its variables (e.g. to check which scene a `FindScene` was for). `resetRequestCounts()` clears both. Note vitest hides `console.log` output from passing tests (`silent: 'passed-only'`), so debug logging only shows up when a test fails.
+
 ⚠️ **`DEBUG_MOCK_REQUESTS=1` logs every GraphQL operation mock-stash executes** (operation name + variables) — the fastest way to see what the app actually sends when debugging integration/e2e tests.
 
 ⚠️ **SVG `?react` imports need `vite-plugin-svgr` in every Vitest project.** Vitest projects don't inherit root `plugins`, so `vitest.config.ts` sets `svgr()` on each project. Without it `*.svg?react` resolves to a data-URL string. A button whose whole `icon` is such a string then renders "?" (see the `ActionButtonIcon` string bug under "App-code smells"), and the "?" ends up in its accessible name.
