@@ -12,7 +12,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "dev": "yarn --cwd packages/stash-ui build-if-needed && yarn --cwd packages/tv-ui dev",
+    "dev": "yarn --cwd packages/stash-ui ensure-ready && yarn --cwd packages/tv-ui dev",
     "build": "yarn --cwd packages/stash-ui build && yarn --cwd packages/tv-ui build && yarn --cwd packages/tv-plugin build",
     "test": "yarn --cwd packages/repo test && yarn --cwd packages/mock-stash test && yarn --cwd packages/tv-ui test && yarn --cwd packages/tv-plugin test",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p packages/repo/tsconfig.json",

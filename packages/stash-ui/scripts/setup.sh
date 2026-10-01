@@ -6,6 +6,12 @@ set -euo pipefail
 IFS=$'\n\t'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/fingerprint.sh"
+
+STASH_VERSION="v0.28.1"
+
+# Clear the stamp so a failed setup isn't mistaken for a completed one
+rm -f "$SETUP_STAMP"
 
 {
   cd "$SCRIPT_DIR/.."
@@ -14,8 +20,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 {
   cd "$SCRIPT_DIR/../stash"
-  git reset --hard v0.28.1
-  echo 'ui/v2.5/graphql/stash-tv.graphql' >> "$(git rev-parse --git-dir)/info/exclude"
+  git reset --hard "$STASH_VERSION"
+  exclude_file="$(git rev-parse --git-dir)/info/exclude"
+  grep -qxF 'ui/v2.5/graphql/stash-tv.graphql' "$exclude_file" 2>/dev/null \
+    || echo 'ui/v2.5/graphql/stash-tv.graphql' >> "$exclude_file"
   rm -f ui/v2.5/graphql/stash-tv.graphql
   git apply ../patches/stash-tv.patch
 };
@@ -24,3 +32,5 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   cd "$SCRIPT_DIR/../stash/ui/v2.5"
   yarn install
 };
+
+write_setup_stamp

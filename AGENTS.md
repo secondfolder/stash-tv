@@ -87,11 +87,11 @@ Reach for a doc when the material is one feature deep; reach for `AGENTS.md` whe
 ```bash
 # First-time setup
 yarn install
-yarn --cwd packages/stash-ui setup                  # Extract Stash frontend code (required before dev/build)
 cp packages/tv-ui/.env.sample packages/tv-ui/.env   # Then edit .env — set STASH_ADDRESS to your Stash server
 
 # Development
 yarn dev          # Dev server with auto-rebuild; API calls go to STASH_ADDRESS
+                  # (first sets up/rebuilds packages/stash-ui if its inputs changed — see docs/stash-ui-package.md)
                   # (set STASH_PROXY=true in .env to proxy Stash API through the dev server)
 
 # Build everything

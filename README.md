@@ -76,9 +76,9 @@ Then update the env vars in the new `packages/tv-ui/.env` file.
 Now you can install the required dependences and run the dev server
 ```shell
 yarn install
-yarn --cwd packages/stash-ui setup
 yarn dev
 ```
+The first `yarn dev` also extracts and builds the Stash frontend code that Stash TV reuses, so it takes a little longer.
 
 To assist with testing there is a **Developer Options** section that can be enabled in the Settings menu. To enable it
 open the settings and click the settings title at the bottom of the panel 5 times.

@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "build": "scripts/build.sh",
-    "build-if-needed": "if [ ! -d ./dist ]; then yarn build; fi",
+    "ensure-ready": "scripts/ensure-ready.sh",
     "setup": "scripts/setup.sh",
     "update:patch": "scripts/update-patch.sh",
     "import-stash-ui-deps": "./scripts/import-stash-ui-deps.sh"
