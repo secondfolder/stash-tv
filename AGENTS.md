@@ -161,7 +161,7 @@ Semantic Release, Commitlint, Yarn Workspaces.
 Three Zustand stores, each exposing the same typed `set` / `get` / `setToDefault` / `getDefault` API. Always mutate through these — never `useStore.setState`, which bypasses type safety and, for tvConfig, the persistence routing. 🚫 Never modify state before `tvConfigLoaded` is true. Full details (hybrid storage, adding config options): [state & config](docs/state-and-config.md)
 
 - `tvConfig.ts` — persisted user preferences/plugin settings (hybrid Stash-config + localStorage storage)
-- `globalState.ts` — transient UI state (settings panel, fullscreen, `tvConfigLoaded`)
+- `globalState.ts` — transient UI state (settings panel, fullscreen, keyboard shortcuts modal, `tvConfigLoaded`)
 - `mediaItemState.tsx` — media pagination/accumulation (see [media loading](docs/media-loading.md))
 
 ### Key Hooks (`src/hooks/`)

@@ -21,9 +21,10 @@ export const KeyboardShortcutsInfo: React.FC<{
       show={show}
       onHide={onHide}
       className="KeyboardShortcutsInfo"
+      aria-labelledby="KeyboardShortcutsInfo-title"
     >
       <Modal.Header closeButton>
-        <Modal.Title>Keyboard Shortcuts</Modal.Title>
+        <Modal.Title id="KeyboardShortcutsInfo-title">Keyboard Shortcuts</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         {/* MarkdownPage only fetches once, so remount it if the content changes */}

@@ -21,13 +21,13 @@ import objectHash from "object-hash";
 import { ActionButtonSettingsModal } from "../ActionButtonSettingsModal";
 import { getStashOrigin } from "../../../helpers/getStashOrigin";
 import Slider from "../../controls/slider";
-import { KeyboardShortcutsInfo } from "../KeyboardShortcutsInfo";
 import { getFunctionFromString } from "../../../helpers/getFunctionFromString";
 import { ActionButtonIcon, ActionButtonTitle } from "../../action-buttons/ActionButtonBase";
 import { ActionButtonConfig, allButtonDefinition, getActionButtonDefinition } from "../../action-buttons/buttons";
 import { createNewActionButtonConfig } from "../../action-buttons/action-button-config";
 import { Arrow90degRight, ArrowLeft, Folder } from "react-bootstrap-icons";
 import { ActionButtonStackConfig } from "../../action-buttons/ActionButtonStack";
+import { useGlobalState } from "../../../store/globalState";
 
 const SettingsTab = memo(() => {
   const logger = getLogger(["stash-tv", "SettingsTab"]);
@@ -68,6 +68,7 @@ const SettingsTab = memo(() => {
     setToDefault: setDefaultAppSetting,
     getDefault: getDefaultAppSetting,
   } = useTvConfig();
+  const { set: setGlobalState } = useGlobalState();
   const { mediaItems, mediaItemsLoading, mediaItemsNeverLoaded, mediaItemsError } = useMediaItems()
 
   const noMediaItemsAvailable = !mediaItemFiltersLoading && !mediaItemsLoading && mediaItems.length === 0
@@ -78,7 +79,7 @@ const SettingsTab = memo(() => {
     return objectHash(actionButtonStackConfig, hashOptions) === objectHash(defaultConfig, hashOptions)
   }, [getDefaultAppSetting, actionButtonStackConfig])
 
-  const [displayedModal, setDisplayedModal] = useState<"keyboard-shortcuts" | "action-button-settings" | null>(null);
+  const [displayedModal, setDisplayedModal] = useState<"action-button-settings" | null>(null);
 
 
   /* ---------------------------------- Forms --------------------------------- */
@@ -363,10 +364,6 @@ const SettingsTab = memo(() => {
         setActionButtonDraft(null)
       }}
     />}
-    <KeyboardShortcutsInfo
-      show={displayedModal === "keyboard-shortcuts"}
-      onHide={() => setDisplayedModal(null)}
-    />
     <Accordion defaultActiveKey="0">
       <AccordionToggle eventKey="0">
         Media Feed
@@ -887,7 +884,7 @@ const SettingsTab = memo(() => {
           </Form.Group>
           <Form.Group className="inline">
             <Button
-              onClick={() => setDisplayedModal("keyboard-shortcuts")}
+              onClick={() => setGlobalState("keyboardShortcutsOpen", true)}
             >
               Show Keyboard Shortcuts
             </Button>

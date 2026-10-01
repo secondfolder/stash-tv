@@ -7,6 +7,7 @@ import { useMediaItems } from "../../hooks/useMediaItems";
 import { LoadingIndicator } from "stash-ui/wrappers/components/shared/LoadingIndicator";
 import { useMediaItemFilters } from "../../hooks/useMediaItemFilters";
 import GuideOverlay from "../../components/GuideOverlay";
+import { KeyboardShortcutsInfo } from "../../components/settings/KeyboardShortcutsInfo";
 import { ErrorMessage } from "stash-ui/dist/src/components/Shared/ErrorMessage";
 import cx from "classnames";
 import { SettingsActionButton } from "../../components/action-buttons/buttons/SettingsActionButton";
@@ -18,7 +19,7 @@ interface FeedPageProps {
 
 const FeedPage: React.FC<FeedPageProps> = memo(({className}) => {
   const { showDebuggingInfo, showGuideOverlay, set: setTvConfig } = useTvConfig();
-  const { showSettings, fullscreen, set: setGlobalState } = useGlobalState()
+  const { showSettings, fullscreen, keyboardShortcutsOpen, set: setGlobalState } = useGlobalState()
   const {
     currentMediaItemFilter,
     mediaItemFiltersLoading,
@@ -58,6 +59,24 @@ const FeedPage: React.FC<FeedPageProps> = memo(({className}) => {
       document.exitFullscreen?.();
     }
   }, [fullscreen]);
+
+  /* --------------------------- Keyboard shortcuts --------------------------- */
+  // `?` opens the shortcut list, like Stash's `?` for its manual
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.key !== "?"
+        || e.ctrlKey || e.metaKey || e.altKey
+        || e.target instanceof HTMLInputElement
+        || e.target instanceof HTMLTextAreaElement
+      ) return;
+      setGlobalState("keyboardShortcutsOpen", true);
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [setGlobalState]);
 
   /* -------------------------------- component ------------------------------- */
 
@@ -132,6 +151,10 @@ const FeedPage: React.FC<FeedPageProps> = memo(({className}) => {
       : <VideoScroller />}
     <SettingsTab />
     {showGuideOverlay && <GuideOverlay onClose={() => setTvConfig("showGuideOverlay", false)} />}
+    <KeyboardShortcutsInfo
+      show={keyboardShortcutsOpen}
+      onHide={() => setGlobalState("keyboardShortcutsOpen", false)}
+    />
   </main>
   );
 });

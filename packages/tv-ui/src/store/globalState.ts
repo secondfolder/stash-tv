@@ -9,6 +9,7 @@ type GlobalState = {
   showSettings: boolean;
   fullscreen: boolean;
   sceneInfoOpen: boolean;
+  keyboardShortcutsOpen: boolean;
   tvConfigLoaded: boolean;
 }
 
@@ -23,6 +24,7 @@ const defaults = {
   showSettings: false,
   fullscreen: false,
   sceneInfoOpen: false,
+  keyboardShortcutsOpen: false,
   tvConfigLoaded: false,
 } satisfies GlobalState;
 

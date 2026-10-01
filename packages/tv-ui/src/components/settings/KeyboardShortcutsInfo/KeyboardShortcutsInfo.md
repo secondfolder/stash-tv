@@ -1,3 +1,9 @@
+## General
+
+| Keyboard sequence | Action |
+| ----------------- | ------ |
+| `?` | Show keyboard shortcuts |
+
 ## Playback
 
 | Keyboard sequence | Action |
@@ -6,16 +12,11 @@
 | `←` or `→` | Jump forwards/backward. The jump amount is dependant on the length of the video and it will try to align jumps with nearly by markers if there are any. |
 | Hold down `←` or `→` | Play/rewind at 2x speed |
 | Hold down `←` or `→` then tap `↑` or `↓` | Increase or decrease the play/rewind speed |
+| `↓` or `↑` | Go to next/previous media |
 | `l` | Toggle looping the scene |
 | `m` | Mute/unmute |
 
-## Navigation
-
-| Keyboard sequence | Action |
-| ----------------- | ------ |
-| `↓` or `↑` | Go to next/previous media |
-
-## Scene/marker actions
+## Scene/Marker Actions
 
 Ratings set on a marker apply to the marker's scene.
 

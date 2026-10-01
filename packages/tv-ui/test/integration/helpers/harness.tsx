@@ -31,6 +31,12 @@ export function setupIntegrationTest() {
 
   afterEach(() => {
     localStorage.clear();
+    // jsdom's document outlives each boot. Opening a modal writes inline state onto <html>/<body> (e.g.
+    // `--fixed-right-padding`, which under the stubbed VisualViewport is a bogus 649px that react-spring then fails
+    // to parse when the next boot mounts the settings drawer), so reset it like a page reload would.
+    document.documentElement.removeAttribute("style");
+    document.body.removeAttribute("style");
+    document.body.className = "";
     // Config written through the app's hybrid storage lands in the server's
     // plugin config; reset it so tests can't rehydrate each other's state.
     server.store.pluginConfig = {};

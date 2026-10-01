@@ -160,6 +160,10 @@ describe("integration feature", () => {
 
 ⚠️ **Mousetrap is one shared instance across boots.** It's an externalised node_modules dependency, so `vi.resetModules()` doesn't give each `bootApp()` a fresh copy, and its bindings are global. Stash's rating keybinds unbind the digit keys on a 1s timer after `r`, and that timer lives in the stash-ui module instance of the app that started it — a re-imported app can't cancel it. A test that presses `r` must let that window expire before the next test (see `keyboard-rating.test.tsx`), or the stale timer can unbind the next app's digits mid-sequence.
 
+⚠️ **`userEvent.click` breaks once a MediaSlide is mounted.** userEvent defines `detail` on its click events as a non-configurable own property, and MediaSlide's use-gesture workaround redefines `detail` on every window click, so the click throws "Cannot redefine property: detail". Real browser clicks don't do this. In integration tests that click with the feed mounted, use `fireEvent.click` and say why in a comment (see `keyboard-shortcuts-help.test.tsx`).
+
+⚠️ **jsdom's `document` outlives each `bootApp()`.** Inline state the app writes to `<html>`/`<body>` (e.g. modals set `--fixed-right-padding`, a bogus 649px under the stubbed VisualViewport, which react-spring then fails to parse when the next boot mounts the settings drawer) leaks into the next test, so the harness `afterEach` clears it the way a page reload would. Extend that reset if you find other document-level leakage.
+
 ⚠️ **Known jsdom limitations:** no pointer capture (Radix drag tests are skipped with reasons inline), no Gamepad API (stubbed in `setup.ts`), `HTMLMediaElement.play` stubbed. Document skipped tests inline.
 
 ## Test-only exceptions to app-code rules

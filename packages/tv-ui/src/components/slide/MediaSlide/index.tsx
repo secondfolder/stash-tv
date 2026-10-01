@@ -1460,10 +1460,13 @@ function useGestureControls(
     }
   })
   // A workaround for https://github.com/pmndrs/use-gesture/issues/593
+  // Removed on unmount so listeners don't pile up as slides are virtualised in and out
   useEffect(() => {
-    window.addEventListener("click", (event) => {
+    const handleClick = (event: MouseEvent) => {
       Object.defineProperty(event, 'detail', { value: 0, writable: true });
-    }, { capture: true });
+    };
+    window.addEventListener("click", handleClick, { capture: true });
+    return () => window.removeEventListener("click", handleClick, { capture: true });
   }, [])
 
   useEffect(() => {
