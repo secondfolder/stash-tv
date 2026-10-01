@@ -7,7 +7,7 @@
  * - Config set through the app's store is rehydrated on a fresh boot
  *   (cross-"device" persistence)
  *
- * @see docs/state-and-config.md § "Hybrid storage"
+ * @see docs/state-and-config.md § "Hybrid Storage"
  */
 
 import { describe, expect, it } from "vitest";

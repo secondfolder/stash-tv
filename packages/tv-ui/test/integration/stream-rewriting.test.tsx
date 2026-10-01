@@ -7,7 +7,7 @@
  * is playing).
  *
  * @see docs/media-loading.md § "Preview-only modes"
- * @see docs/video-player.md § "Stream labels"
+ * @see docs/video-player.md § "Source Selection"
  */
 
 import { describe, expect, it } from "vitest";

@@ -1,5 +1,5 @@
-import { afterEach, beforeAll, vi, expect } from "vitest";
-import { act, cleanup, render, waitFor } from "@testing-library/react";
+import { afterEach, beforeAll, beforeEach, vi, expect } from "vitest";
+import { act, cleanup, configure, render, waitFor } from "@testing-library/react";
 import React from "react";
 import { ApolloProvider } from "@apollo/client";
 import { startMockStash, type MockStashServer } from "mock-stash";
@@ -20,6 +20,11 @@ import { startMockStash, type MockStashServer } from "mock-stash";
  */
 
 let server: MockStashServer;
+
+// RTL's default 1s for `waitFor`/`findBy*` is too tight here: the app and the mock server share one thread, so a
+// mutation's round trip plus the re-render it causes (~200ms alone) can take several times longer when the whole suite
+// runs in parallel. A longer timeout only slows down tests that are failing anyway.
+configure({ asyncUtilTimeout: 5000 });
 
 export function setupIntegrationTest() {
   beforeAll(async () => {
@@ -58,6 +63,40 @@ export function setupIntegrationTest() {
       return server;
     },
   };
+}
+
+/**
+ * Restore the server's scenes and markers after each test, for tests that change them (ratings, tags, o-counts,
+ * deletes…): the server store outlives each test.
+ */
+export function restoreServerMediaAfterEach(integration: ReturnType<typeof setupIntegrationTest>) {
+  let scenes: MockStashServer["store"]["scenes"];
+  let markers: MockStashServer["store"]["markers"];
+  beforeEach(() => {
+    scenes = structuredClone(integration.server.store.scenes);
+    markers = structuredClone(integration.server.store.markers);
+  });
+  afterEach(() => {
+    const { store } = integration.server;
+    store.scenes.clear();
+    for (const [id, scene] of scenes) store.scenes.set(id, scene);
+    store.markers.clear();
+    for (const [id, marker] of markers) store.markers.set(id, marker);
+  });
+}
+
+/**
+ * The tvConfig the app has saved to the server's plugin config (its Stash-persisted half). The app saves without
+ * waiting for the write, so a test that changes persisted config must wait for it to land here before it ends:
+ * otherwise the write can land after the `afterEach` reset and leak into the next test's boot.
+ */
+export function savedTvConfig(integration: ReturnType<typeof setupIntegrationTest>): Record<string, unknown> {
+  const saved = integration.server.store.pluginConfig["stash-tv"]?.["app-state"];
+  if (typeof saved !== "string") return {};
+  const parsed: unknown = JSON.parse(saved);
+  if (typeof parsed !== "object" || parsed === null || !("state" in parsed)) return {};
+  const { state } = parsed;
+  return typeof state === "object" && state !== null ? { ...state } : {};
 }
 
 /** Reset the module registry and re-import app modules against the running mock server. */

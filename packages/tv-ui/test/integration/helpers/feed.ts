@@ -39,6 +39,38 @@ export function sceneIdOf(slide: HTMLElement) {
   return sceneId;
 }
 
+/**
+ * Tell the current slide's player its video started loading a new source, as a browser would after the source
+ * changes. jsdom never loads media, so it never fires `loadstart` itself, and that's the event the app watches to
+ * learn which stream is playing.
+ */
+export function fireLoadStart(app: BootedApp) {
+  const video = currentSlide(app).querySelector("video");
+  if (!video) throw new Error("Current slide has no video element");
+  act(() => {
+    video.dispatchEvent(new Event("loadstart"));
+  });
+}
+
+/**
+ * Make the current slide's video fail to play its source, as a browser does when it can't decode it, so the player's
+ * error handling (e.g. Stash's fallback to the next stream) runs.
+ */
+export function failCurrentSource(app: BootedApp) {
+  const video = currentSlide(app).querySelector("video");
+  if (!video) throw new Error("Current slide has no video element");
+  Object.defineProperty(video, "error", {
+    configurable: true,
+    // Video.js wraps whatever the element reports in its own MediaError, so only the code matters
+    get: () => ({ code: MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED, message: "Can't play this source" }),
+  });
+  act(() => {
+    video.dispatchEvent(new Event("error"));
+  });
+  // A later source would load fine, so it mustn't see this error
+  Reflect.deleteProperty(video, "error");
+}
+
 export async function goToNextSlide(app: BootedApp) {
   const previousIndex = currentSlide(app).dataset.index;
   await userEvent.keyboard("{ArrowDown}");
@@ -58,12 +90,17 @@ type ButtonOptions = ActionButtonConfig extends infer Config
   ? Config extends ActionButtonConfig ? Omit<Config, "id" | "type" | "pinned"> : never
   : never;
 
+/** Types of the buttons that need no options of their own */
+type OptionlessButtonType = ButtonOptions extends infer Options
+  ? Options extends ButtonOptions ? ({ buttonType: Options["buttonType"] } extends Options ? Options["buttonType"] : never) : never
+  : never;
+
 /**
  * Replace the action button stack with just the given buttons, pinned, so their displayed state is in the DOM (by
  * default most buttons sit in a closed folder). Pass a button type for buttons with no options of their own, or the
  * button's options (e.g. `{ buttonType: "create-marker", iconId: "bookmark", markerDefaults: … }`).
  */
-export async function pinActionButtons(buttons: ("rate-scene" | "o-counter" | ButtonOptions)[]) {
+export async function pinActionButtons(buttons: (OptionlessButtonType | ButtonOptions)[]) {
   const { useTvConfig } = await import("../../../src/store/tvConfig");
   await act(async () => {
     useTvConfig.getState().set(
@@ -79,4 +116,17 @@ export async function pinActionButtons(buttons: ("rate-scene" | "o-counter" | Bu
 /** The side info (e.g. rating, o-count) shown next to the current slide's action button of the given type. */
 export function displayedSideInfo(app: BootedApp, buttonType: string) {
   return currentSlide(app).querySelector(`.ActionButton.${buttonType} .side-info`)?.textContent ?? null;
+}
+
+/**
+ * Replace the action button stack with one pinned button whose config isn't checked against any button's schema, as
+ * if it were saved by a different version of Stash TV or edited by hand. For testing how buttons handle bad config.
+ */
+export async function pinUncheckedActionButton(options: { buttonType: string } & Record<string, unknown>) {
+  const { useTvConfig } = await import("../../../src/store/tvConfig");
+  const config = { ...options, id: `${options.buttonType}-0`, type: "button", pinned: true };
+  await act(async () => {
+    // Persisted config is untrusted at runtime, which is exactly what this simulates, so it can't be typed as valid
+    useTvConfig.getState().set("actionButtonStackConfig", [config as unknown as ActionButtonConfig]);
+  });
 }

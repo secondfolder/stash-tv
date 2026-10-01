@@ -163,7 +163,28 @@ if (!HTMLMediaElement.prototype.play) {
 }
 HTMLMediaElement.prototype.play = () => Promise.resolve();
 HTMLMediaElement.prototype.pause = () => {};
+// jsdom says it can play no media type, so Video.js rejects every source and Stash's source selector falls back
+// through them all. Claim the types browsers play natively, like a browser would. HLS/DASH stay unsupported: they need
+// Media Source Extensions, which jsdom lacks.
+HTMLMediaElement.prototype.canPlayType = (type: string) => (/^video\/(mp4|webm)\b/.test(type) ? "maybe" : "");
 HTMLMediaElement.prototype.load = () => {};
+
+// jsdom has no MediaError. Stash's source selector reads its codes (e.g. MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) when a
+// source fails, to decide whether to fall back to the next source, so without it the fallback throws instead.
+if (typeof globalThis.MediaError === "undefined") {
+  class MediaErrorPolyfill {
+    static readonly MEDIA_ERR_ABORTED = 1;
+    static readonly MEDIA_ERR_NETWORK = 2;
+    static readonly MEDIA_ERR_DECODE = 3;
+    static readonly MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
+    readonly MEDIA_ERR_ABORTED = 1;
+    readonly MEDIA_ERR_NETWORK = 2;
+    readonly MEDIA_ERR_DECODE = 3;
+    readonly MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
+    constructor(readonly code: number, readonly message = "") {}
+  }
+  Object.defineProperty(globalThis, "MediaError", { value: MediaErrorPolyfill, writable: true, configurable: true });
+}
 
 // jsdom has no Gamepad API
 if (typeof navigator.getGamepads !== "function") {

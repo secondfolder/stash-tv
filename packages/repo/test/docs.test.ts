@@ -7,9 +7,9 @@ import * as path from "path";
  *
  * The docs index in AGENTS.md is how an agent decides which docs its task calls for,
  * so a doc missing from it is a doc nobody reads. This test ensures that:
- * 1. Every .md file in docs/ is listed in AGENTS.md
- * 2. Every link in AGENTS.md points to a real file or directory
- * 3. Documented features aren't silently removed
+ * 1. Every .md file in docs/ (including subdirectories) is listed in AGENTS.md's Documentation table. Frozen plans in
+ *    docs/historical-plans/ are exempt: they're reference material, not docs to read for a task.
+ * 2. Every docs/ link in AGENTS.md points to a real file or directory
  */
 
 describe("the docs index in AGENTS.md", () => {
@@ -19,18 +19,33 @@ describe("the docs index in AGENTS.md", () => {
 
   const agentsMd = fs.readFileSync(agentsMdPath, "utf-8");
 
-  // Get all .md files in docs/ (excluding images and README.md if it exists as a preface)
+  // Every .md file in docs/ and its subdirectories (excluding README.md if it exists as a preface)
+  const historicalPlansDir = "historical-plans";
   const docs = fs
-    .readdirSync(docsDir)
-    .filter((entry) => entry.endsWith(".md") && entry !== "README.md")
+    .readdirSync(docsDir, { recursive: true, encoding: "utf-8" })
+    .map((entry) => entry.split(path.sep).join("/"))
+    .filter(
+      (entry) =>
+        entry.endsWith(".md") &&
+        path.basename(entry) !== "README.md" &&
+        !entry.startsWith(`${historicalPlansDir}/`),
+    )
     .map((entry) => `docs/${entry}`);
+
+  // The Documentation section of AGENTS.md, up to the next top-level heading
+  const documentationTable = (() => {
+    const start = agentsMd.indexOf("\n## Documentation\n");
+    if (start === -1) throw new Error('AGENTS.md has no "## Documentation" section');
+    const end = agentsMd.indexOf("\n## ", start + 1);
+    return agentsMd.slice(start, end === -1 ? undefined : end);
+  })();
 
   it("lists every doc in the documentation table", () => {
     expect(docs.length).toBeGreaterThan(0);
     for (const docPath of docs) {
       expect(
-        agentsMd,
-        `docs/${docPath} is not referenced in AGENTS.md - add it to the Documentation table`,
+        documentationTable,
+        `${docPath} is not in AGENTS.md's Documentation table - add a row for it`,
       ).toContain(`(${docPath})`);
     }
   });
@@ -69,8 +84,9 @@ describe("the doc references in tests", () => {
    * Extract all section headings from a markdown file.
    * Matches ## through ###### level headings.
    */
-  const sectionsIn = (docPath: string): Set<string> => {
+  const sectionsIn = (docPath: string): Set<string> | undefined => {
     const fullPath = path.join(repoRoot, docPath);
+    if (!fs.existsSync(fullPath)) return undefined;
     const content = fs.readFileSync(fullPath, "utf-8");
     return new Set(
       [...content.matchAll(/^#{2,6} (.+)$/gm)].map((match) =>
@@ -117,16 +133,16 @@ describe("the doc references in tests", () => {
             continue;
           }
 
-          if (!entry.endsWith(".ts")) continue;
+          if (!/\.tsx?$/.test(entry)) continue;
 
           // Skip docs validation test to avoid picking up citations in documentation
           if (entry === "docs.test.ts") continue;
 
           const content = fs.readFileSync(fullPath, "utf-8");
-          // Match: docs/file.md § "Section Name"
+          // Match: docs/file.md § "Section Name" (or AGENTS.md § "Section Name")
           // Using the section symbol (§) as delimiter
           for (const match of content.matchAll(
-            /(docs\/[\w.-]+\.md) § "([^"]+)"/g,
+            /((?:docs\/[\w./-]+|AGENTS)\.md) § "([^"]+)"/g,
           )) {
             found.push({ file: fullPath, doc: match[1], section: match[2] });
           }
@@ -154,19 +170,21 @@ describe("the doc references in tests", () => {
       return;
     }
 
-    const sections = new Map<string, Set<string>>();
+    const sections = new Map<string, Set<string> | undefined>();
     for (const { doc } of references) {
       if (!sections.has(doc)) {
         sections.set(doc, sectionsIn(doc));
       }
     }
 
-    for (const { file, doc, section } of references) {
+    // Collected rather than asserted one by one, so a failure lists every broken citation at once
+    const broken = references.flatMap(({ file, doc, section }) => {
       const docSections = sections.get(doc);
-      expect(
-        docSections?.has(section),
-        `${file} cites ${doc} § "${section}", but that heading doesn't exist in the doc`,
-      ).toBe(true);
-    }
+      const where = path.relative(repoRoot, file);
+      if (!docSections) return [`${where} cites ${doc}, which doesn't exist`];
+      if (!docSections.has(section)) return [`${where} cites ${doc} § "${section}", but that heading doesn't exist`];
+      return [];
+    });
+    expect(broken).toEqual([]);
   });
 });

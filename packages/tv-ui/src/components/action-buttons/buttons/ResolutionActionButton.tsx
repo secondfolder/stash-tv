@@ -4,7 +4,8 @@ import { useTvConfig } from "../../../store/tvConfig";
 import ActionButtonBase from "../ActionButtonBase";
 import { sharedActionButtonSchema } from "../action-button-config";
 
-import ResolutionIcon from "../../../assets/resolution-outline.svg?react";
+import ResolutionIcon from "../../../assets/resolution.svg?react";
+import ResolutionOutlineIcon from "../../../assets/resolution-outline.svg?react";
 import type { ActionButtonDefinitionInput } from "./index";
 import cx from "classnames";
 import { VideoJsPlayer } from "video.js";
@@ -32,7 +33,10 @@ export const buttonDefinition = {
     active: "Set stream resolution",
     inactive: "Set stream resolution",
   },
-  icon: ResolutionIcon,
+  icon: {
+    active: ResolutionIcon,
+    inactive: ResolutionOutlineIcon,
+  },
   components: {
     button: ResolutionActionButton,
   },

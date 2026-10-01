@@ -34,6 +34,7 @@ function UnknownActionButton({ config }: { config: Record<string, any> }) {
       className={cx(id, "hide-on-ui-hide")}
       displayOnly
       sideInfo={`Unknown button type "${String(config.buttonType)}"`}
+      config={config}
     />
   )
 }

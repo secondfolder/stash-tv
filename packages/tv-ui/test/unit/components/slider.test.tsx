@@ -42,6 +42,25 @@ describe("Slider", () => {
     expect(container.querySelectorAll(".mark").length).toBe(11)
   })
 
+  it("counts marks for a range ending at 0", () => {
+    const { container } = render(
+      <Slider value={[0]} marks={true} min={-10} max={0} step={5} />
+    )
+    // (0 - -10) / 5 + 1 = 3 marks
+    expect(container.querySelectorAll(".mark").length).toBe(3)
+  })
+
+  it("counts marks across Radix's default range of 0–100 when no max is given", () => {
+    const { container } = render(<Slider value={[0]} marks={true} step={25} />)
+    // (100 - 0) / 25 + 1 = 5 marks
+    expect(container.querySelectorAll(".mark").length).toBe(5)
+  })
+
+  it("doesn't drop a mark to floating point error", () => {
+    const { container } = render(<Slider value={[0]} marks={true} min={0} max={0.3} step={0.1} />)
+    expect(container.querySelectorAll(".mark").length).toBe(4)
+  })
+
   it("handles fractional steps", () => {
     const { container } = render(
       <Slider {...defaultProps} marks={true} min={0} max={1} step={0.1} />

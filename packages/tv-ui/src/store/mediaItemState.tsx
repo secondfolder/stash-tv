@@ -54,6 +54,9 @@ export const MediaItemStateContext = createContext<MediaItemStore | null>(null);
 export const MediaItemStateContextProvider = (
   {children, initialValues}: {children?: ReactNode, initialValues?: Partial<MediaItemState>}
 ) => {
+  // Deliberately created once per slide: these are the slide's *starting* values and must not follow later props.
+  // For example `preIncrementOCounterValue` is the o-count the slide was shown with, which the o-counter button
+  // compares the live count against; syncing it would stop the button ever showing that it was marked.
   const store = useMemo(() => createMediaItemStore({initialValues}), [])
   return (
     <MediaItemStateContext.Provider value={store}>

@@ -71,7 +71,17 @@ Feed-level helpers live in `test/integration/helpers/feed.ts`:
 - `bootWithTvConfig(configure, readyText?)`: boot, change persisted tvConfig, then boot fresh (e.g. a different filter or page size)
 - `pinActionButtons([...])` and `displayedSideInfo(app, buttonType)`: most action buttons sit in a closed folder by default, so pin the ones whose displayed state you assert on. Pass a button type, or a button's options for buttons that need them (e.g. `{ buttonType: "create-marker", iconId: "bookmark", markerDefaults: … }`)
 
-Tests that change the mock server's scenes or markers (rating, o-count, deleting) must restore them in `afterEach`: the server store outlives each test.
+- `pinUncheckedActionButton(options)`: pin one button whose config skips type checking, to test how buttons handle bad saved config (e.g. an unknown `buttonType`, a quick tag with no `tagId`)
+- `fireLoadStart(app)`: fire `loadstart` on the current slide's video (see the gotcha below)
+- `failCurrentSource(app)`: make the current slide's video fail to play its source, as a browser does when it can't decode it
+
+Harness helpers for tests that change state outliving a test:
+- `restoreServerMediaAfterEach(integration)`: snapshot the server's scenes and markers before each test and restore them after
+- `savedTvConfig(integration)`: the tvConfig the app has saved to the server (see the gotcha below)
+
+Action button helpers shared by both tiers live in `test/helpers/actionButtons.tsx`: `sidePanel()` / `isSidePanelOpen()` / `closeSidePanelByClickingOutside()`, `actionButtonRoot(button)`, and `displayedIconState(actionButton, icon)`, which reads a button's state from its icon (the only sign of it for buttons whose title doesn't change). ⚠️ That file imports app code only inside its functions, and integration tests must do the same: see the `StashService` gotcha below.
+
+Tests that change the mock server's scenes or markers (rating, o-count, deleting) must restore them in `afterEach` (`restoreServerMediaAfterEach`): the server store outlives each test. Fixture scenes have no captions; set `captions` on a scene record to give it some.
 
 ## Standards (binding for all tests)
 
@@ -82,7 +92,7 @@ Tests that change the mock server's scenes or markers (rating, o-count, deleting
 - **Shared helpers, no duplication:** store reset/gating lives in `tv-ui/test/unit/helpers/stores.ts` (`resetStores()`, `setTvConfigLoaded()`); RTL cleanup is centralized in `tv-ui/test/setup.ts`. Never add per-file `cleanupRtl()` boilerplate.
 - **File placement:** unit tests in `test/unit/<area>/`, integration in `test/integration/`. Tests never live in `src/`. Import app code by relative path into `src/` (e.g. `../../../src/components/...`) — there's no `src/` alias.
 - **One behavior per test**, named after the behavior ("blocks sets and warns before tvConfigLoaded"), not the API.
-- **Doc citations:** tests verifying documented behavior cite it with `@see docs/<file>.md § "<heading>"`. If behavior is worth testing but not documented, document it.
+- **Doc citations:** tests verifying documented behavior cite it with `@see docs/<file>.md § "<heading>"` (or `AGENTS.md § "<heading>"` for repo-wide behaviour). `packages/repo/test/docs.test.ts` checks every cited heading exists, matching exactly, case included. If behavior is worth testing but not documented, document it.
 
 ## Why teardown is clean (parallel execution history)
 
@@ -183,7 +193,17 @@ describe("integration feature", () => {
 
 ⚠️ **jsdom's `document` outlives each `bootApp()`.** Inline state the app writes to `<html>`/`<body>` (e.g. modals set `--fixed-right-padding`, a bogus 649px under the stubbed VisualViewport, which react-spring then fails to parse when the next boot mounts the settings drawer) leaks into the next test, so the harness `afterEach` clears it the way a page reload would. Extend that reset if you find other document-level leakage. ⚠️ Vitest runs `afterEach` hooks in reverse registration order, so the global RTL `cleanup` in `setup.ts` runs *after* the harness's reset. The harness therefore calls `cleanup()` itself first. Otherwise a test that fails before `unmount()` leaves its app mounted through the reset, and the next test's boot crashes with react-spring's "Unexpected token 0px".
 
-⚠️ **Don't import `stash-ui/dist/src/core/StashService` at the top of an integration test.** Importing it creates an Apollo client immediately (`createClient()` at module scope). At the top of a test file that happens before the harness points `VITE_APP_PLATFORM_URL` at the mock server, so the client retries against port 9999 forever and can make the `graphql-ws` disposal `afterAll` time out. Import it dynamically inside the test after `bootApp()`, which also returns the app's own instance (see `background-updates.test.tsx`).
+⚠️ **A test that changes persisted tvConfig should wait for the save to reach the server before it ends.** The app saves to Stash's plugin config without awaiting it (`updateTvConfig`), so a write could land after the harness's `afterEach` reset and leak into the next test's boot. Waiting on `savedTvConfig(integration)` rules that out, and also checks the setting really persists.
+
+⚠️ **Video.js (like Mousetrap) is one shared instance across boots, and so are the hooks registered on it.** tv-ui registers `videojs.hook(...)` callbacks at module level, so every `bootApp()` adds another set, and the previous apps' hooks still run on the new app's players. `usePlayerManager`'s hooks dispatch to per-player callbacks keyed by player id, and ids restart with each boot (`player-scene-7-0`), so a stale callback once ran the previous test's source-selector wrapper on the new player. The symptom was a stream preference from one test playing in the next, with the new app's tvConfig showing no preference. Per-player callbacks are now removed on unmount. If something leaks between tests with no trace in the server or tvConfig, look for module-level state on a shared dependency.
+
+⚠️ **RTL's async timeout is 5s in integration tests** (`configure` in `harness.tsx`). The app and the mock server share one thread, so a round trip that takes ~200ms alone can take several times that when the whole suite runs in parallel. The 1s default made `create-marker-button` › "shows the new marker on the scene" flaky.
+
+⚠️ **jsdom never fires `loadstart`.** Media loading is stubbed, so after a stream switch (or on a newly current slide) nothing tells `useSceneStreamSelection` which stream is playing. Call `fireLoadStart(app)` the way a browser would fire it.
+
+⚠️ **The side panel isn't a `dialog` to RTL.** It renders as `<dialog>` without `open`, so `getByRole("dialog")` doesn't find it. Use `sidePanel()`. Its outside-click backdrop is the element just before it.
+
+⚠️ **Don't import `stash-ui/dist/src/core/StashService` at the top of an integration test.** That includes anything that imports `store/tvConfig` (e.g. `ActionButtonBase`, any button definition, the icon registry's users): tvConfig → `stash-config-storage` → `getApolloClient` → `StashService`. The symptom is an `ApolloError … 404` and the `graphql-ws` disposal `afterAll` timing out. Import app values with `await import(...)` inside the test, after `bootApp()`; type-only imports are fine. Importing it creates an Apollo client immediately (`createClient()` at module scope). At the top of a test file that happens before the harness points `VITE_APP_PLATFORM_URL` at the mock server, so the client retries against port 9999 forever and can make the `graphql-ws` disposal `afterAll` time out. Import it dynamically inside the test after `bootApp()`, which also returns the app's own instance (see `background-updates.test.tsx`).
 
 ⚠️ **Stash's form labels don't point at their react-select inputs.** In forms like `SceneMarkerForm`, `<label for="primary_tag_id">` has no matching input id, so `getByLabelText` fails. Find the field's `.form-group` from its label and take the combobox inside it (see `markerFormSelect` in `create-marker-button.test.tsx`). `MarkerTitleSuggest` is also disabled until its suggestions load, so wait for it to be enabled before typing.
 
@@ -204,6 +224,8 @@ describe("integration feature", () => {
 - `safaridriver` (with `safari:useSimulator`) can load pages and run scripts in the simulator, but not reproduce this: its taps arrive as a long press with no `touchend` or `click`, a focus it causes doesn't bring up the keyboard, and a person interacting by hand ends its session.
 
 ⚠️ **Known jsdom limitations:** no pointer capture (Radix drag tests are skipped with reasons inline), no Gamepad API (stubbed in `setup.ts`), `HTMLMediaElement.play` stubbed. Document skipped tests inline.
+
+⚠️ **jsdom media stubs in `setup.ts`:** `MediaError` is polyfilled (Stash's source selector reads its codes to decide whether to fall back to the next stream), and `canPlayType` claims MP4 and WebM like a browser. Without the latter, Video.js rejects every source, so every player falls back through all its streams on boot. HLS/DASH stay unsupported (no Media Source Extensions), so choosing them errors as it would in a browser without MSE. To test a stream failing, use `failCurrentSource(app)`.
 
 ## Test-only exceptions to app-code rules
 
@@ -226,24 +248,18 @@ Issues found in the 2026-09 test-suite review that were **not** fixed — pick t
 - `useMediaItemTags` (~27%), `useSceneUpdate` (~32%), `useStashTvConfig` (~48%)
 - Media-modifier hooks `openModifier` (~36%) and `shuffleModifier` (~25%) — integration coverage exists for the modifier *pipeline*, not these implementations
 - `popper-modifiers/setMaxSize.ts` (~15%) and the other popper modifiers
-- `action-buttons/button-config.ts` (~15%)
 - `MediaSlide` (~63%) and `Feed` error/empty-state paths
 
 ### Test-quality debt
 
-- **mock-stash `meta.test.ts`**: the `scanCompleteSubscribe` test uses a fixed 250 ms delay for subscription establishment — a CI flake risk (signal readiness instead); the marker create/update/destroy test bundles three behaviours in one `it`.
+- **mock-stash `meta.test.ts`**: the marker create/update/destroy test bundles three behaviours in one `it`.
 - **Conformance suite** (`packages/mock-stash/test/conformance/`): scattered `as` casts on projections (centralise a typed-projection helper); "findScenes sorts by path consistently" sorts inside its own projection, weakening what it verifies.
-- **`docs.test.ts`**: only scans top-level `docs/` (a nested doc escapes validation); a citation pointing at a nonexistent file crashes with a raw ENOENT instead of a clean failure; `](docs/...)` links are matched anywhere in AGENTS.md, not just the Documentation table.
 - **E2E is still mostly smoke-level**: the only interaction tests are the create-marker side panel's dropdowns. Nothing yet covers scrolling to the next slide or opening settings.
 - **`EditTagsContents` unit tests mock `EditTagSelectionForm`** — a real-form integration test would cover the prop forwarding for free and exercise the actual editing flow.
 
 ### App-code smells surfaced by the review (fix in app code, not tests)
 
 - **Scan-complete cache reset doesn't exist in tv-ui.** `resetStore()` on `ScanComplete` lives on stash-ui's `createClient()` client, which the app doesn't use for its queries — a finished scan won't refresh the feed. The original integration test asserted this fiction and was deleted. If the behaviour is wanted, wire the subscription in tv-ui and restore the test (the mock-server request counting added during the review is still available).
-- **`ActionButtonIcon` silently mis-handles a top-level string `iconDefinition`**: it falls into the per-state indexing branch (`iconDefinition[state]`), which is `undefined` for strings — only strings *inside* a per-state map (or config `iconId` states) reach the `<img>` branch.
-- **`propertyRemap`'s map-to-property-name mode only works for accessor (getter) properties** — data properties crash. Every in-repo use maps via a function; consider dropping or fixing the name mode.
-- **`MediaItemStateContextProvider` uses `useMemo(..., [])`** — changing `initialValues` props after mount is silently ignored.
-- **`Slider`'s mark count uses `max || 1` / `step || 1`** — a legitimate `0` value for `min`/`step` falls back to the default.
 
 ## History
 

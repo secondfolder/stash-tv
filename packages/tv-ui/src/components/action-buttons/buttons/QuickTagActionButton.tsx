@@ -114,7 +114,12 @@ export function QuickTagActionButton({
     title={buttonDefinition.title}
     className={cx(buttonDefinition.id, "hide-on-ui-hide")}
     data-testid="MediaSlide--quickTagButton"
-    onClick={mediaItemHasTag ? () => removeTag(parsedConfig.tagId) : () => addTag(parsedConfig.tagId)}
+    onClick={({toggleSidePanel}) => {
+      // The side panel only exists to explain why the tag can't be removed
+      if (sidePanel) toggleSidePanel()
+      else if (mediaItemHasTag) removeTag(parsedConfig.tagId)
+      else addTag(parsedConfig.tagId)
+    }}
     sidePanel={sidePanel}
     config={config}
   />

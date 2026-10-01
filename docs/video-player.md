@@ -12,6 +12,7 @@ How video playback works: Stash TV's `ScenePlayer` wraps Stash's ScenePlayer (vi
 - Stash's ScenePlayer (imported from `stash-ui/wrappers/components/ScenePlayer`) — wraps Video.js
 - `src/components/ScenePlayer/video.js/` — Video.js helpers (`allow-plugin-removal.ts`, `usePlayerManager.ts`, etc.)
 - Feed playback is virtualized: `VideoScroller` renders multiple player instances, only visible slides mounted
+- Per-player setup: Video.js only offers global `beforesetup`/`setup` hooks, so `usePlayerManager` registers one of each at module level and dispatches to per-player callbacks (`playerBeforeSetupHook` / `playerSetupHook`), matched by the `data-player-id` on the player's container. ⚠️ A player's callbacks close over its component's props, so they're deleted when it unmounts. Otherwise every player ever shown would be kept in memory, and a later player given the same id would run them.
 
 ## Current-Player Tracking
 
