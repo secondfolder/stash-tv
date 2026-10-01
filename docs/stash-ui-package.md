@@ -19,8 +19,9 @@ Any change too specific to Stash TV does **not** belong here — put it in the S
 
 - `stash/` — a copy of the Stash repository (excluded from root tsconfig)
 - `wrappers/` — re-export wrappers for selected Stash components
-- `patches/` — patches applied to Stash code (e.g. `scene-player-utils.ts` for tracking the active video player — see `docs/video-player.md`; `stash-tv.patch` also fixes `useRatingKeybinds`' overlapping sequence timeouts — see `docs/keyboard-shortcuts.md`)
+- `patches/` — patches applied to Stash code (e.g. `scene-player-utils.ts` for tracking the active video player — see `docs/video-player.md`; `stash-tv.patch` also fixes `useRatingKeybinds`' overlapping sequence timeouts — see `docs/keyboard-shortcuts.md` — and adds `MenuShouldScrollIntoViewContext` to Stash's shared selects (`Shared/FilterSelect.tsx`, `Shared/Select.tsx`) — see `docs/action-buttons.md`)
 - To change a patched Stash file: edit it under `stash/`, `git add` it inside `stash/` (`update-patch.sh` diffs only staged changes), run `yarn --cwd packages/stash-ui update:patch`, unstage it, then `yarn --cwd packages/stash-ui build`
+- ⚠️ A patch can't add a new file other than `ui/v2.5/graphql/stash-tv.graphql`: `setup.sh` deletes only that file before applying the patch, so any other new file is left behind by a previous setup and the next `git apply` fails. Put new code in an existing Stash file (as `MenuShouldScrollIntoViewContext` lives in `FilterSelect.tsx`).
 - ⚠️ `update-patch.sh` regenerates the whole patch from what's staged, so stage **every** file the patch touches, not just the one you changed, or their hunks are dropped. Check your `stash/` checkout has the current patch applied first (`git -C packages/stash-ui/stash status` should list the patched files). `setup.sh` applies it once, so a checkout made before a later patch change is missing that change, and so is a `dist/` built from it.
 - `dist/` — built TypeScript definitions and components from Stash
 - `scripts/` — `setup.sh` (initial setup), `build.sh` (build), `update-patch.sh` (update patches), `import-stash-ui-deps.sh` (import dependencies)

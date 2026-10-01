@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react"
+import { useCallback, useEffect, useMemo, useRef } from "react"
 import { objectEntries } from "ts-extras"
 import {Options as PopperOptions} from '@popperjs/core';
 
@@ -37,14 +37,17 @@ export function usePreventOverflowModifier({
   const getPadding = useCallback(() => {
     const viewportStyle = getComputedStyle(document.documentElement);
 
-    // Detect how much of the layout viewport is obscured by the visual viewport
-    // (e.g. iOS on-screen keyboard shrinks the visual viewport but not the layout viewport)
+    // Detect how much of the area the popper is kept within is hidden outside the visual viewport (e.g. iOS's
+    // on-screen keyboard shrinks the visual viewport but not the layout viewport). Measured from the edges of that area
+    // (the boundary, else the viewport), as that's what the padding is applied to: a media slide can extend past the
+    // viewport, e.g. behind iOS Safari's toolbar.
     const visualViewport = accountForKeyboard ? window.visualViewport : null
+    const area = boundary?.getBoundingClientRect() ?? { top: 0, left: 0, right: window.innerWidth, bottom: window.innerHeight }
     const visualViewportObscured = visualViewport ? {
-      top: Math.max(0, visualViewport.offsetTop),
-      left: Math.max(0, visualViewport.offsetLeft),
-      right: Math.max(0, window.innerWidth - (visualViewport.offsetLeft + visualViewport.width)),
-      bottom: Math.max(0, window.innerHeight - (visualViewport.offsetTop + visualViewport.height)),
+      top: Math.max(0, visualViewport.offsetTop - area.top),
+      left: Math.max(0, visualViewport.offsetLeft - area.left),
+      right: Math.max(0, area.right - (visualViewport.offsetLeft + visualViewport.width)),
+      bottom: Math.max(0, area.bottom - (visualViewport.offsetTop + visualViewport.height)),
     } : { top: 0, left: 0, right: 0, bottom: 0 }
 
     const padding = {
@@ -85,7 +88,7 @@ export function usePreventOverflowModifier({
     }
 
     return padding
-  }, [boundaryPadding, rootBoundaryPadding, accountForKeyboard])
+  }, [boundaryPadding, rootBoundaryPadding, accountForKeyboard, boundary])
   // To make sure popper.js has access to the most up-to-date padding values we pass it an object and then update the values
   // for that reference directly rather than creating a new object and have react tear down and re-create the popper.js instance
   const padding = useMemo(() => getPadding(), [])
@@ -95,6 +98,10 @@ export function usePreventOverflowModifier({
       padding[key] = value
     }
   }, [padding, getPadding])
+
+  // Read through a ref by the modifier below, which mustn't be re-created (and Popper with it) whenever this changes
+  const updatePaddingRef = useRef(updatePadding)
+  updatePaddingRef.current = updatePadding
 
   useEffect(() => {
     window.addEventListener("resize", updatePadding)
@@ -124,6 +131,12 @@ export function usePreventOverflowModifier({
 
       const update = () => instance.update()
 
+      // Re-position as soon as the on-screen keyboard changes the visible area. (The padding listeners above may not
+      // have run yet, so update the padding here too.)
+      const updateForVisualViewport = () => { updatePaddingRef.current(); update() }
+      window.visualViewport?.addEventListener("resize", updateForVisualViewport)
+      window.visualViewport?.addEventListener("scroll", updateForVisualViewport)
+
       // Fallback for environments where visualViewport events don't fire reliably (e.g. iOS Safari):
       // keyboard open/close is tied to focus, so re-run positioning after focus changes.
       // A delay is needed to let the keyboard finish its open/close animation first.
@@ -134,6 +147,8 @@ export function usePreventOverflowModifier({
       window.addEventListener("focusout", onFocusOut)
 
       return () => {
+        window.visualViewport?.removeEventListener("resize", updateForVisualViewport)
+        window.visualViewport?.removeEventListener("scroll", updateForVisualViewport)
         window.removeEventListener("focusin", onFocusIn)
         window.removeEventListener("focusout", onFocusOut)
         clearTimeout(keyboardTimer)

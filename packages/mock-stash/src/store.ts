@@ -33,6 +33,7 @@ export interface MockStore {
   readonly jobsUpdated: EventEmitter<JobStatusUpdateEvent>;
   now: () => string;
   nextMarkerId(): string;
+  nextTagId(): string;
   nextJobId(): string;
   nextFilterId(): string;
 }
@@ -53,6 +54,7 @@ export function createStore(fixtures: Fixtures): MockStore {
     jobsUpdated: createEventEmitter<JobStatusUpdateEvent>(),
     now: () => new Date().toISOString(),
     nextMarkerId: idCounter("marker", fixtures.markers.length),
+    nextTagId: idCounter("tag", fixtures.tags.length),
     nextJobId: idCounter("job", 0),
     nextFilterId: idCounter("filter", fixtures.savedFilters.length),
   };

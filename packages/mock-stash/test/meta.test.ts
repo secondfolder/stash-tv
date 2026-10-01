@@ -186,6 +186,34 @@ describe("mutations the app uses", () => {
     expect(deleted.sceneDeleteO.count).toBe(2);
   });
 
+  it("TagCreate adds a tag that queries then return", async () => {
+    const created = await gql<{ tagCreate: { id: string; name: string } | null }>(GQL.TagCreateDocument, {
+      input: { name: "Created Tag" },
+    });
+    const tagId = created.tagCreate!.id;
+    expect(created.tagCreate!.name).toBe("Created Tag");
+
+    const found = await gql<{ findTags: { tags: { id: string }[] } }>(GQL.FindTagsDocument, {
+      filter: { q: "Created", per_page: -1 },
+    });
+    expect(found.findTags.tags.map((tag) => tag.id)).toContain(tagId);
+
+    await gql(GQL.TagDestroyDocument, { id: tagId });
+  });
+
+  it("TagDestroy also deletes markers using the tag as their primary tag", async () => {
+    const tagId = (await gql<{ tagCreate: { id: string } | null }>(GQL.TagCreateDocument, { input: { name: "Doomed" } }))
+      .tagCreate!.id;
+    const marker = await gql<{ sceneMarkerCreate: { id: string } | null }>(GQL.SceneMarkerCreateDocument, {
+      title: "", seconds: 1, scene_id: "scene-2", primary_tag_id: tagId, tag_ids: [],
+    });
+
+    const destroyed = await gql<{ tagDestroy: boolean }>(GQL.TagDestroyDocument, { id: tagId });
+
+    expect(destroyed.tagDestroy).toBe(true);
+    expect(server.store.markers.has(marker.sceneMarkerCreate!.id)).toBe(false);
+  });
+
   it("SceneMarkerCreate / SceneMarkerUpdate / SceneMarkerDestroy", async () => {
     const created = await gql<{ sceneMarkerCreate: { id: string; title: string; seconds: number; scene: { id: string } } | null }>(
       GQL.SceneMarkerCreateDocument,

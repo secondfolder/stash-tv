@@ -55,15 +55,23 @@ function visibleArea() {
 }
 
 /**
- * Move an open react-select menu above its input, and/or limit its height, so it stays on screen (see
- * `chooseMenuFit`). This overrides the placement react-select picked, which only knows to open below and push the
- * page to scroll, and expects the menu to be rendered inline (not portalled) and absolutely positioned.
+ * Place an open react-select menu below or above its input, limiting its height if needed, so it stays on screen (see
+ * `chooseMenuFit`). This overrides the placement react-select picked, which only knows to open below and push the page
+ * to scroll.
+ *
+ * Positions the menu against its containing block rather than its input: in a side panel that's the panel itself, so
+ * the menu can stick out of the panel's scrolling contents (the panel's CSS arranges that once the menu is marked
+ * `data-fitted`, see ActionButtonBase.css). Call again when the contents scroll, as the menu doesn't move with them.
  */
 export function fitDropdownMenu(menu: HTMLElement) {
   const list = menu.firstElementChild;
-  // The select's container wraps just the input; the menu is absolutely positioned against it
+  // The select's container wraps just the input
   const container = menu.parentElement;
   if (!(list instanceof HTMLElement) || !container) return;
+  // Lets the side panel's CSS unposition the menu's ancestors, making the panel its containing block
+  menu.dataset.fitted = "";
+  const containingBlock = menu.offsetParent;
+  if (!containingBlock) return;
 
   const input = container.getBoundingClientRect();
   const area = visibleArea();
@@ -72,10 +80,18 @@ export function fitDropdownMenu(menu: HTMLElement) {
     spaceAbove: input.top - area.top - gap,
     spaceBelow: area.bottom - input.bottom - gap,
     listContentHeight: list.scrollHeight,
-    menuChromeHeight: menu.offsetHeight - list.offsetHeight,
+    // Measured with fractional precision (offsetHeight rounds), or the menu can end up a fraction of a pixel off screen
+    menuChromeHeight: menu.getBoundingClientRect().height - list.getBoundingClientRect().height,
   });
 
-  menu.style.top = fit.placement === "below" ? "100%" : "auto";
-  menu.style.bottom = fit.placement === "above" ? "100%" : "auto";
+  // Absolute positions are measured from the containing block's padding box, inside its border
+  const blockRect = containingBlock.getBoundingClientRect();
+  const blockTop = blockRect.top + containingBlock.clientTop;
+  const blockLeft = blockRect.left + containingBlock.clientLeft;
+  const blockBottom = blockTop + containingBlock.clientHeight;
+  menu.style.left = `${input.left - blockLeft}px`;
+  menu.style.width = `${input.width}px`;
+  menu.style.top = fit.placement === "below" ? `${input.bottom - blockTop}px` : "auto";
+  menu.style.bottom = fit.placement === "above" ? `${blockBottom - input.top}px` : "auto";
   list.style.maxHeight = `${fit.maxListHeight}px`;
 }

@@ -119,6 +119,7 @@
     translate: calc(var(--safe-inset-left) * 1) 0 !important;
   }
   display: flex;
+  flex-direction: column;
 
   &.show {
     animation: slideInFromRight 0.1s ease-out forwards;
@@ -136,9 +137,30 @@
     display: none;
   }
 
-  /* Including contents in it's own element allows us to check for overflow without including the arrow */
+  /* Scrolls when the panel is limited to the space available (see setMaxSizeModifier) */
   > .contents {
     width: 100%;
+    min-height: 0;
+    overflow-y: auto;
+    /* Don't pass scrolling on to the feed behind the panel once the contents reach their end, which would move to
+       another video */
+    overscroll-behavior: contain;
+
+    /* An open dropdown menu has to stick out of the scrolling contents. A scrolling element doesn't clip descendants
+       whose containing block is outside it, so while a menu is open, make every element between it and the panel
+       unpositioned. The menu's containing block is then the panel, and fitDropdownMenu positions it against that.
+       (These elements are only position: relative with no offsets, so this doesn't move anything.)
+       Only once fitDropdownMenu has marked the menu: react-select measures the menu first, and with the panel as its
+       containing block it would see it far below its input and scroll the page to bring it into view. */
+    *:has(.react-select__menu[data-fitted]) {
+      position: static;
+    }
+  }
+
+  /* With its select no longer positioned, the select's own z-index can't lift the menu above neighbours like
+     Bootstrap's input group buttons (z-index 2), so lift the menu itself */
+  .react-select__menu {
+    z-index: 10;
   }
 }
 

@@ -199,6 +199,37 @@ export const mutationResolvers = {
       return true;
     },
 
+    tagCreate: (_src: unknown, args: { input: { name: string; aliases?: string[] | null } }, ctx: MockContext) => {
+      const now = ctx.store.now();
+      const tag = {
+        id: ctx.store.nextTagId(),
+        name: args.input.name,
+        aliases: args.input.aliases ?? [],
+        parent_ids: [],
+        child_ids: [],
+        created_at: now,
+        updated_at: now,
+      };
+      ctx.store.tags.set(tag.id, tag);
+      return tag;
+    },
+
+    // Like Stash, also removes the tag from everything tagged with it, and deletes markers using it as their primary tag
+    tagDestroy: (_src: unknown, args: { input: { id: string } }, ctx: MockContext) => {
+      const id = String(args.input.id);
+      if (!ctx.store.tags.delete(id)) return false;
+      for (const scene of ctx.store.scenes.values()) scene.tag_ids = scene.tag_ids.filter((tagId) => tagId !== id);
+      for (const [markerId, marker] of ctx.store.markers) {
+        if (marker.primary_tag_id === id) ctx.store.markers.delete(markerId);
+        else marker.tag_ids = marker.tag_ids.filter((tagId) => tagId !== id);
+      }
+      for (const tag of ctx.store.tags.values()) {
+        tag.parent_ids = tag.parent_ids.filter((tagId) => tagId !== id);
+        tag.child_ids = tag.child_ids.filter((tagId) => tagId !== id);
+      }
+      return true;
+    },
+
     sceneDestroy: (_src: unknown, args: { input: { id: string } }, ctx: MockContext) => {
       deleteScene(ctx, args.input.id);
       return true;

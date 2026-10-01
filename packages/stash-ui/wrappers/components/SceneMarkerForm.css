@@ -3,6 +3,37 @@
     padding-left: 0 !important;
     padding-right: 0 !important;
 
+    /* Bootstrap's grid relies on that padding: its rows have negative side margins to cancel it out, so without it
+       they stick out past the form (and give a scrolling side panel a horizontal scrollbar). Drop the grid's outer
+       gutters, keeping its gap between a field's label and its input. */
+    .row {
+      margin-left: 0;
+      margin-right: 0;
+
+      > :first-child {
+        padding-left: 0;
+      }
+
+      > :last-child {
+        padding-right: 0;
+      }
+
+      /* Where a label and its input are on separate lines, neither needs the gap between them: on narrow screens,
+         where every field stacks them, and on wide screens for full width fields */
+      @media (max-width: 575.98px) {
+        > * {
+          padding-left: 0;
+          padding-right: 0;
+        }
+      }
+      @media (min-width: 1200px) {
+        > .col-xl-12 {
+          padding-left: 0;
+          padding-right: 0;
+        }
+      }
+    }
+
     .input-group {
       .invalid-feedback {
         white-space: normal;

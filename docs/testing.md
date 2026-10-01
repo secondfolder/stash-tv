@@ -193,7 +193,15 @@ describe("integration feature", () => {
 
 ⚠️ **Anything that depends on layout needs an e2e test.** jsdom has no layout, so positioning bugs (e.g. a dropdown menu inside an action button's side panel opening off screen or behind the panel's backdrop) pass every unit and integration test. In Playwright, `toBeVisible()` doesn't catch them either: an element off screen or covered by something else still counts as visible. Check `toBeInViewport()` and hit-test with `document.elementFromPoint` (see `expectUsableOnScreen` in `test/e2e/create-marker-button.test.ts`).
 
+⚠️ **Dropdown e2e tests need realistic data and timing.** The mock has only 5 tags, so a tag menu is much shorter than on a real library, and Stash's tag selects load their options asynchronously, so a menu opened straight away is just "Loading...". Bugs that depend on menu size, like react-select scrolling the page to reveal a menu, only show up with enough options and once they've loaded: create extra tags with the mock's `tagCreate` (and `tagDestroy` them afterwards), and wait for the field's `.react-select__loading-indicator` to go before clicking (see the very-short-window test in `create-marker-button.test.ts`).
+
 ⚠️ **E2E tests that need non-default config set it through the API.** tvConfig lives in Stash's plugin config, so send a `configurePlugin` mutation to `/graphql` (proxied to mock-stash) before `page.goto`, and reset it to `{}` afterwards: the mock server is shared by every e2e test. Include `showGuideOverlay: false`, or the first-run guide overlay covers the page and swallows every click.
+
+⚠️ **The iOS on-screen keyboard can only be reproduced in the iOS Simulator, with a person tapping.** Playwright's WebKit has no on-screen keyboard. What works:
+- In the Simulator app, untick I/O ▸ Keyboard ▸ Connect Hardware Keyboard, or the on-screen keyboard never appears.
+- Run the dev server (the simulator shares the Mac's network, so `localhost` works) and open the app in the simulator's Safari with `xcrun simctl openurl booted <url>`.
+- Have someone tap through the steps, with a temporary dev-only script in the app that POSTs measurements (`visualViewport` size/offset, `scrollY`, focus, element rects) on each change to a small local HTTP server. Remove the script afterwards.
+- `safaridriver` (with `safari:useSimulator`) can load pages and run scripts in the simulator, but not reproduce this: its taps arrive as a long press with no `touchend` or `click`, a focus it causes doesn't bring up the keyboard, and a person interacting by hand ends its session.
 
 ⚠️ **Known jsdom limitations:** no pointer capture (Radix drag tests are skipped with reasons inline), no Gamepad API (stubbed in `setup.ts`), `HTMLMediaElement.play` stubbed. Document skipped tests inline.
 

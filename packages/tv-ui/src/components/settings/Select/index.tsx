@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useContext } from "react";
+import { MenuShouldScrollIntoViewContext } from "stash-ui/dist/src/components/Shared/FilterSelect";
 import RSSelect, { GroupBase, Props as StateManagerProps, SelectInstance, CSSObjectWithLabel, ClassNamesState, ContainerProps } from "react-select";
 import { useMedia } from "react-use";
 import cx from "classnames";
@@ -24,6 +25,8 @@ function Select<Option = unknown, IsMulti extends boolean = false, Group extends
   const isSearchable = props.isSearchable !== undefined ? props.isSearchable : !hasTouchScreen;
 
   const { leftHandedUi } = useTvConfig();
+  // Set by containers where scrolling to reveal a menu would do harm, e.g. action button side panels
+  const menuShouldScrollIntoView = useContext(MenuShouldScrollIntoViewContext);
 
   // We use the "react-select" class name so that stash styles are applied and we use menuPortalTarget to render the
   // menu outside of it's parent container so the dropdown is not cut off by overflow hidden/scrolled parents.
@@ -63,6 +66,7 @@ function Select<Option = unknown, IsMulti extends boolean = false, Group extends
     }}
     menuPortalTarget={document.body}
     menuPosition="fixed"
+    menuShouldScrollIntoView={menuShouldScrollIntoView}
     {...otherProps}
   />
 }

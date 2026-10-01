@@ -8,7 +8,6 @@ import { OverlayTrigger, Popover } from "react-bootstrap";
 import { create } from "zustand";
 import { useTvConfig } from "../../../store/tvConfig";
 import { OverlayTriggerProps } from "react-bootstrap/esm/OverlayTrigger";
-import { includeChildOverflowInPopperSizeModifier } from "../../../helpers/popper-modifiers/includeChildOverflowInPopperSize";
 import { applyArrowHideModifier } from "../../../helpers/popper-modifiers/applyArrowHide";
 import { actionButtonIcons, ActionButtonIconSource } from "../icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -19,6 +18,9 @@ import { hasMediaItemStateContext, useMediaItemState } from "../../../store/medi
 import { useOffscreenModifier } from "../../../hooks/useOffscreenModifier";
 import { useOutsideClickModifier } from "../../../hooks/useOutsideClickModifier";
 import { useFitDropdownMenus } from "../../../hooks/useFitDropdownMenus";
+import { useFocusWithoutScrolling } from "../../../hooks/useFocusWithoutScrolling";
+import { updateOnResizeModifier } from "../../../helpers/popper-modifiers/updateOnResize";
+import { MenuShouldScrollIntoViewContext } from "stash-ui/dist/src/components/Shared/FilterSelect";
 
 const logger = getLogger(["stash-tv", "ActionButtonBase"]);
 
@@ -143,10 +145,11 @@ const SidePanel = ({
     onOffscreen: () => useCurrentOpenPopover.setState(null)
   })
 
-  // Dropdowns in the panel open above their input when there's no room below, rather than sticking out of the panel
-  // (which would move it, see includeChildOverflowInPopperSizeModifier)
+  // Dropdowns in the panel stick out of its scrolling contents, opening above their input when there's no room below
   const [contentsElement, setContentsElement] = React.useState<HTMLDivElement | null>(null)
   useFitDropdownMenus(contentsElement)
+  // On iOS, focusing a field would otherwise scroll the page (the feed) to keep it above the on-screen keyboard
+  useFocusWithoutScrolling(contentsElement)
 
   const onSidePanelToggleRef = React.useRef(onSidePanelToggle)
   onSidePanelToggleRef.current = onSidePanelToggle
@@ -183,11 +186,15 @@ const SidePanel = ({
           id={id}
         >
           <div className="contents" ref={setContentsElement}>
-            {isOpenDelayedClose && (
-              typeof content === "function"
-                ? content({isOpen, close: () => useCurrentOpenPopover.setState(null)})
-                : content
-            )}
+            {/* Dropdowns in the panel mustn't scroll the page to bring their menu into view: the page is the feed, so
+                that moves to another video. useFitDropdownMenus keeps their menus on screen instead. */}
+            <MenuShouldScrollIntoViewContext.Provider value={false}>
+              {isOpenDelayedClose && (
+                typeof content === "function"
+                  ? content({isOpen, close: () => useCurrentOpenPopover.setState(null)})
+                  : content
+              )}
+            </MenuShouldScrollIntoViewContext.Provider>
           </div>
         </Popover>
       }
@@ -204,10 +211,10 @@ const SidePanel = ({
       }}
       popperConfig={{
         modifiers: [
-          includeChildOverflowInPopperSizeModifier,
           applyArrowHideModifier,
           preventOverflowModifier,
           setMaxSizeModifier,
+          updateOnResizeModifier,
           offscreenModifier,
           outsideClickModifier,
         ],

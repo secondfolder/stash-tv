@@ -57,6 +57,67 @@ index 00000000..ac806bbb
 +    name
 +  }
 +}
+diff --git a/ui/v2.5/src/components/Shared/FilterSelect.tsx b/ui/v2.5/src/components/Shared/FilterSelect.tsx
+index 732b1cff..327a0620 100644
+--- a/ui/v2.5/src/components/Shared/FilterSelect.tsx
++++ b/ui/v2.5/src/components/Shared/FilterSelect.tsx
+@@ -53,9 +53,18 @@ const getSelectedItems = <T,>(
+   }
+ };
+ 
++// Added by Stash TV: lets part of the page stop dropdowns in it from scrolling their surroundings to bring a newly
++// opened menu into view (react-select's menuShouldScrollIntoView). Unset keeps react-select's default.
++export const MenuShouldScrollIntoViewContext = React.createContext<
++  boolean | undefined
++>(undefined);
++
+ const SelectComponent = <T, IsMulti extends boolean>(
+   props: ISelectProps<T, IsMulti>
+ ) => {
++  const menuShouldScrollIntoView = React.useContext(
++    MenuShouldScrollIntoViewContext
++  );
+   const {
+     selectedOptions,
+     isLoading,
+@@ -90,6 +99,7 @@ const SelectComponent = <T, IsMulti extends boolean>(
+     value: selectedOptions ?? null,
+     className: cx("react-select", props.className),
+     classNamePrefix: "react-select",
++    menuShouldScrollIntoView,
+     noOptionsMessage: () => noOptionsMessage,
+     placeholder: isDisabled ? "" : placeholder,
+     components: {
+diff --git a/ui/v2.5/src/components/Shared/Select.tsx b/ui/v2.5/src/components/Shared/Select.tsx
+index 4ae547cf..1d8b8812 100644
+--- a/ui/v2.5/src/components/Shared/Select.tsx
++++ b/ui/v2.5/src/components/Shared/Select.tsx
+@@ -28,6 +28,7 @@ import { StudioIDSelect } from "../Studios/StudioSelect";
+ import { GalleryIDSelect } from "../Galleries/GallerySelect";
+ import { GroupIDSelect } from "../Groups/GroupSelect";
+ import { SceneIDSelect } from "../Scenes/SceneSelect";
++import { MenuShouldScrollIntoViewContext } from "./FilterSelect";
+ 
+ export type SelectObject = {
+   id: string;
+@@ -181,6 +182,9 @@ const SelectComponent = <T extends boolean>({
+   closeMenuOnSelect = true,
+   noOptionsMessage = type !== "tags" ? "None" : null,
+ }: ISelectProps<T> & ITypeProps) => {
++  const menuShouldScrollIntoView = React.useContext(
++    MenuShouldScrollIntoViewContext
++  );
+   const values = items.filter((item) => initialIds?.indexOf(item.value) !== -1);
+   const defaultValue = (isMulti ? values : values[0] ?? null) as OnChangeValue<
+     Option,
+@@ -230,6 +234,7 @@ const SelectComponent = <T extends boolean>({
+     styles,
+     closeMenuOnSelect,
+     menuPortalTarget,
++    menuShouldScrollIntoView,
+     components: {
+       ...components,
+       MenuList: LimitedSelectMenu,
 diff --git a/ui/v2.5/src/hooks/keybinds.ts b/ui/v2.5/src/hooks/keybinds.ts
 index ac6ab4dd..c684a39b 100644
 --- a/ui/v2.5/src/hooks/keybinds.ts
