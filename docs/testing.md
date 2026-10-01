@@ -201,7 +201,7 @@ describe("integration feature", () => {
 
 ⚠️ **jsdom never fires `loadstart`.** Media loading is stubbed, so after a stream switch (or on a newly current slide) nothing tells `useSceneStreamSelection` which stream is playing. Call `fireLoadStart(app)` the way a browser would fire it.
 
-⚠️ **The side panel isn't a `dialog` to RTL.** It renders as `<dialog>` without `open`, so `getByRole("dialog")` doesn't find it. Use `sidePanel()`. Its outside-click backdrop is the element just before it.
+⚠️ **The side panel isn't a `dialog` to RTL.** It renders as `<dialog>` without `open`, so `getByRole("dialog")` doesn't find it. Use `sidePanel()`. Its outside-click backdrop is the element just before it, and a click on it closes the panel only if a `pointerdown` on it came first (`closeSidePanelByClickingOutside()` fires both).
 
 ⚠️ **Don't import `stash-ui/dist/src/core/StashService` at the top of an integration test.** That includes anything that imports `store/tvConfig` (e.g. `ActionButtonBase`, any button definition, the icon registry's users): tvConfig → `stash-config-storage` → `getApolloClient` → `StashService`. The symptom is an `ApolloError … 404` and the `graphql-ws` disposal `afterAll` timing out. Import app values with `await import(...)` inside the test, after `bootApp()`; type-only imports are fine. Importing it creates an Apollo client immediately (`createClient()` at module scope). At the top of a test file that happens before the harness points `VITE_APP_PLATFORM_URL` at the mock server, so the client retries against port 9999 forever and can make the `graphql-ws` disposal `afterAll` time out. Import it dynamically inside the test after `bootApp()`, which also returns the app's own instance (see `background-updates.test.tsx`).
 

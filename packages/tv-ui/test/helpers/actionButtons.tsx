@@ -65,7 +65,9 @@ export function isSidePanelOpen() {
 export async function closeSidePanelByClickingOutside() {
   const backdrop = sidePanel().previousElementSibling;
   if (!(backdrop instanceof HTMLElement)) throw new Error("Side panel has no backdrop");
-  // fireEvent rather than userEvent: see docs/testing.md § "Gotchas" (userEvent.click breaks with a MediaSlide mounted)
+  // fireEvent rather than userEvent: see docs/testing.md § "Gotchas" (userEvent.click breaks with a MediaSlide mounted).
+  // The press has to start on the backdrop too, or it isn't treated as an outside click (see docs/action-buttons.md)
+  fireEvent.pointerDown(backdrop);
   fireEvent.click(backdrop);
   await waitFor(() => {
     if (isSidePanelOpen()) throw new Error("Side panel still open");
