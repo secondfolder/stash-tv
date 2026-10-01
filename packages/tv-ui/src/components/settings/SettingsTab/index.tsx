@@ -492,7 +492,7 @@ const SettingsTab = memo(() => {
           {(!selectedFilter || selectedFilter.filterType === "scene") && !scenePreviewOnly && <>
             <Form.Group>
               <label htmlFor="start-position">
-                Start Point
+                Play From…
               </label>
               <Select<typeof startPositionOptions[number]>
                 inputId="start-position"
@@ -507,7 +507,7 @@ const SettingsTab = memo(() => {
 
             <Form.Group>
               <label htmlFor="end-position">
-                End Point
+                End Play After…
               </label>
               <Select<typeof endPositionOptions[number]>
                 inputId="end-position"
@@ -593,7 +593,7 @@ const SettingsTab = memo(() => {
 
           <Form.Group>
             <label htmlFor="subtitle-language">
-              Subtitle language
+              Subtitle Language
             </label>
             <Select<{ label: string; value: string }>
               inputId="subtitle-language"

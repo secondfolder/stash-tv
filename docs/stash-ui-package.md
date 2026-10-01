@@ -19,7 +19,8 @@ Any change too specific to Stash TV does **not** belong here — put it in the S
 
 - `stash/` — a copy of the Stash repository (excluded from root tsconfig)
 - `wrappers/` — re-export wrappers for selected Stash components
-- `patches/` — patches applied to Stash code (e.g. `scene-player-utils.ts` for tracking the active video player — see `docs/video-player.md`)
+- `patches/` — patches applied to Stash code (e.g. `scene-player-utils.ts` for tracking the active video player — see `docs/video-player.md`; `stash-tv.patch` also fixes `useRatingKeybinds`' overlapping sequence timeouts — see `docs/keyboard-shortcuts.md`)
+- To change a patched Stash file: edit it under `stash/`, `git add` it inside `stash/` (`update-patch.sh` diffs only staged changes), run `yarn --cwd packages/stash-ui update:patch`, unstage it, then `yarn --cwd packages/stash-ui build`
 - `dist/` — built TypeScript definitions and components from Stash
 - `scripts/` — `setup.sh` (initial setup), `build.sh` (build), `update-patch.sh` (update patches), `import-stash-ui-deps.sh` (import dependencies)
 

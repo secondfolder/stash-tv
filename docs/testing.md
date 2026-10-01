@@ -65,17 +65,18 @@ writes.
 - **Interactions:** prefer `userEvent` over `fireEvent` for realistic user interactions. `fireEvent` is acceptable for events users don't literally fire or jsdom workarounds — comment why.
 - **TypeScript:** tests are typechecked and must be clean. No `as Foo` casts, `any`, or `@ts-expect-error` — narrow unions properly. If narrowing is needed repeatedly, put one cast inside a shared helper rather than scattering casts.
 - **Shared helpers, no duplication:** store reset/gating lives in `tv-ui/test/unit/helpers/stores.ts` (`resetStores()`, `setTvConfigLoaded()`); RTL cleanup is centralized in `tv-ui/test/setup.ts`. Never add per-file `cleanupRtl()` boilerplate.
-- **File placement:** unit tests in `test/unit/<area>/`, integration in `test/integration/`. Tests never live in `src/`. Import app code with the `src/` prefix.
+- **File placement:** unit tests in `test/unit/<area>/`, integration in `test/integration/`. Tests never live in `src/`. Import app code by relative path into `src/` (e.g. `../../../src/components/...`) — there's no `src/` alias.
 - **One behavior per test**, named after the behavior ("blocks sets and warns before tvConfigLoaded"), not the API.
 - **Doc citations:** tests verifying documented behavior cite it with `@see docs/<file>.md § "<heading>"`. If behavior is worth testing but not documented, document it.
 
 ## Why teardown is clean (parallel execution history)
 
-The suite runs fully parallel with zero unhandled errors. Getting there required three independent fixes; if regressions appear, check these first:
+The suite runs fully parallel with zero unhandled errors. Getting there required four independent fixes; if regressions appear, check these first:
 
 1. **Unhandled rejections in app code** — `updateTvConfig` in `tv-ui/src/helpers/stash-config-storage.ts` runs without a caller awaiting it, so any API failure must be caught there or it surfaces as an unhandled rejection.
 2. **Unit tests making real Apollo requests** — the tvConfig store hydrates through `stashConfigStorage`, which builds a real Apollo client. Even caught failures can leak unhandled rejections through Apollo's internal promises, so unit tests mock the client entirely (see "Test-only exceptions").
 3. **`graphql-ws` disposal** — see the disposal gotcha above.
+4. **XHRs settling after teardown** — Stash's VTT thumbnails plugin loads its `.vtt` with `XMLHttpRequest` and touches `window` when it loads; one landing after jsdom teardown fails the run with "window is not defined". `test/setup.ts` tracks in-flight XHRs and awaits them (bounded) in `afterAll`. ⚠️ Vitest 3.2 has no `onUnhandledError`/`onUnhandledRejection` config option — an earlier attempt to filter this error in `vitest.config.ts` was silently ignored, so fix such errors at the source rather than filtering.
 
 Full history of the investigation (including attempts that failed) lives in `docs/historical-plans/2026-08-30-websocket-cleanup-problem-handoff.md`.
 
@@ -154,6 +155,10 @@ describe("integration feature", () => {
 ⚠️ **Saved-filter fixtures must use Stash's UI shape for hierarchical criteria.** Stash's frontend saves tag/performer criteria in saved filters as `{value: {items: [{id, label}], excluded, depth}, modifier}` — *not* the flat `{value: [ids], modifier, depth}` criterion input the GraphQL API accepts. The mock's fixtures originally used the flat shape, which `ListFilterModel.configureFromSavedFilter` silently parses to an empty item list — tag filters matched nothing and nothing errored. Any new fixture with a tags/performers criterion must use the `items` shape.
 
 ⚠️ **Node 26 shadowing jsdom localStorage:** tests must run with `--no-experimental-webstorage` (already in the package `test` scripts — keep it there).
+
+⚠️ **Mousetrap needs `KeyboardEvent.which`, which jsdom leaves at 0.** Stash's keybind hooks (e.g. rating shortcuts) use Mousetrap, which reads only `which`; `test/setup.ts` polyfills it from `charCode`/`keyCode` as browsers do. Without it, Mousetrap bindings silently never fire under `userEvent`.
+
+⚠️ **Mousetrap is one shared instance across boots.** It's an externalised node_modules dependency, so `vi.resetModules()` doesn't give each `bootApp()` a fresh copy, and its bindings are global. Stash's rating keybinds unbind the digit keys on a 1s timer after `r`, and that timer lives in the stash-ui module instance of the app that started it — a re-imported app can't cancel it. A test that presses `r` must let that window expire before the next test (see `keyboard-rating.test.tsx`), or the stale timer can unbind the next app's digits mid-sequence.
 
 ⚠️ **Known jsdom limitations:** no pointer capture (Radix drag tests are skipped with reasons inline), no Gamepad API (stubbed in `setup.ts`), `HTMLMediaElement.play` stubbed. Document skipped tests inline.
 

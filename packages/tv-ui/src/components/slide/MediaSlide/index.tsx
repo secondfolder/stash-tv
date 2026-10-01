@@ -15,6 +15,7 @@ import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import { useTvConfig } from "../../../store/tvConfig";
 import CrtEffect from "../../CrtEffect";
 import { defaultMarkerLength, MediaItem } from "../../../hooks/useMediaItems";
+import { useKeyboardRating } from "../../../hooks/rating/useKeyboardRating";
 import hashObject from 'object-hash';
 import { createPortal } from "react-dom";
 import { useGetterRef } from "../../../hooks/useGetterRef";
@@ -671,6 +672,9 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
     };
   }, [isCurrentVideo, openDeleteConfirmation, sceneInfoOpen, setTvConfig, setGlobalState]);
 
+  // Every rendered slide calls this but only the current one binds the keys. Markers rate their parent scene.
+  useKeyboardRating(scene, { enabled: isCurrentVideo });
+
   /* -------------------------------- Subtitles ------------------------------- */
   // Update the subtitles track via the ref object
   useEffect(() => {
@@ -793,6 +797,7 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
         data-testid="MediaSlide--container"
         data-index={props.index}
         data-scene-id={scene.id}
+        data-current-video={isCurrentVideo}
         ref={mediaSlideElementRef}
         style={props.style}
       >

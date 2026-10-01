@@ -41,6 +41,32 @@ afterAll(async () => {
 });
 // -----------------------------------------------------------------------------
 
+// --- In-flight XHR settling ----------------------------------------------------
+//
+// Stash's VTT thumbnails plugin (bundled in stash-ui) fetches its .vtt file with
+// XMLHttpRequest and parses it — touching `window` — once it loads. If that load
+// lands after jsdom teardown it throws "window is not defined" as an unhandled
+// rejection, failing the run even though every test passed. Track every XHR and
+// let them settle (plus a tick for their `.then` handlers) before teardown. A
+// request that never settles is abandoned after a bound rather than hanging the hook.
+const inFlightXhrs = new Set<Promise<void>>();
+const realXhrSend = XMLHttpRequest.prototype.send;
+XMLHttpRequest.prototype.send = function (this: XMLHttpRequest, ...args: Parameters<XMLHttpRequest["send"]>) {
+  const settled = new Promise<void>((resolve) => {
+    this.addEventListener("loadend", () => setTimeout(resolve, 0), { once: true });
+  });
+  inFlightXhrs.add(settled);
+  settled.then(() => inFlightXhrs.delete(settled));
+  return realXhrSend.apply(this, args);
+};
+afterAll(async () => {
+  await Promise.race([
+    Promise.allSettled([...inFlightXhrs]),
+    new Promise((resolve) => setTimeout(resolve, 5000)),
+  ]);
+});
+// -----------------------------------------------------------------------------
+
 // RTL's auto-cleanup also relies on a global afterEach, which we don't have with
 // explicit imports — unmount after every test centrally instead of per-file.
 afterEach(cleanup);
@@ -118,6 +144,18 @@ if (!Element.prototype.hasPointerCapture) {
     return captured.get(this)?.has(pointerId) ?? false;
   };
 }
+
+// jsdom leaves the legacy `KeyboardEvent.which` at 0, but browsers set it to the
+// charCode (keypress) or keyCode (keydown/keyup) — and Mousetrap, which Stash's
+// keybind hooks (e.g. rating shortcuts) use, reads only `which`. Without this,
+// Mousetrap bindings never fire under userEvent.
+const jsdomWhich = Object.getOwnPropertyDescriptor(UIEvent.prototype, "which");
+Object.defineProperty(KeyboardEvent.prototype, "which", {
+  configurable: true,
+  get(this: KeyboardEvent) {
+    return this.charCode || this.keyCode || (jsdomWhich?.get?.call(this) ?? 0);
+  },
+});
 
 // HTMLMediaElement.play returns a promise in modern browsers
 if (!HTMLMediaElement.prototype.play) {

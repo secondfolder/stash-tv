@@ -10,7 +10,7 @@ import { useTvConfig } from "../../../store/tvConfig";
 import { ConfigurationContext } from "stash-ui/dist/src/hooks/Config";
 import { defaultRatingSystemOptions, RatingSystemType } from "stash-ui/dist/src/utils/rating";
 import { RatingSystem } from "stash-ui/wrappers/components/shared/RatingSystem";
-import { useSceneUpdate } from "../../../hooks/useSceneUpdate";
+import { useSetRating } from "../../../hooks/rating/useSetRating";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 
 const id = "rate-scene";
@@ -52,17 +52,7 @@ export function RateSceneActionButton({
     }
   }
 
-  const [updateScene] = useSceneUpdate(scene);
-  function setRating(newRating: number | null) {
-    updateScene({
-      variables: {
-        input: {
-          id: scene.id,
-          rating100: newRating,
-        },
-      },
-    });
-  }
+  const setRating = useSetRating(scene);
 
   return <ActionButtonBase
     state={typeof scene.rating100 === "number" ? "active" : "inactive"}

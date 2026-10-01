@@ -57,3 +57,88 @@ index 00000000..ac806bbb
 +    name
 +  }
 +}
+diff --git a/ui/v2.5/src/hooks/keybinds.ts b/ui/v2.5/src/hooks/keybinds.ts
+index ac6ab4dd..c684a39b 100644
+--- a/ui/v2.5/src/hooks/keybinds.ts
++++ b/ui/v2.5/src/hooks/keybinds.ts
+@@ -2,6 +2,11 @@ import Mousetrap from "mousetrap";
+ import { useEffect, useRef } from "react";
+ import { RatingSystemType } from "src/utils/rating";
+ 
++// Module-level rather than per hook instance: the Mousetrap bindings are
++// global, so a sequence started from one instance must be able to cancel the
++// pending timeout of a sequence started from another.
++let sequenceTimeout: ReturnType<typeof setTimeout> | undefined;
++
+ export function useRatingKeybinds(
+   isVisible: boolean,
+   ratingSystem: RatingSystemType | undefined,
+@@ -9,6 +14,23 @@ export function useRatingKeybinds(
+ ) {
+   const firstChar = useRef<string | undefined>(undefined);
+ 
++  const sequenceKeys = ["`", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
++
++  function endSequence() {
++    firstChar.current = undefined;
++    for (const key of sequenceKeys) {
++      Mousetrap.unbind(key);
++    }
++  }
++
++  // (Re)start the window in which the rest of the sequence must be typed.
++  // Clearing any pending timeout matters: otherwise the timeout from an
++  // earlier sequence can fire part way through a new one and drop it.
++  function restartSequenceTimeout() {
++    clearTimeout(sequenceTimeout);
++    sequenceTimeout = setTimeout(endSequence, 1000);
++  }
++
+   const starRatingShortcuts: { [char: string]: number } = {
+     "0": NaN,
+     "1": 20,
+@@ -22,12 +44,6 @@ export function useRatingKeybinds(
+     for (const key in starRatingShortcuts) {
+       Mousetrap.bind(key, () => setRating(starRatingShortcuts[key]));
+     }
+-
+-    setTimeout(() => {
+-      for (const key in starRatingShortcuts) {
+-        Mousetrap.unbind(key);
+-      }
+-    }, 1000);
+   }
+ 
+   function handleDecimalKeybinds() {
+@@ -47,18 +63,11 @@ export function useRatingKeybinds(
+           firstChar.current = undefined;
+         } else {
+           firstChar.current = i.toString();
++          // give the second digit a full window of its own
++          restartSequenceTimeout();
+         }
+       });
+     }
+-
+-    setTimeout(() => {
+-      firstChar.current = undefined;
+-
+-      Mousetrap.unbind("`");
+-      for (let i = 0; i <= 9; ++i) {
+-        Mousetrap.unbind(i.toString());
+-      }
+-    }, 1000);
+   }
+ 
+   useEffect(() => {
+@@ -71,6 +80,10 @@ export function useRatingKeybinds(
+         document.activeElement.blur();
+       }
+ 
++      // pressing r again starts a fresh sequence
++      endSequence();
++      restartSequenceTimeout();
++
+       if (!ratingSystem || ratingSystem === RatingSystemType.Stars) {
+         return handleStarRatingKeybinds();
+       } else {

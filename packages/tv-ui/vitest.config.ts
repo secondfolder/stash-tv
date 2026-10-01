@@ -26,30 +26,7 @@ const sharedTestOptions = {
   hookTimeout: 20000,
   restoreMocks: true,
   logHeapUsage: true,
-  onUnhandledError: suppressPostTeardownNoise,
-  onUnhandledRejection: suppressPostTeardownNoise,
 };
-
-/**
- * The VTT thumbnails plugin (bundled in stash-ui dist) sets up timers that
- * fire after jsdom teardown, causing "window is not defined" errors from
- * third-party code we can't patch. Suppression is deliberately narrow: the
- * error must come from that plugin's stack so genuine app-code errors with
- * the same message still fail the run.
- */
-function suppressPostTeardownNoise(error: unknown): void {
-  const stack = error instanceof Error ? error.stack ?? "" : "";
-  const fromBundledThirdParty = /stash-ui|node_modules/.test(stack);
-  if (
-    error instanceof ReferenceError &&
-    error.message === "window is not defined" &&
-    fromBundledThirdParty
-  ) {
-    return;
-  }
-  // Let other errors propagate - they might be real issues
-  throw error;
-}
 
 export default defineConfig({
   resolve: {

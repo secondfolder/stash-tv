@@ -33,6 +33,7 @@ Feature-specific documentation lives under `docs/`. Read the one that covers wha
 | [Action buttons](docs/action-buttons.md) | Adding an action button or touching `src/components/action-buttons/` (schemas, config, folders)           |
 | [Release process](docs/release-process.md) | Writing commits, preparing releases, or understanding versioning/deployment flow                          |
 | [Testing](docs/testing.md)              | Writing or modifying any test, running the suites, or touching test infrastructure/polyfills          |
+| [Keyboard shortcuts](docs/keyboard-shortcuts.md) | Adding, removing or rebinding a keyboard shortcut, or touching the shortcut help text                  |
 
 Adding a new doc means adding its row to this table. A test validates that every doc in `docs/` is listed here and every link points to a real file — a doc without a row is caught rather than going unnoticed.
 
@@ -226,6 +227,7 @@ Settings & UI Overlays:
 - **Feed of scenes/markers via saved Stash filters**, with lazy pagination and accumulation ([media loading](docs/media-loading.md))
 - **Video player** built on Stash's ScenePlayer/Video.js — requires many workarounds; see [video player](docs/video-player.md) before touching playback
 - **Custom media modifier functions** — user-defined JS (stored as a string, parsed via `getFunctionFromString()`) applied to the media list before display
+- **Keyboard shortcuts** — ⚠️ any change that adds, removes or rebinds a shortcut must also update the help text in `KeyboardShortcutsInfo.md` (see [keyboard shortcuts](docs/keyboard-shortcuts.md))
 - **Gamepad/controller support** (`useGamepad()`), **CRT TV effect** (CSS/shader-based, configurable strength), **forced landscape rotation** (`useViewportRotate()`)
 
 ---
