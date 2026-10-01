@@ -87,3 +87,27 @@ export function roundTo(num: number, decimals = 0) {
 export function roundToNearest(num: number, nearest = 1) {
   return Math.round(num / nearest) * nearest;
 }
+
+/** Returns the option after the one whose value is `current`, wrapping around to
+ * the first. An unknown `current` also yields the first option. */
+export function getNextOption<Option extends { value: unknown }>(options: readonly Option[], current: Option["value"]): Option | undefined {
+  const currentIndex = options.findIndex(option => option.value === current);
+  return options[(currentIndex + 1) % options.length];
+}
+
+/** Formats a length of time in seconds for display, e.g. 90 -> "1 minute 30 seconds". */
+export function formatDuration(totalSeconds: number) {
+  const units = [
+    { name: "hour", seconds: 60 * 60 },
+    { name: "minute", seconds: 60 },
+    { name: "second", seconds: 1 },
+  ];
+  let remaining = Math.round(totalSeconds);
+  const parts = [];
+  for (const unit of units) {
+    const count = Math.floor(remaining / unit.seconds);
+    remaining -= count * unit.seconds;
+    if (count > 0) parts.push(`${count} ${unit.name}${count === 1 ? "" : "s"}`);
+  }
+  return parts.length ? parts.join(" ") : "0 seconds";
+}

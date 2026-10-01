@@ -8,6 +8,7 @@ import { useFormik } from "formik";
 import { buttonDefinition as createMarkerButtonDefinition } from "./CreateMarkerActionButton";
 import { buttonDefinition as deleteMediaItemButtonDefinition } from "./DeleteMediaItemActionButton";
 import { buttonDefinition as editTagsButtonDefinition } from "./EditTagsActionButton";
+import { buttonDefinition as endPositionButtonDefinition } from "./EndPositionActionButton";
 import { buttonDefinition as forceLandscapeButtonDefinition } from "./ForceLandscapeActionButton";
 import { buttonDefinition as fullscreenButtonDefinition } from "./FullscreenActionButton";
 import { buttonDefinition as letterboxingButtonDefinition } from "./LetterboxingActionButton";
@@ -20,6 +21,7 @@ import { buttonDefinition as resolutionButtonDefinition } from "./ResolutionActi
 import { buttonDefinition as setOrganizedButtonDefinition } from "./SetOrganizedActionButton";
 import { buttonDefinition as settingsButtonDefinition } from "./SettingsActionButton";
 import { buttonDefinition as showSceneInfoButtonDefinition } from "./ShowSceneInfoActionButton";
+import { buttonDefinition as startPositionButtonDefinition } from "./StartPositionActionButton";
 import { buttonDefinition as subtitlesButtonDefinition } from "./SubtitlesActionButton";
 import { buttonDefinition as uiVisibilityButtonDefinition } from "./UiVisibilityActionButton";
 import { unknownActionButtonDefinition } from "./UnknownActionButton";
@@ -71,6 +73,8 @@ export const allButtonDefinition = [
   setOrganizedButtonDefinition,
   playbackRateButtonDefinition,
   volumeButtonDefinition,
+  startPositionButtonDefinition,
+  endPositionButtonDefinition,
 ] as const
 
 export type ActionButtonDefinition = typeof allButtonDefinition[number]

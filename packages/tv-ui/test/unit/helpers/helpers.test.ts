@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GenderEnum } from "stash-ui/dist/src/core/generated-graphql";
-import { clamp, roundTo, roundToNearest, sortPerformers } from "../../../src/helpers";
+import { clamp, formatDuration, getNextOption, roundTo, roundToNearest, sortPerformers } from "../../../src/helpers";
 
 describe("clamp", () => {
   it("clamps below the minimum", () => {
@@ -68,5 +68,40 @@ describe("sortPerformers", () => {
       "Bob",
       "Zara",
     ]);
+  });
+});
+
+describe("getNextOption", () => {
+  const options: { value: string }[] = [{ value: "a" }, { value: "b" }, { value: "c" }];
+
+  it("returns the option after the current one", () => {
+    expect(getNextOption(options, "a")).toEqual({ value: "b" });
+  });
+
+  it("wraps from the last option to the first", () => {
+    expect(getNextOption(options, "c")).toEqual({ value: "a" });
+  });
+
+  it("falls back to the first option for an unknown value", () => {
+    expect(getNextOption(options, "unknown")).toEqual({ value: "a" });
+  });
+
+  it("returns undefined when there are no options", () => {
+    expect(getNextOption<{ value: string }>([], "a")).toBeUndefined();
+  });
+});
+
+describe("formatDuration", () => {
+  it("names each non-zero unit, singular or plural", () => {
+    expect(formatDuration(3661)).toBe("1 hour 1 minute 1 second");
+    expect(formatDuration(7320)).toBe("2 hours 2 minutes");
+  });
+
+  it("rounds to whole seconds", () => {
+    expect(formatDuration(29.6)).toBe("30 seconds");
+  });
+
+  it("describes zero as 0 seconds", () => {
+    expect(formatDuration(0)).toBe("0 seconds");
   });
 });

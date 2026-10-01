@@ -93,6 +93,19 @@ Side panel behaviour (implemented in `ActionButtonBase/SidePanel`):
 
 Convention: buttons add the `hide-on-ui-hide` CSS class so they hide along with the other UI controls.
 
+## Cycle-Option Buttons
+
+Some buttons step through the options of a multi-option setting instead of toggling a boolean. The `start-position` and `end-position` buttons do this for the Settings tab's **Start Point** / **End Point** (`tvConfig.startPosition` / `endPosition`). Both render through `CycleOptionActionButton` (`buttons/CycleOptionActionButton.tsx`):
+
+- Each click selects the next option and wraps from the last back to the first (`getNextOption` in `src/helpers/`). The new option's label is shown briefly in the `FeedbackOverlay`.
+- The button's `state` is the current option's value, and the title (built by `cycleOptionTitle`) is the current option's label, e.g. "Play from the beginning". The icon is fixed (a location pin with a play / stop symbol) so the button is recognisable whatever is selected.
+- The current option's `shortLabel` is shown as `sideInfo` beside the button, except for the option that leaves playback unchanged (`beginning` / `video-end`, passed as `unlabelledValue`). So the label only appears when the button is changing where playback starts or ends.
+- ⚠️ The settings list and folder previews render every button in the `"inactive"` state, which isn't an option value, so the title falls back to a generic name ("Change start point").
+- The option lists (`START_POSITION_OPTIONS` / `END_POSITION_OPTIONS` in `src/constants/`) are shared with the Settings tab's selects, and the tvConfig types are derived from them. Add an option there (with a `shortLabel` for the side label) and both the select and the button pick it up.
+- An option's `label` and `shortLabel` can be functions of `PlaybackPositionLabelContext`. For example, fixed-length reads "Play for 1 minute 30 seconds" with a "1 minute 30 seconds" side label, using `tvConfig.playLength` ("full length" when unset, since the whole scene then plays). Read the options through `usePlaybackPositionOptions()` (`src/hooks/`), which resolves both to strings; don't use the constants directly where a label is displayed (react-select, for one, expects string labels). That's also why `cycleOptionTitle` takes a hook rather than an options array.
+- ⚠️ `usePlaybackPositionOptions()` has an explicit return type on purpose. tvConfig's types depend on the button definitions, whose titles call this hook, so an inferred return type (which would come from `useTvConfig`) makes the types circular. That shows up as a long list of unrelated "implicitly has type 'any'" errors across the action buttons.
+- These settings only apply to scene slides (markers always play in full), and the Settings tab hides them in scene preview-only mode. The buttons stay clickable everywhere; on slides the setting doesn't apply to, it changes with no visible effect.
+
 ## Rendering (`ActionButtonStack`)
 
 - Rendered by `MediaSlide` per slide with `mediaItem`, `playerRef`, `sceneInfoOpen`, etc.

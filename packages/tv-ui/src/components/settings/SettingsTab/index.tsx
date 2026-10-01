@@ -22,6 +22,7 @@ import { ActionButtonSettingsModal } from "../ActionButtonSettingsModal";
 import { getStashOrigin } from "../../../helpers/getStashOrigin";
 import Slider from "../../controls/slider";
 import { getFunctionFromString } from "../../../helpers/getFunctionFromString";
+import { usePlaybackPositionOptions } from "../../../hooks/usePlaybackPositionOptions";
 import { ActionButtonIcon, ActionButtonTitle } from "../../action-buttons/ActionButtonBase";
 import { ActionButtonConfig, allButtonDefinition, getActionButtonDefinition } from "../../action-buttons/buttons";
 import { createNewActionButtonConfig } from "../../action-buttons/action-button-config";
@@ -170,17 +171,7 @@ const SettingsTab = memo(() => {
     disableClose = true;
   }
 
-  const startPositionOptions = [
-    { value: 'resume', label: 'Resume from last position' },
-    { value: 'beginning', label: 'Beginning' },
-    { value: 'random', label: 'Random marker (or position if none)' },
-  ] as const
-
-  const endPositionOptions = [
-    { value: 'video-end', label: 'End of video' },
-    { value: 'fixed-length', label: 'After a fixed length of time' },
-    { value: 'random-length', label: 'After a random length of time' },
-  ] as const
+  const { startPositionOptions, endPositionOptions } = usePlaybackPositionOptions()
 
   const logLevelOptions = useMemo(() => (
     Object.entries(

@@ -138,9 +138,9 @@ describe("integration feature", () => {
 
 ## Gotchas
 
-⚠️ **Nothing typechecks tests automatically.** There is no pre-commit hook in this repo (no husky/lint-staged; commitlint covers commit messages in CI only), and **vitest does not typecheck** — esbuild strips types. Type errors have landed in `main` test files this way. Run `npx tsc --noEmit -p tsconfig.json` **from the repo root** as part of any test change.
+⚠️ **Running tests doesn't typecheck them.** There is no pre-commit hook in this repo (no husky/lint-staged; commitlint covers commit messages in CI only), and **vitest does not typecheck** — esbuild strips types. Type errors have landed in `main` test files this way. Run `yarn typecheck` from the repo root as part of any test change. It checks the root tsconfig (tv-ui, tv-plugin, mock-stash) and `packages/repo`'s own tsconfig.
 
-⚠️ **`tsc` run inside a package directory checks only that package.** `packages/repo` and `packages/mock-stash` have their own `tsconfig.json`; running bare `tsc` there silently skips tv-ui and vice versa (the root tsconfig is the only one covering `tv-ui`).
+⚠️ **A bare `tsc` covers only one tsconfig.** `packages/repo` has its own `tsconfig.json`, which the root one doesn't include. Running `tsc` there skips everything else, and running it at the root skips `packages/repo`. `yarn typecheck` runs both.
 
 ⚠️ **jest-dom matcher typing can disagree between CLI and editor.** jest-dom v5 (pinned for React 17) ships only Jest-style types via `@types/testing-library__jest-dom`, which augments the global `jest.Matchers` namespace. Vitest's `Assertion` extends `jest.Matchers`, so the CLI resolves matchers via auto-included `@types` — but the editor's TS server doesn't reliably apply that augmentation, producing phantom "Property 'toHaveStyle' does not exist" errors that `tsc --noEmit` doesn't report. The explicit bridge in `tv-ui/types/jest-dom-matchers.d.ts` declares the matchers directly on vitest's `Assertion` so both agree. If you add more matcher libraries, extend that bridge.
 
@@ -157,6 +157,8 @@ describe("integration feature", () => {
 ⚠️ **`startMockStash` rejects with `EADDRINUSE` when its fixed port is taken** (it used to hang until the hook timeout). Find leftovers with `lsof -nP -iTCP:4000 -sTCP:LISTEN`. The WebSocket server is attached only after `listen` succeeds, because `ws` re-emits HTTP server errors and graphql-ws would log them as a noisy "internal error".
 
 ⚠️ **`DEBUG_MOCK_REQUESTS=1` logs every GraphQL operation mock-stash executes** (operation name + variables) — the fastest way to see what the app actually sends when debugging integration/e2e tests.
+
+⚠️ **SVG `?react` imports need `vite-plugin-svgr` in every Vitest project.** Vitest projects don't inherit root `plugins`, so `vitest.config.ts` sets `svgr()` on each project. Without it `*.svg?react` resolves to a data-URL string. A button whose whole `icon` is such a string then renders "?" (see the `ActionButtonIcon` string bug under "App-code smells"), and the "?" ends up in its accessible name.
 
 ⚠️ **Action buttons have no `data-testid`.** The per-type button components don't thread unknown props to the DOM, so e2e asserts on the `ActionButton` root class (the component's contract). If buttons ever gain a testid, prefer it (see "Known gaps").
 
@@ -186,7 +188,7 @@ Issues found in the 2026-09 test-suite review that were **not** fixed — pick t
 ### Enforcement (highest leverage)
 
 - **No lint enforcement of the standards.** The `any`/`as`-cast/`fireEvent` drift the review found would be caught by a minimal ESLint config (`@typescript-eslint/no-explicit-any`, `no-unnecessary-type-assertion`, RTL-specific rules) scoped to test files. Until then, the standards are manual.
-- **Nothing typechecks tests in CI.** A `tsc --noEmit` step run from the repo root would close the "esbuild strips types" hole permanently (cheaper than adopting full lint).
+- **CI doesn't typecheck `packages/repo`.** CI's TypeScript check runs `tsc --noEmit` against the root tsconfig, which covers tv-ui (tests included), tv-plugin and mock-stash but not `packages/repo`. Switching that step to `yarn typecheck` would close the gap.
 - **No coverage thresholds.** Coverage is scoped to `src/**` (stories excluded) but nothing prevents regressions. Consider `coverage.thresholds` once the numbers stabilise.
 
 ### Known coverage holes (from the v8 report)

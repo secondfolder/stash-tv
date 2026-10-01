@@ -6,7 +6,7 @@ import { usePrevious } from "react-use";
 import { getLogger } from "@logtape/logtape";
 import { useTvConfig } from "../../store/tvConfig";
 
-const displayDuration = 1000; // milliseconds
+const defaultDisplayDuration = 1000; // milliseconds
 
 const logger = getLogger(["stash-tv", "FeedbackOverlay"]);
 
@@ -21,13 +21,14 @@ export const useFeedback = create<{
       hold?: boolean,
       fade?: boolean,
       icon?: React.ReactNode,
+      displayDuration?: number,
     }
   ) => void,
 }>((set, get) => ({
   contents: null,
   fade: true,
   icon: null,
-  setFeedback: (contents: React.ReactNode, {hold, fade = true, icon} = {}) => {
+  setFeedback: (contents: React.ReactNode, {hold, fade = true, icon, displayDuration = defaultDisplayDuration} = {}) => {
     if (get().displayCountdown) {
       clearTimeout(get().displayCountdown as NodeJS.Timeout)
     }

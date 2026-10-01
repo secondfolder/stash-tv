@@ -5,6 +5,7 @@ import { defaultLogLevel } from '../helpers/logging';
 import { stashConfigStorage } from '../helpers/stash-config-storage';
 import { useGlobalState } from "./globalState"
 import { ActionButtonStackConfig } from '../components/action-buttons/ActionButtonStack';
+import { END_POSITION_OPTIONS, START_POSITION_OPTIONS } from '../constants';
 export type DebuggingInfo = "render-debugging" | "onscreen-info" | "virtualizer-debugging";
 
 export const tvConfigStorageKey = 'app-state';
@@ -26,8 +27,8 @@ type TvConfig = {
   onlyShowMatchingOrientation: boolean;
   maxMedia: undefined | number;
   autoPlay: boolean;
-  startPosition: 'resume' | 'beginning' | 'random';
-  endPosition: 'video-end' | 'fixed-length' | 'random-length';
+  startPosition: typeof START_POSITION_OPTIONS[number]['value'];
+  endPosition: typeof END_POSITION_OPTIONS[number]['value'];
   playLength?: number;
   pageSize: number;
   mediaItemsModifierFunction?: string;
@@ -103,6 +104,7 @@ const defaults = {
       {id: "13.2", type: "button", buttonType: "playback-rate", pinned: false},
       {id: "13.3", type: "button", buttonType: "subtitles", pinned: false},
       {id: "13.4", type: "button", buttonType: "fullscreen", pinned: false},
+      {id: "13.5", type: "button", buttonType: "resolution", pinned: false},
     ]}
   ],
   playbackRate: 1,

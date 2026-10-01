@@ -97,6 +97,9 @@ yarn dev          # Dev server with auto-rebuild; API calls go to STASH_ADDRESS
 # Build everything
 yarn build        # Outputs: packages/stash-ui/dist, packages/tv-ui/dist/app, packages/tv-plugin/dist
 
+# Type check every package
+yarn typecheck
+
 # Storybook
 yarn storybook    # Starts on port 6006
 ```
@@ -271,7 +274,7 @@ Full testing reference — tiers, commands, standards, and gotchas: [testing](do
 
 - **Linting:** No ESLint configuration present (not enforced)
 - **Testing:** Vitest suites in `packages/tv-ui` (unit + integration, jsdom), `packages/mock-stash` (meta + Docker conformance), and `packages/repo` (docs validation). Run everything with `yarn test` at the root.
-- **Type Checking:** `tsc --noEmit` — ⚠️ run it from the repo root (packages with their own tsconfig only check themselves), and note nothing typechecks tests automatically (no pre-commit hook; vitest strips types). See [testing](docs/testing.md) § "Gotchas".
+- **Type Checking:** `yarn typecheck` from the repo root checks every package (a bare `tsc` covers only one tsconfig). Running tests doesn't typecheck them (no pre-commit hook; vitest strips types). See [testing](docs/testing.md) § "Gotchas".
 
 ---
 
