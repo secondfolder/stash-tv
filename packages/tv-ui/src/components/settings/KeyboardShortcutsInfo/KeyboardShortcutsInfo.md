@@ -37,4 +37,5 @@ Ratings set on a marker apply to the marker's scene.
 | `c` | Toggle CRT effect |
 | `f` | Toggle fullscreen |
 | `o` | Toggle forced landscape orientation |
+| `p` | Toggle picture-in-picture |
 | `s` | Toggle subtitles |

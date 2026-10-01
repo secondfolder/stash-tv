@@ -199,7 +199,14 @@ const VideoScroller: React.FC<VideoScrollerProps> = memo(() => {
       const newScrollTop = index * itemHeight
       temporarilyDisableScrollSnapping();
       logger.debug(`Scrolling to index ${index} at height ${newScrollTop}`);
-      rowVirtualizer.scrollElement?.scrollTo({ top: newScrollTop, behavior: "smooth", ...options });
+      rowVirtualizer.scrollElement?.scrollTo({
+        top: newScrollTop,
+        behavior: "smooth",
+        ...options,
+        // A smooth scroll may never finish while the page is hidden (e.g. watching in picture-in-picture from another
+        // tab) which would stop the rendered slides keeping up with currentIndex as the feed auto-advances
+        ...(document.hidden ? { behavior: "instant" } : {}),
+      });
     },
     [rowVirtualizer]
   );

@@ -14,6 +14,7 @@ import { buttonDefinition as fullscreenButtonDefinition } from "./FullscreenActi
 import { buttonDefinition as letterboxingButtonDefinition } from "./LetterboxingActionButton";
 import { buttonDefinition as loopButtonDefinition } from "./LoopActionButton";
 import { buttonDefinition as oCounterButtonDefinition } from "./OCounterActionButton";
+import { buttonDefinition as pictureInPictureButtonDefinition } from "./PictureInPictureActionButton";
 import { buttonDefinition as playbackRateButtonDefinition } from "./PlaybackRateActionButton";
 import { buttonDefinition as quickTagButtonDefinition } from "./QuickTagActionButton";
 import { buttonDefinition as rateSceneButtonDefinition } from "./RateSceneActionButton";
@@ -75,6 +76,7 @@ export const allButtonDefinition = [
   volumeButtonDefinition,
   startPositionButtonDefinition,
   endPositionButtonDefinition,
+  pictureInPictureButtonDefinition,
 ] as const
 
 export type ActionButtonDefinition = typeof allButtonDefinition[number]
