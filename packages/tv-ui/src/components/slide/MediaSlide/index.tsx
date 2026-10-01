@@ -47,6 +47,8 @@ import { EditTagsContents } from "../../EditTagsContents";
 import { Modal } from "../../containers/Modal";
 import { useSceneStreamSelection } from "../../../hooks/useSceneStreamSelection";
 import { useSyncPlayerWithPreferredStream } from "../../../hooks/useSyncPlayerWithPreferredStream";
+import { useFollowPictureInPicture } from "../../../hooks/usePictureInPicture";
+import { isPictureInPictureSupported, togglePictureInPicture } from "../../../helpers/picture-in-picture";
 import {
   isDirectStream,
   ORIGINAL_RESOLUTION_LABEL,
@@ -216,6 +218,8 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
     );
   }, [noAnimateDurationThreshold, props.changeItemHandler, props.index, isCurrentVideo]);
 
+  useFollowPictureInPicture({ playerRef: videojsPlayerRef, isCurrentVideo, playerReady, goToItem });
+
   useEffect(() => {
     if (!isCurrentVideo || !videojsPlayerRef.current) return;
     window.videojs = videojs as unknown as typeof window.videojs
@@ -260,8 +264,19 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
       if (!autoplay) return;
       videojsPlayerRef.current?.play();
     } else if (!isFirstMount) {
-      videojsPlayerRef.current?.pause();
-      videojsPlayerRef.current?.cancelLoading?.();
+      const player = videojsPlayerRef.current;
+      player.pause();
+      if (!player.isInPictureInPicture()) {
+        player.cancelLoading?.();
+        return;
+      }
+      // Unloading clears the video's source which would close picture-in-picture before it's moved to the new current
+      // video, so wait till it has been
+      const cancelLoading = () => player.cancelLoading?.();
+      player.one("leavepictureinpicture", cancelLoading);
+      return () => {
+        if (!player.isDisposed()) player.off("leavepictureinpicture", cancelLoading);
+      };
     }
   }, [isCurrentVideo, autoplay]);
 
@@ -663,6 +678,11 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
           break;
         case "f":
           setGlobalState("fullscreen", (prev) => !prev);
+          break;
+        case "p":
+          if (!isPictureInPictureSupported()) return;
+          // Failures are logged; unlike the action button there's nowhere to show a note
+          void togglePictureInPicture(videojsPlayerRef.current);
           break;
         default:
           return;

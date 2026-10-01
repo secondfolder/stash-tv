@@ -46,9 +46,25 @@ Also note:
 
 - Only a **subset of `SceneDataFragment`** is passed to the wrapped ScenePlayer to reduce network requests — see the `scene` memo in `ScenePlayer/index.tsx`
 - We define our own `onEnded` prop instead of the wrapped component's `onComplete` (optional + matches the standard HTMLVideoElement event name)
-- Player options are injected/modified via `modifyPlayerSetupOptions` and the `optionsToMerge` / `onVideojsPlayerCreated` props
-- The browser's native PiP hover icon is disabled (`disablePictureInPicture`) as it interferes with our menu overlay
+- Player options are injected/modified via `modifyPlayerSetupOptions` and the `optionsToMerge` /
+  `onVideojsPlayerCreated` props
 - ⚠️ **A new `scene` object re-renders the player but doesn't reload the video.** Slides get live data from the Apollo cache (see [media loading](docs/media-loading.md) § "Live item data"), so the scene object changes whenever anything about it does, including the play position Stash saves every few seconds. Stash's ScenePlayer only reinitialises the source when `scene.id` changes (its source effect bails out on `scene.id === sceneId.current`). Its other `scene`-dependent effects (markers, interactive) do re-run. Don't key the player on scene data: `MediaSlide` keys `ScenePlayer` on the scene ID and `sceneStreams` only, so a remount happens only when the streams really change (e.g. toggling preview-only)
+- The browser's native PiP hover icon is disabled (`disablePictureInPicture`) as it interferes with our menu overlay. Our own PiP support works around this — see [Picture-in-picture](#picture-in-picture)
+
+---
+
+## Picture-in-picture
+
+The `picture-in-picture` action button (and the `p` shortcut) puts the current slide's video into the browser's PiP window, and PiP then follows the feed. Helpers live in `src/helpers/picture-in-picture.ts`, hooks in `src/hooks/usePictureInPicture.ts`.
+
+- **Support:** the button hides itself unless `document.pictureInPictureEnabled` is true. That's false on Firefox Android, Android WebView, Firefox before 153, and when a permissions policy blocks PiP.
+- **`disablePictureInPicture`:** every player has it set (see above), and it also blocks `requestPictureInPicture()`. Video.js 7 then returns `undefined` instead of a promise. `enterPictureInPicture()` clears it just before the request and restores it when that player fires `leavepictureinpicture`. ⚠️ Don't restore it any earlier: setting it while the video is in PiP closes the PiP window.
+- **User gesture:** entering PiP from nothing has to come straight from a click or keypress handler. So the button and the shortcut call `togglePictureInPicture()` synchronously, not through state and an effect.
+- **Not-yet-loaded video:** if the first request fails for a video that isn't playing (typically no metadata yet: never played, or unloaded by the pause-loading plugin), `togglePictureInPicture()` plays it, waits up to 5s for `loadedmetadata`, and retries once. The retry relies on the click's transient activation still being valid (about 5s in Chrome and Firefox), hence the timeout. If PiP still can't start, the button opens its side panel asking the user to play the video first; the `p` shortcut only logs the failure. A failed request restores `disablePictureInPicture` straight away.
+- **Following the feed:** `useFollowPictureInPicture()` (called by every `MediaSlide`) moves PiP to the current slide's player when it becomes current (or its player is created) while another video is in PiP. Moving PiP needs no user gesture: the spec only requires one when nothing is in PiP yet. `document.pictureInPictureElement` goes straight from the old video to the new one, so `usePictureInPictureActive()` never sees a gap. If a browser refuses the hand-off anyway, PiP is closed so it isn't left showing the previous, now paused, video.
+- ⚠️ **The new video must have metadata:** browsers refuse PiP for a video at `readyState` `HAVE_NOTHING` (`InvalidStateError`), which is common for a slide that has only just become current. The hand-off waits for `loadedmetadata`; until then the PiP window keeps showing the previous video. For the same reason, a slide that stops being current while its video is in PiP defers `cancelLoading()` (which clears the video's `src` and would close PiP) until that video leaves PiP.
+- **Media Session:** while a video is in PiP, the current slide registers `nexttrack` / `previoustrack` handlers (calling `goToItem`), which Chromium shows as buttons in the PiP window. They're only registered while in PiP so OS media keys don't drive the feed otherwise. The handlers are global; hand-over between slides relies on both slides' `isCurrentVideo` changing in the same commit (see [keyboard shortcuts](keyboard-shortcuts.md) § "Rating shortcuts" for the same pattern).
+- **Hidden page:** PiP is usually watched with the tab in the background, where a smooth scroll may never finish. `VideoScroller.scrollToIndex` therefore always scrolls instantly while `document.hidden`. Otherwise auto-advance would move `currentIndex` but not the virtualizer's rendered window, and slides beyond the overscan buffer would never mount.
 
 ---
 

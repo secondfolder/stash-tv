@@ -5,7 +5,7 @@ How Stash TV's keyboard shortcuts are wired, and the rules for adding or changin
 ## Where shortcuts live
 
 - **Feed navigation** (`↑`/`↓`, and `←`/`→` in forced landscape) and the CRT toggle (`c`) — `VideoScroller`, as plain `window` keydown listeners.
-- **Per-slide shortcuts** (seeking, play/pause, delete, tag edit, info, mute, looping, subtitles, fullscreen, landscape) — `MediaSlide`, as `window` keydown listeners registered only while `isCurrentVideo` is true. Seek listeners use the capture phase so Video.js never sees the arrow keys.
+- **Per-slide shortcuts** (seeking, play/pause, delete, tag edit, info, mute, looping, subtitles, fullscreen, picture-in-picture, landscape) — `MediaSlide`, as `window` keydown listeners registered only while `isCurrentVideo` is true. Seek listeners use the capture phase so Video.js never sees the arrow keys.
 - **Help** (`?`) — `FeedPage`, a `window` keydown listener mirroring Stash's `?` (which opens Stash's manual). It sets `globalState.keyboardShortcutsOpen`, which also backs the Settings → "Show Keyboard Shortcuts" button, so the modal is rendered by `FeedPage` rather than inside `SettingsTab`.
 - **Rating** — `useKeyboardRating()` (`src/hooks/rating/`), which reuses Stash's `useRatingKeybinds` (Mousetrap). See [Rating shortcuts](#rating-shortcuts).
 
