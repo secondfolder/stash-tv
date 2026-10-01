@@ -17,7 +17,7 @@ import CrtEffect from "../../CrtEffect";
 import { defaultMarkerLength, MediaItem, MediaItemRef } from "../../../hooks/useMediaItems";
 import { useLiveMediaItem } from "../../../hooks/useLiveMediaItem";
 import { useKeyboardRating } from "../../../hooks/rating/useKeyboardRating";
-import hashObject from 'object-hash';
+import { getSceneStreamsKey } from '../../../helpers/getSceneStreamsKey';
 import { createPortal } from "react-dom";
 import { useGetterRef } from "../../../hooks/useGetterRef";
 import videojs from "video.js";
@@ -122,6 +122,12 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
   }, [isCurrentVideo, props.mediaItem.id])
 
   const scene = props.mediaItem.entityType === "scene" ? props.mediaItem.entity : props.mediaItem.entity.scene;
+
+  // Keys ScenePlayer (below) so it remounts only when the streams really change. A plain hash of sceneStreams isn't
+  // enough: Stash's save-activity mutation (sent every 10s of playback and on pause) evicts all cached findScenes
+  // results, so the feed query refetches, and Stash versions that sign stream URLs (stashapp/stash#6529) return
+  // a new expires/signature for every stream each time. That remounted the player and restarted playback.
+  const sceneStreamsKey = useMemo(() => getSceneStreamsKey(scene.sceneStreams), [scene.sceneStreams]);
 
   const getMediaItemDuration = () => props.mediaItem.entityType === "marker" ? props.mediaItem.entity.duration : props.mediaItem.entity.files[0]?.duration;
 
@@ -849,7 +855,7 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
           {!loadingDeferred && <ScenePlayer
             id={`scene-player-${props.mediaItem.id}`}
             // Force remount when scene streams change to ensure videojs reloads the source
-            key={JSON.stringify([scene.id, hashObject(scene.sceneStreams)])}
+            key={JSON.stringify([scene.id, sceneStreamsKey])}
             onTimeUpdate={handleOnTimeUpdate}
             mediaItem={props.mediaItem}
             scene={scene}
