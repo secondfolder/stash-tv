@@ -1,8 +1,8 @@
 /**
  * The create-marker action button.
  *
- * Without marker defaults it opens Stash's marker form, with controls for editing one of the scene's existing markers
- * instead. With defaults it creates a marker at the current playback position in one click; once the scene has a
+ * Without marker defaults it opens Stash's marker form, with a dropdown above it for switching to editing one of the
+ * scene's existing markers. With defaults it creates a marker at the current playback position in one click; once the scene has a
  * matching marker it opens a panel for adding another or editing the existing ones. Either way the marker must show
  * up on the scene being watched straight away, which means the slide's live data has to pick up the scene's new marker
  * list.
@@ -35,16 +35,15 @@ const markerDefaults = { title: "Quick mark", primaryTagId: "tag-delta", tagIds:
 const firstScene = "scene-7"; // The first slide (the newest scene), which has no fixture markers
 
 /** Add a marker to the server before the app boots. */
-function seedMarker(id: string, marker: { seconds: number; title: string; primary_tag_id: string; created_at?: string }) {
-  const createdAt = marker.created_at ?? "2024-01-01T00:00:00Z";
+function seedMarker(id: string, marker: { seconds: number; title: string; primary_tag_id: string }) {
   integration.server.store.markers.set(id, {
     id,
     scene_id: firstScene,
     end_seconds: null,
     tag_ids: [],
     ...marker,
-    created_at: createdAt,
-    updated_at: createdAt,
+    created_at: "2024-01-01T00:00:00Z",
+    updated_at: "2024-01-01T00:00:00Z",
   });
 }
 
@@ -115,32 +114,48 @@ async function chooseOption(field: "title" | "primary_tag_id", text: string) {
   click(await within(listbox).findByText(text, { exact: false }));
 }
 
-/** The "Edit an existing marker" select below the new-marker form (a react-select, so its input is the combobox). */
-function existingMarkerSelect() {
-  return within(sidePanel()).getByLabelText("Edit an existing marker");
+/** The marker form's start time, as shown in its time field */
+function markerFormStartTime() {
+  const field = markerForm().querySelector<HTMLInputElement>("input#seconds");
+  if (!field) throw new Error("Marker form has no time field");
+  return field.value;
 }
 
-/** The marker the existing-marker select currently has selected. */
-function selectedExistingMarker() {
-  const group = existingMarkerSelect().closest(".form-group");
+/** The title shown in the marker form's title field (null when it's empty) */
+function markerFormTitle() {
+  const group = markerForm().querySelector('label[for="title"]')?.closest(".form-group");
   return group?.querySelector(".react-select__single-value")?.textContent ?? null;
 }
 
-/** Open the existing-marker select's menu and return its listbox. */
-async function openExistingMarkerMenu() {
-  const combobox = existingMarkerSelect();
+/** The dropdown above the marker form choosing between adding a marker and editing an existing one. */
+function markerChoiceSelect() {
+  return within(sidePanel()).getByRole("combobox", { name: "Add or edit a marker" });
+}
+
+function selectedMarkerChoice() {
+  return sidePanel().querySelector(".marker-select .react-select__single-value")?.textContent ?? null;
+}
+
+/** Open the add-or-edit dropdown's menu and return its listbox. */
+async function openMarkerChoiceMenu() {
+  const combobox = markerChoiceSelect();
   act(() => combobox.focus());
   await userEvent.keyboard("{ArrowDown}");
   return await waitFor(() => {
     const listbox = document.getElementById(combobox.getAttribute("aria-controls") ?? "");
-    if (!listbox) throw new Error("Existing marker options not shown");
+    if (!listbox) throw new Error("Add-or-edit options not shown");
     return listbox;
   });
 }
 
+async function chooseMarker(label: string) {
+  click(within(await openMarkerChoiceMenu()).getByRole("option", { name: label }));
+  expect(selectedMarkerChoice()).toBe(label);
+}
+
 async function openNewMarkerForm(app: BootedApp) {
   await pinActionButtons([{ buttonType: "create-marker", iconId: "add-marker", markerDefaults: null }]);
-  click(await createMarkerButton(app, "Create marker for scene"));
+  click(await createMarkerButton(app, "Add/edit scene marker"));
   await waitFor(markerForm);
 }
 
@@ -163,7 +178,7 @@ describe("Create-marker button without defaults", () => {
     await app.unmount();
   });
 
-  it("offers the scene's existing markers for editing, in order of start time", async () => {
+  it("offers adding a new marker or editing one of the scene's markers, in order of start time", async () => {
     seedMarker("marker-test-finale", { seconds: 8, title: "Finale", primary_tag_id: "tag-beta" });
     seedMarker("marker-test-intro", { seconds: 1, title: "Intro", primary_tag_id: "tag-alpha" });
     seedMarker("marker-test-mid", { seconds: 4, title: "Middle", primary_tag_id: "tag-delta" });
@@ -171,65 +186,69 @@ describe("Create-marker button without defaults", () => {
 
     await openNewMarkerForm(app);
 
-    const listbox = await openExistingMarkerMenu();
+    const listbox = await openMarkerChoiceMenu();
     const options = within(listbox).getAllByRole("option").map((option) => option.textContent);
-    expect(options).toEqual(["0:01 Intro", "0:04 Middle", "0:08 Finale"]);
+    expect(options).toEqual(["Add new marker", "Edit 0:01 Intro", "Edit 0:04 Middle", "Edit 0:08 Finale"]);
 
     await app.unmount();
   });
 
-  it("has no edit controls when the scene has no markers", async () => {
+  it("has no add-or-edit dropdown when the scene has no markers", async () => {
     const app = await bootApp();
 
     await openNewMarkerForm(app);
 
-    expect(within(sidePanel()).queryByLabelText("Edit an existing marker")).not.toBeInTheDocument();
+    expect(within(sidePanel()).queryByRole("combobox", { name: "Add or edit a marker" })).not.toBeInTheDocument();
 
     await app.unmount();
   });
 
-  it("suggests the marker closest to the playhead when none were added in the last 10 minutes", async () => {
-    // Seeded markers default to being added long ago, and jsdom's playhead stays at 0:00
-    seedMarker("marker-test-finale", { seconds: 8, title: "Finale", primary_tag_id: "tag-beta" });
+  it("starts on adding a new marker", async () => {
     seedMarker("marker-test-intro", { seconds: 1, title: "Intro", primary_tag_id: "tag-alpha" });
     const app = await bootApp();
 
     await openNewMarkerForm(app);
 
-    expect(selectedExistingMarker()).toBe("0:01 Intro");
+    expect(selectedMarkerChoice()).toBe("Add new marker");
+    // Only an existing marker's form can delete it
+    expect(within(markerForm()).queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
 
     await app.unmount();
   });
 
-  it("suggests the most recently added marker if it was added in the last 10 minutes", async () => {
-    const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60 * 1000).toISOString();
-    seedMarker("marker-test-recent", { seconds: 6, title: "Recent", primary_tag_id: "tag-delta", created_at: minutesAgo(2) });
-    seedMarker("marker-test-earlier", { seconds: 3, title: "Earlier", primary_tag_id: "tag-delta", created_at: minutesAgo(5) });
-    const app = await bootApp();
-
-    await openNewMarkerForm(app);
-
-    expect(selectedExistingMarker()).toBe("0:06 Recent");
-
-    await app.unmount();
-  });
-
-  it("edits the chosen existing marker instead of creating one", async () => {
+  it("switches the form to editing the chosen marker", async () => {
     seedMarker("marker-test-intro", { seconds: 1, title: "Intro", primary_tag_id: "tag-alpha" });
     seedMarker("marker-test-finale", { seconds: 8, title: "Finale", primary_tag_id: "tag-beta" });
     const app = await bootApp();
     const markerCountBefore = serverMarkersOf(firstScene).length;
 
     await openNewMarkerForm(app);
-    click(within(await openExistingMarkerMenu()).getByRole("option", { name: "0:08 Finale" }));
-    expect(selectedExistingMarker()).toBe("0:08 Finale");
-    click(within(sidePanel()).getByRole("button", { name: "Edit" }));
+    await chooseMarker("Edit 0:08 Finale");
     await waitFor(() => expect(within(markerForm()).getByRole("button", { name: "Delete" })).toBeInTheDocument());
+    expect(markerFormStartTime()).toBe("0:08");
+    await waitFor(() => expect(markerFormTitle()).toBe("Finale"));
     await chooseOption("title", "Renamed");
     click(within(markerForm()).getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(integration.server.store.markers.get("marker-test-finale")?.title).toBe("Renamed"));
     expect(serverMarkersOf(firstScene)).toHaveLength(markerCountBefore);
+
+    await app.unmount();
+  });
+
+  it("switches the form back to a new marker", async () => {
+    seedMarker("marker-test-finale", { seconds: 8, title: "Finale", primary_tag_id: "tag-beta" });
+    const app = await bootApp();
+
+    await openNewMarkerForm(app);
+    await chooseMarker("Edit 0:08 Finale");
+    await waitFor(() => expect(markerFormStartTime()).toBe("0:08"));
+    await chooseMarker("Add new marker");
+
+    // A new marker starts at the playhead, which jsdom keeps at 0:00
+    await waitFor(() => expect(markerFormStartTime()).toBe("0:00"));
+    expect(markerFormTitle()).toBeNull();
+    expect(within(markerForm()).queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
 
     await app.unmount();
   });
@@ -240,12 +259,25 @@ describe("Create-marker button with defaults", () => {
     await pinActionButtons([{ buttonType: "create-marker", iconId: "bookmark", markerDefaults: defaults }]);
   }
 
+  function defaultsButton(app: BootedApp) {
+    return createMarkerButton(app, 'Add/edit "Delta" markers');
+  }
+
+  /**
+   * Wait for the slide to show the marker the button just created (the scene has no others), which is what switches
+   * the button from creating markers to opening its panel. Its title is the same either way, so wait on this before
+   * clicking it again.
+   */
+  async function waitForCreatedMarkerOnSlide(app: BootedApp) {
+    await waitFor(() => expect(displayedPlayingMarker(app)).not.toBeNull());
+  }
+
   it("creates a marker from the defaults at the playback position in one click", async () => {
     const app = await bootApp();
     await pinDefaultsButton();
     const sceneId = sceneIdOf(currentSlide(app));
 
-    click(await createMarkerButton(app, 'Create "Delta" marker'));
+    click(await defaultsButton(app));
 
     await waitFor(() =>
       expect(serverMarkersOf(sceneId)).toContainEqual(
@@ -260,7 +292,7 @@ describe("Create-marker button with defaults", () => {
     const app = await bootApp();
     await pinDefaultsButton();
 
-    click(await createMarkerButton(app, 'Create "Delta" marker'));
+    click(await defaultsButton(app));
 
     await waitFor(() => expect(displayedPlayingMarker(app)).toBe("Quick mark"));
 
@@ -272,8 +304,9 @@ describe("Create-marker button with defaults", () => {
     await pinDefaultsButton();
     const markerCountBefore = serverMarkersOf(firstScene).length;
 
-    click(await createMarkerButton(app, 'Create "Delta" marker'));
-    click(await createMarkerButton(app, 'Add or edit "Delta" markers'));
+    click(await defaultsButton(app));
+    await waitForCreatedMarkerOnSlide(app);
+    click(await defaultsButton(app));
 
     expect(within(sidePanel()).getByRole("button", { name: 'Add another "Delta" marker' })).toBeInTheDocument();
     expect(serverMarkersOf(firstScene)).toHaveLength(markerCountBefore + 1);
@@ -285,10 +318,14 @@ describe("Create-marker button with defaults", () => {
     const app = await bootApp();
     const { title: _title, ...untitledDefaults } = markerDefaults;
     await pinDefaultsButton(untitledDefaults);
+    const markerCountBefore = serverMarkersOf(firstScene).length;
 
-    click(await createMarkerButton(app, 'Create "Delta" marker'));
+    click(await defaultsButton(app));
+    await waitForCreatedMarkerOnSlide(app);
+    click(await defaultsButton(app));
 
-    expect(await createMarkerButton(app, 'Add or edit "Delta" markers')).toBeInTheDocument();
+    expect(within(sidePanel()).getByRole("button", { name: 'Add another "Delta" marker' })).toBeInTheDocument();
+    expect(serverMarkersOf(firstScene)).toHaveLength(markerCountBefore + 1);
 
     await app.unmount();
   });
@@ -299,7 +336,7 @@ describe("Create-marker button with defaults", () => {
     await pinDefaultsButton();
     const markerCountBefore = serverMarkersOf(firstScene).length;
 
-    click(await createMarkerButton(app, 'Add or edit "Delta" markers'));
+    click(await defaultsButton(app));
     click(within(sidePanel()).getByRole("button", { name: 'Add another "Delta" marker' }));
 
     await waitFor(() => expect(serverMarkersOf(firstScene)).toHaveLength(markerCountBefore + 1));
@@ -317,7 +354,7 @@ describe("Create-marker button with defaults", () => {
     const app = await bootApp();
     await pinDefaultsButton();
 
-    click(await createMarkerButton(app, 'Add or edit "Delta" markers'));
+    click(await defaultsButton(app));
 
     const editButtons = within(sidePanel()).getAllByRole("button", { name: /^Edit / });
     expect(editButtons.map((button) => button.getAttribute("aria-label"))).toEqual([
@@ -333,8 +370,9 @@ describe("Create-marker button with defaults", () => {
     await pinDefaultsButton();
     const sceneId = sceneIdOf(currentSlide(app));
 
-    click(await createMarkerButton(app, 'Create "Delta" marker'));
-    click(await createMarkerButton(app, 'Add or edit "Delta" markers'));
+    click(await defaultsButton(app));
+    await waitForCreatedMarkerOnSlide(app);
+    click(await defaultsButton(app));
     click(within(sidePanel()).getByRole("button", { name: "Edit 0:00 Quick mark" }));
     await chooseOption("title", "Renamed");
     click(within(markerForm()).getByRole("button", { name: "Save" }));
@@ -353,14 +391,16 @@ describe("Create-marker button with defaults", () => {
     const sceneId = sceneIdOf(currentSlide(app));
     const markerCountBefore = serverMarkersOf(sceneId).length;
 
-    click(await createMarkerButton(app, 'Create "Delta" marker'));
-    click(await createMarkerButton(app, 'Add or edit "Delta" markers'));
+    click(await defaultsButton(app));
+    await waitForCreatedMarkerOnSlide(app);
+    click(await defaultsButton(app));
     click(within(sidePanel()).getByRole("button", { name: "Edit 0:00 Quick mark" }));
     click(within(markerForm()).getByRole("button", { name: "Delete" }));
 
     await waitFor(() => expect(serverMarkersOf(sceneId)).toHaveLength(markerCountBefore));
-    expect(await createMarkerButton(app, 'Create "Delta" marker')).toBeInTheDocument();
-    expect(displayedPlayingMarker(app)).toBeNull();
+    await waitFor(() => expect(displayedPlayingMarker(app)).toBeNull());
+    click(await defaultsButton(app));
+    await waitFor(() => expect(serverMarkersOf(sceneId)).toHaveLength(markerCountBefore + 1));
 
     await app.unmount();
   });

@@ -52,19 +52,15 @@ export const buttonDefinition = {
       return <strong>?</strong>
     }
     if (markerDefaults) {
-      if (state === "active") {
+      if (state === "active" || state === "inactive") {
         return <>
-          {tag ? `Add or edit "${tag.name}" markers` : "Add or edit markers"}
-        </>
-      } else if (state === "inactive") {
-        return <>
-          {tag ? `Create "${tag.name}" marker` : "Create marker with defaults"}
+          {tag ? `Add/edit "${tag.name}" markers` : "Add/edit markers"}
         </>
       } else {
         logger.error("Unexpected state in CreateMarkerActionButton title function", {state})
       }
     }
-    return <>Create marker for scene</>
+    return <>Add/edit scene marker</>
   },
   icon: actionButtonIcons["add-marker"].states,
   components: {
@@ -109,10 +105,9 @@ export function CreateMarkerActionButton(
   if (!parsedConfig) return <strong>?</strong>
   if (!scene) return null
 
-  const getPlayerPosition = () => playerRef.current?.currentTime()
   const createMarkerFromDefaults = () => {
     if (!markerDefaults) return
-    const currentTime = getPlayerPosition()
+    const currentTime = playerRef.current?.currentTime()
     if (currentTime === undefined) {
       logger.error("Player current time is undefined when creating quick marker", {sceneId: scene.id})
       return
@@ -135,7 +130,7 @@ export function CreateMarkerActionButton(
       title={buttonDefinition.title}
       className={cx(buttonDefinition.id, "hide-on-ui-hide")}
       sidePanel={({close}) => (
-        <CreateMarkerPanel scene={scene} getPlayerPosition={getPlayerPosition} close={close} />
+        <CreateMarkerPanel scene={scene} close={close} />
       )}
     />
   }

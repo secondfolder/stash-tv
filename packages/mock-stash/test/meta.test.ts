@@ -107,6 +107,19 @@ describe("queries the app uses", () => {
     }
   });
 
+  it("MarkerStrings lists every marker title in use, alphabetically", async () => {
+    const data = await gql<{ markerStrings: { title: string; count: number }[] }>(GQL.MarkerStringsDocument, {});
+    expect(data.markerStrings.map((entry) => entry.title)).toEqual([
+      "Finale", "Highlight", "Intro", "Loop Point", "Opening", "Peak",
+    ]);
+    expect(data.markerStrings.every((entry) => entry.count === 1)).toBe(true);
+  });
+
+  it("MarkerStrings filters titles by a case-insensitive substring", async () => {
+    const data = await gql<{ markerStrings: { title: string }[] }>(GQL.MarkerStringsDocument, { q: "in" });
+    expect(data.markerStrings.map((entry) => entry.title)).toEqual(["Finale", "Intro", "Loop Point", "Opening"]);
+  });
+
   it("FindSavedFilters", async () => {
     const data = await gql<{ findSavedFilters: { id: string; mode: string }[] }>(
       GQL.FindSavedFiltersDocument,

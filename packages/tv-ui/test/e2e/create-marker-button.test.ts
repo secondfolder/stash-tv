@@ -46,23 +46,44 @@ async function createMarker(request: APIRequestContext, title: string, seconds: 
 }
 
 /**
- * Assert that the element is entirely on screen and is what the user would actually hit when clicking its middle,
- * i.e. it isn't positioned off-screen or hidden behind something (`toBeVisible` checks neither).
+ * Assert that the element is entirely on screen and that nothing covers any part of it, i.e. it isn't positioned
+ * off-screen or hidden behind something (`toBeVisible` checks neither). Checks its middle, edges and corners, since
+ * something can cover just part of it (e.g. buttons poking through one end of a dropdown option).
  */
 async function expectUsableOnScreen(element: Locator) {
   await expect(element).toBeInViewport({ ratio: 1 });
-  const isTopmost = await element.evaluate((el) => {
+  const coveredAt = await element.evaluate((el) => {
     const rect = el.getBoundingClientRect();
-    const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
-    return hit !== null && (hit === el || el.contains(hit));
+    const inset = 2; // Stay off the very edge, which can belong to a neighbour
+    const xs = [rect.left + inset, rect.left + rect.width / 2, rect.right - inset];
+    const ys = [rect.top + inset, rect.top + rect.height / 2, rect.bottom - inset];
+    const covered = [];
+    for (const x of xs) {
+      for (const y of ys) {
+        const hit = document.elementFromPoint(x, y);
+        if (!hit || !(hit === el || el.contains(hit))) {
+          covered.push(`(${Math.round(x)}, ${Math.round(y)}) by ${hit ? hit.outerHTML.slice(0, 80) : 'nothing'}`);
+        }
+      }
+    }
+    return covered;
   });
-  expect(isTopmost, 'element is covered by something else').toBe(true);
+  expect(coveredAt, 'parts of the element are covered by something else').toEqual([]);
+}
+
+/** Assert every option of the open dropdown menu can be seen and clicked (see `expectUsableOnScreen`). */
+async function expectAllOptionsUsable(page: Page) {
+  const options = page.getByRole('option');
+  await expect(options.first()).toBeVisible();
+  for (const option of await options.all()) {
+    await expectUsableOnScreen(option);
+  }
 }
 
 async function openPanel(page: Page) {
   await page.goto('/');
   const slide = page.locator('[data-testid="MediaSlide--container"][data-current-video="true"]');
-  await slide.getByRole('button', { name: 'Create marker for scene' }).click();
+  await slide.getByRole('button', { name: 'Add/edit scene marker' }).click();
   const panel = page.locator('.action-button-side-panel');
   await expect(panel.locator('.action-button-create-marker')).toBeVisible();
   return panel;
@@ -85,15 +106,19 @@ test.describe('Create-marker side panel', () => {
     await setActionButtons(request, null);
   });
 
-  test('opens the "Edit an existing marker" dropdown where it can be seen and used', async ({ page }) => {
+  test('opens the add-or-edit dropdown where it can be seen and used', async ({ page, request }) => {
+    // Enough markers that the menu reaches down over the form's time fields, whose buttons have their own z-index
+    for (let seconds = 2; seconds <= 5; seconds++) {
+      markerIds.push(await createMarker(request, `Extra ${seconds}`, seconds));
+    }
     const panel = await openPanel(page);
 
-    await panel.getByLabel('Edit an existing marker').click();
+    await panel.getByRole('combobox', { name: 'Add or edit a marker' }).click();
 
-    const option = page.getByRole('option', { name: '0:08 Finale' });
-    await expectUsableOnScreen(option);
+    await expectAllOptionsUsable(page);
+    const option = page.getByRole('option', { name: 'Edit 0:08 Finale' });
     await option.click();
-    await expect(panel.locator('.edit-existing-marker .react-select__single-value')).toHaveText('0:08 Finale');
+    await expect(panel.locator('.marker-select .react-select__single-value')).toHaveText('Edit 0:08 Finale');
   });
 
   test("doesn't move the panel when a dropdown opens", async ({ page }) => {
@@ -102,29 +127,30 @@ test.describe('Create-marker side panel', () => {
     await page.waitForTimeout(500);
     const before = await panel.boundingBox();
 
-    await panel.getByLabel('Edit an existing marker').click();
-    await expect(page.getByRole('option', { name: '0:08 Finale' })).toBeVisible();
+    await panel.getByRole('combobox', { name: 'Add or edit a marker' }).click();
+    await expect(page.getByRole('option', { name: 'Edit 0:08 Finale' })).toBeVisible();
     await page.waitForTimeout(300); // The overflow modifier checks for size changes every 100ms
 
     expect(await panel.boundingBox()).toEqual(before);
   });
 
-  test('opens a dropdown above its input when there is no room below', async ({ page, request }) => {
-    // Enough markers that the menu is taller than the room below the select at the bottom of the panel
-    for (let seconds = 2; seconds <= 7; seconds++) {
-      markerIds.push(await createMarker(request, `Extra ${seconds}`, seconds));
-    }
+  test('opens a dropdown above its input when there is no room below', async ({ page }) => {
     const panel = await openPanel(page);
-    const select = panel.getByLabel('Edit an existing marker');
+    // The marker form's last field, near the bottom of the panel and so of the screen
+    const tagsField = panel.locator('.form-group', { has: page.locator('label[for="tag_ids"]') });
+    const input = tagsField.locator('.react-select__control');
 
-    await select.click();
+    await input.click();
 
-    const menu = panel.locator('.edit-existing-marker .react-select__menu');
-    await expectUsableOnScreen(page.getByRole('option', { name: '0:01 Intro' }));
-    const menuBox = await menu.boundingBox();
-    const inputBox = await panel.locator('.edit-existing-marker .react-select__control').boundingBox();
-    expect(menuBox!.y + menuBox!.height).toBeLessThanOrEqual(inputBox!.y);
+    const menu = tagsField.locator('.react-select__menu');
+    await expect(menu.getByRole('option').first()).toBeVisible();
+    const menuBox = (await menu.boundingBox())!;
+    const inputBox = (await input.boundingBox())!;
+    // Check the test still covers what it's meant to: the menu wouldn't have fit below the input
+    expect(inputBox.y + inputBox.height + menuBox.height, 'menu would fit below').toBeGreaterThan(page.viewportSize()!.height);
+    expect(menuBox.y + menuBox.height).toBeLessThanOrEqual(inputBox.y);
     await expect(menu).toBeInViewport({ ratio: 1 });
+    await expectUsableOnScreen(menu.getByRole('option').first());
   });
 
   test("opens the marker form's primary tag dropdown where it can be seen and used", async ({ page }) => {
@@ -133,8 +159,9 @@ test.describe('Create-marker side panel', () => {
 
     await primaryTagField.locator('.react-select__control').click();
 
+    // Its menu opens over the time fields below it
+    await expectAllOptionsUsable(page);
     const option = page.getByRole('option', { name: 'Delta' });
-    await expectUsableOnScreen(option);
     await option.click();
     await expect(primaryTagField).toContainText('Delta');
   });

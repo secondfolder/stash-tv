@@ -1,5 +1,5 @@
 import React from "react";
-import RSSelect, { GroupBase, Props as StateManagerProps, SelectInstance, CSSObjectWithLabel, ClassNamesState } from "react-select";
+import RSSelect, { GroupBase, Props as StateManagerProps, SelectInstance, CSSObjectWithLabel, ClassNamesState, ContainerProps } from "react-select";
 import { useMedia } from "react-use";
 import cx from "classnames";
 import "./Select.css"
@@ -31,6 +31,12 @@ function Select<Option = unknown, IsMulti extends boolean = false, Group extends
     className={cx("Select", "react-select", className)}
     styles={{
       ...styles,
+      // Lift the focused select (and so its open menu) above neighbouring elements with their own z-index, like
+      // Bootstrap's input group buttons, when the menu isn't portalled. Stash's selects do the same.
+      container: (provided: CSSObjectWithLabel, state: ContainerProps<Option, IsMulti, Group>) => {
+        const lifted = { ...provided, zIndex: state.isFocused ? 10 : provided.zIndex };
+        return styles?.container ? styles.container(lifted, state) : lifted;
+      },
       menu: (provided: CSSObjectWithLabel) => ({
         ...(expandWidthToFit ? {
           'maxWidth': 'calc(var(--x-unit-small) * 90)',

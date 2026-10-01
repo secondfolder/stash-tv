@@ -88,7 +88,22 @@ export const queryResolvers = {
     },
 
     sceneMarkerTags: () => [],
-    markerStrings: () => [],
+    // Every marker title in use, with how many markers have it (as Stash's GetMarkerStrings: a case-insensitive
+    // substring filter, grouped by title, ordered by title or by count)
+    markerStrings: (_src: unknown, args: { q?: string | null; sort?: string | null }, ctx: MockContext) => {
+      const query = args.q?.toLowerCase();
+      const byTitle = new Map<string, { id: string; title: string; count: number }>();
+      for (const marker of ctx.store.markers.values()) {
+        if (query !== undefined && !marker.title.toLowerCase().includes(query)) continue;
+        const entry = byTitle.get(marker.title);
+        if (entry) entry.count++;
+        else byTitle.set(marker.title, { id: marker.id, title: marker.title, count: 1 });
+      }
+      const results = [...byTitle.values()];
+      return args.sort === "count"
+        ? results.sort((a, b) => b.count - a.count)
+        : results.sort((a, b) => a.title.localeCompare(b.title));
+    },
     plugins: () => [],
     jobQueue: (_src: unknown, _args: unknown, ctx: MockContext) => [
       ...ctx.store.jobs.values(),
