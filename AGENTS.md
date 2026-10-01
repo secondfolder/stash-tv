@@ -26,7 +26,7 @@ Feature-specific documentation lives under `docs/`. Read the one that covers wha
 
 | Doc                                      | Read it when                                                                                               |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| [Media loading](docs/media-loading.md)   | Touching `useMediaItems`, filters, pagination, the accumulator store, or feed data loading                 |
+| [Media loading](docs/media-loading.md)   | Touching `useMediaItems`, `useLiveMediaItem`, filters, pagination, preview-only modes, or feed data loading |
 | [Video player](docs/video-player.md)     | Touching playback, player DOM, or workarounds for Stash ScenePlayer/Video.js quirks                       |
 | [stash-ui package](docs/stash-ui-package.md) | Integrating or modifying Stash frontend components, understanding wrappers vs patches                  |
 | [State & config](docs/state-and-config.md) | Touching state, adding a config option, or changing how settings persist (Zustand stores, hybrid storage) |
@@ -165,11 +165,11 @@ Three Zustand stores, each exposing the same typed `set` / `get` / `setToDefault
 
 - `tvConfig.ts` — persisted user preferences/plugin settings (hybrid Stash-config + localStorage storage)
 - `globalState.ts` — transient UI state (settings panel, fullscreen, keyboard shortcuts modal, `tvConfigLoaded`)
-- `mediaItemState.tsx` — media pagination/accumulation (see [media loading](docs/media-loading.md))
+- `mediaItemState.tsx` — per-slide UI state provided via context (e.g. open action-button folder, o-counter display). Feed pagination is a separate store inside `useMediaItems` (see [media loading](docs/media-loading.md))
 
 ### Key Hooks (`src/hooks/`)
 
-`useMediaItems()` (pagination/accumulation — see [media loading](docs/media-loading.md)), `useMediaItemFilters()` (saved filter selection), `getApolloClient()` (singleton Apollo client for the Stash API), `useStashTvConfig()`, `useGamepad()`, `useViewportRotate()`, `useBrowserZoomResetOnViewportChange()`
+`useMediaItems()` (the feed's list of item references and pagination) and `useLiveMediaItem()` (a slide's live data from the Apollo cache) — see [media loading](docs/media-loading.md), `useMediaItemFilters()` (saved filter selection), `getApolloClient()` (singleton Apollo client for the Stash API), `useStashTvConfig()`, `useGamepad()`, `useViewportRotate()`, `useBrowserZoomResetOnViewportChange()`
 
 ### Component Hierarchy
 
@@ -330,7 +330,7 @@ The plugin version is injected at build time via `VITE_STASH_TV_VERSION` environ
 Where the perf-critical work lives:
 
 - `VideoScroller` — virtualizes the feed with `@tanstack/react-virtual`; only visible slides render
-- `useMediaItems` — on-demand pagination via the accumulator store
+- `useMediaItems` — on-demand pagination; slides read data with `useLiveMediaItem` (`useFragment`), so a cache update re-renders only the affected slide
 - `useOverflowIndicators` — memoized text overflow detection
 - Swipe gestures via `@use-gesture/react` (optimized for touch); resize/scroll handlers are throttled/debounced
 

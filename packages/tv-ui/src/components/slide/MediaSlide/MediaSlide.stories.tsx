@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { expect, fn, userEvent, waitFor, within } from "@storybook/test";
-import MediaSlide from ".";
+import { MediaSlideContent as MediaSlide } from ".";
 import { setCssVHDecorator } from "../../../../../.storybook/decorators";
 import { GenderEnum } from "stash-ui/dist/src/core/generated-graphql";
 

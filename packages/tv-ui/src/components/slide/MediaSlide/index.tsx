@@ -14,7 +14,8 @@ import { type VideoJsPlayer } from "video.js";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import { useTvConfig } from "../../../store/tvConfig";
 import CrtEffect from "../../CrtEffect";
-import { defaultMarkerLength, MediaItem } from "../../../hooks/useMediaItems";
+import { defaultMarkerLength, MediaItem, MediaItemRef } from "../../../hooks/useMediaItems";
+import { useLiveMediaItem } from "../../../hooks/useLiveMediaItem";
 import { useKeyboardRating } from "../../../hooks/rating/useKeyboardRating";
 import hashObject from 'object-hash';
 import { createPortal } from "react-dom";
@@ -56,7 +57,7 @@ videojs.registerPlugin('styledBigPlayButton', styledBigPlayButton);
 // Max length of video for which we disable scroll animation when seeking to next/previous video
 const noAnimateDurationThreshold = 30;
 
-export interface MediaSlideProps {
+export interface MediaSlideContentProps {
   mediaItem: MediaItem;
   changeItemHandler: ((newIndex: number | ((currentIndex: number) => number), scrollOptions?: ScrollToIndexOptions) => void);
   removeMediaItem: (id: string) => void;
@@ -70,7 +71,8 @@ export interface MediaSlideProps {
 
 const mountCount = new Map<string, number>();
 
-const MediaSlide: React.FC<MediaSlideProps> = (props) => {
+/** A slide for the given item's data. Use the default export (MediaSlide) to show a feed entry with live data. */
+export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
   const { isCurrentVideo } = props;
   const {
     letterboxing,
@@ -220,7 +222,7 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
     window.tvCurrentPlayer = showDevOptions ? videojsPlayerRef.current : undefined;
     window.tvAllPlayers = showDevOptions ? videojs.getAllPlayers() : undefined;
     window.tvCurrentMediaItem = showDevOptions ? props.mediaItem : undefined;
-  }, [isCurrentVideo, showDevOptions, playerReady])
+  }, [isCurrentVideo, showDevOptions, playerReady, props.mediaItem])
 
   // If duration changes (such as when scenePreviewOnly is toggled) we manually update the player since the
   // progress bar doesn't seem to update otherwise
@@ -928,6 +930,19 @@ const MediaSlide: React.FC<MediaSlideProps> = (props) => {
       </div>
     </MediaItemStateContextProvider>
   );
+};
+
+export interface MediaSlideProps extends Omit<MediaSlideContentProps, "mediaItem"> {
+  mediaItemRef: MediaItemRef;
+}
+
+// Reads the entry's data live from the Apollo cache, so a background update (a rating, tags, the play position being
+// saved) re-renders the slide with new data rather than remounting it -- unsaved input like an open tag editor's
+// selection survives. @see docs/media-loading.md § "Live item data"
+const MediaSlide: React.FC<MediaSlideProps> = ({ mediaItemRef, ...otherProps }) => {
+  const mediaItem = useLiveMediaItem(mediaItemRef);
+  if (!mediaItem) return null;
+  return <MediaSlideContent {...otherProps} mediaItem={mediaItem} />;
 };
 
 export default React.memo(MediaSlide);

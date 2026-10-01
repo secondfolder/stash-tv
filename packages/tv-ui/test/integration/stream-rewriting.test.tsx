@@ -3,7 +3,8 @@
  *
  * Tests the preview-only mode where scene data is rewritten so the only
  * available stream is the scene preview ("Direct stream") with an estimated
- * duration — observable through the dev-options `window.mediaItems` export.
+ * duration — observable through the dev-options `window.tvCurrentMediaItem` export (the item the current slide
+ * is playing).
  *
  * @see docs/media-loading.md § "Preview-only modes"
  * @see docs/video-player.md § "Stream labels"
@@ -16,11 +17,10 @@ import type { MediaItem } from "../../src/hooks/useMediaItems";
 
 const integration = setupIntegrationTest();
 
-function sceneItems(): Extract<MediaItem, { entityType: "scene" }>[] {
-  const items = window.mediaItems ?? [];
-  return items.filter(
-    (item): item is Extract<MediaItem, { entityType: "scene" }> => item.entityType === "scene"
-  );
+function currentSceneItem(): Extract<MediaItem, { entityType: "scene" }> {
+  const item = window.tvCurrentMediaItem;
+  if (item?.entityType !== "scene") throw new Error("The current slide isn't showing a scene");
+  return item;
 }
 
 describe("Stream rewriting integration", () => {
@@ -30,7 +30,7 @@ describe("Stream rewriting integration", () => {
     const { useTvConfig } = await import("../../src/store/tvConfig");
     const { set: setTvConfig } = useTvConfig.getState();
 
-    // Dev options expose window.mediaItems (the final, transformed item list)
+    // Dev options expose window.tvCurrentMediaItem
     await act(async () => {
       setTvConfig("showDevOptions", true);
     });
@@ -40,25 +40,22 @@ describe("Stream rewriting integration", () => {
 
     await waitFor(
       () => {
-        const items = sceneItems();
-        expect(items.length).toBeGreaterThan(0);
-        for (const item of items) {
-          // The only available stream is the preview, masquerading as a direct stream
-          expect(item.entity.sceneStreams).toHaveLength(1);
-          expect(item.entity.sceneStreams[0].label).toBe("Direct stream");
-          expect(item.entity.sceneStreams[0].url).toBe(item.entity.paths.preview);
-        }
+        const item = currentSceneItem();
+        // The only available stream is the preview, masquerading as a direct stream
+        expect(item.entity.sceneStreams).toHaveLength(1);
+        expect(item.entity.sceneStreams[0].label).toBe("Direct stream");
+        expect(item.entity.sceneStreams[0].url).toBe(item.entity.paths.preview);
       },
       { timeout: 5000 }
     );
 
     // Duration is estimated from the preview segment config until real metadata
     // loads (fixtures: 12s scene, 12 × 0.75s segments → 9s estimate)
-    const [first] = sceneItems();
-    expect(first.entity.files[0].duration).toBe(9);
+    const item = currentSceneItem();
+    expect(item.entity.files[0].duration).toBe(9);
     // Playback-affecting fields that preview mode must neutralise
-    expect(first.entity.resume_time).toBeNull();
-    expect(first.entity.scene_markers).toEqual([]);
+    expect(item.entity.resume_time).toBeNull();
+    expect(item.entity.scene_markers).toEqual([]);
 
     await app.unmount();
   });

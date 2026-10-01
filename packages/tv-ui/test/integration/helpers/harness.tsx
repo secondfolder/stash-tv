@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, vi, expect } from "vitest";
-import { act, render, waitFor } from "@testing-library/react";
+import { act, cleanup, render, waitFor } from "@testing-library/react";
 import React from "react";
 import { ApolloProvider } from "@apollo/client";
 import { startMockStash, type MockStashServer } from "mock-stash";
@@ -30,6 +30,10 @@ export function setupIntegrationTest() {
   });
 
   afterEach(() => {
+    // Unmount anything a failed test left mounted *before* resetting the document below. Vitest runs afterEach hooks
+    // in reverse registration order, so the global RTL cleanup in setup.ts would otherwise run after this reset and
+    // the unmount would leak state (e.g. a modal's inline styles) into the next test's boot.
+    cleanup();
     localStorage.clear();
     // jsdom's document outlives each boot. Opening a modal writes inline state onto <html>/<body> (e.g.
     // `--fixed-right-padding`, which under the stubbed VisualViewport is a bogus 649px that react-spring then fails

@@ -10,9 +10,19 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { act, waitFor } from "@testing-library/react";
+import { waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { setupIntegrationTest, bootApp, type BootedApp } from "./helpers/harness";
+import {
+  bootWithTvConfig,
+  currentSlide,
+  displayedSideInfo,
+  goToNextSlide,
+  goToSlide,
+  pinActionButtons,
+  sceneIdOf,
+  slides,
+} from "./helpers/feed";
 
 const integration = setupIntegrationTest();
 
@@ -34,22 +44,6 @@ afterEach(async () => {
   await new Promise((resolve) => setTimeout(resolve, 1100));
 });
 
-function slides(app: BootedApp) {
-  return [...app.rendered.container.querySelectorAll<HTMLElement>('[data-testid="MediaSlide--container"]')];
-}
-
-function currentSlide(app: BootedApp) {
-  const current = slides(app).filter((slide) => slide.dataset.currentVideo === "true");
-  expect(current).toHaveLength(1);
-  return current[0];
-}
-
-function sceneIdOf(slide: HTMLElement) {
-  const sceneId = slide.dataset.sceneId;
-  if (!sceneId) throw new Error("MediaSlide is missing data-scene-id");
-  return sceneId;
-}
-
 function serverRating(sceneId: string) {
   return integration.server.store.scenes.get(sceneId)?.rating100;
 }
@@ -62,22 +56,20 @@ function otherRenderedSceneIds(app: BootedApp, currentSceneId: string) {
   return others;
 }
 
-async function goToNextSlide(app: BootedApp) {
-  const previousIndex = currentSlide(app).dataset.index;
-  await userEvent.keyboard("{ArrowDown}");
-  await waitFor(() => expect(currentSlide(app).dataset.index).not.toBe(previousIndex));
+async function bootWithRateButtonPinned() {
+  const app = await bootApp();
+  await pinActionButtons(["rate-scene"]);
+  return app;
+}
+
+/** The rating the current slide's rate button displays, or null when it shows none. */
+function displayedRating(app: BootedApp) {
+  return displayedSideInfo(app, "rate-scene");
 }
 
 async function bootMarkersFeed() {
-  // Boot once to switch the configured filter to fixture filter "3" ("All Markers", sorted by scene),
-  // then boot fresh so the feed loads it
-  const first = await bootApp();
-  const { useTvConfig } = await import("../../src/store/tvConfig");
-  await act(async () => {
-    useTvConfig.getState().set("currentFilterId", "3");
-  });
-  await first.unmount();
-  return await bootApp("Intro");
+  // Fixture filter "3" is "All Markers", sorted by scene
+  return await bootWithTvConfig((tvConfig) => tvConfig.set("currentFilterId", "3"), "Intro");
 }
 
 describe("Keyboard rating shortcuts", () => {
@@ -108,6 +100,35 @@ describe("Keyboard rating shortcuts", () => {
 
     await waitFor(() => expect(serverRating(secondSceneId)).toBe(40));
     expect(serverRating(firstSceneId)).toBe(initialRatings.get(firstSceneId));
+
+    await app.unmount();
+  });
+
+  it("shows the new rating on the current slide", async () => {
+    const app = await bootWithRateButtonPinned();
+    const currentSceneId = sceneIdOf(currentSlide(app));
+
+    await userEvent.keyboard("r4");
+
+    await waitFor(() => expect(serverRating(currentSceneId)).toBe(80));
+    await waitFor(() => expect(displayedRating(app)).toBe("4"));
+
+    await app.unmount();
+  });
+
+  // Pages are fetched once and never watched, so a slide from a later page must still pick up the rating mutation's
+  // cache update.
+  // @see docs/media-loading.md § "Live item data"
+  it("shows the new rating on a slide loaded from a later page", async () => {
+    const app = await bootWithRateButtonPinned();
+    // Default page size is 5, so the sixth slide comes from page 2
+    await goToSlide(app, 5);
+    const currentSceneId = sceneIdOf(currentSlide(app));
+
+    await userEvent.keyboard("r4");
+
+    await waitFor(() => expect(serverRating(currentSceneId)).toBe(80));
+    await waitFor(() => expect(displayedRating(app)).toBe("4"));
 
     await app.unmount();
   });

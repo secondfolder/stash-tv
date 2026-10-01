@@ -448,7 +448,7 @@ const VideoScroller: React.FC<VideoScrollerProps> = memo(() => {
         {" "}({mediaItems.length} media loaded)
         {onlyShowMatchingOrientation && ` limiting to ${orientation} orientation`}
       </div>}
-      {mediaItems.map((mediaItem, i) => {
+      {mediaItems.map((mediaItemRef, i) => {
         if (itemIndexesToRender.includes(i)) {
           return (
             <MediaSlide
@@ -457,8 +457,8 @@ const VideoScroller: React.FC<VideoScrollerProps> = memo(() => {
               isCurrentVideo={i === currentIndex}
               currentIndex={currentIndex}
               index={i}
-              key={hashObject([mediaItem.id, scenePreviewOnly, markerPreviewOnly])}
-              mediaItem={mediaItem}
+              key={hashObject([mediaItemRef.id, scenePreviewOnly, markerPreviewOnly])}
+              mediaItemRef={mediaItemRef}
               style={mediaSlidePositioningStyles[i]}
               currentlyScrolling={rowVirtualizer.isScrolling}
             />
@@ -466,7 +466,7 @@ const VideoScroller: React.FC<VideoScrollerProps> = memo(() => {
         }
         return (
           <div
-            key={mediaItem.id}
+            key={mediaItemRef.id}
             className="dummy-video-item"
             style={mediaSlidePositioningStyles[i]}
           />

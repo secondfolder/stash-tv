@@ -48,6 +48,7 @@ Also note:
 - We define our own `onEnded` prop instead of the wrapped component's `onComplete` (optional + matches the standard HTMLVideoElement event name)
 - Player options are injected/modified via `modifyPlayerSetupOptions` and the `optionsToMerge` / `onVideojsPlayerCreated` props
 - The browser's native PiP hover icon is disabled (`disablePictureInPicture`) as it interferes with our menu overlay
+- ⚠️ **A new `scene` object re-renders the player but doesn't reload the video.** Slides get live data from the Apollo cache (see [media loading](docs/media-loading.md) § "Live item data"), so the scene object changes whenever anything about it does, including the play position Stash saves every few seconds. Stash's ScenePlayer only reinitialises the source when `scene.id` changes (its source effect bails out on `scene.id === sceneId.current`). Its other `scene`-dependent effects (markers, interactive) do re-run. Don't key the player on scene data: `MediaSlide` keys `ScenePlayer` on the scene ID and `sceneStreams` only, so a remount happens only when the streams really change (e.g. toggling preview-only)
 
 ---
 
