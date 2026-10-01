@@ -29,24 +29,32 @@ yarn test:e2e                                  # E2E tests (servers are managed 
 
 ### Running E2E tests
 
-Playwright manages both servers itself via `webServer` entries in
-`packages/tv-ui/playwright.config.ts`:
+Playwright starts (and tears down) both servers itself via `webServer` entries
+in `packages/tv-ui/playwright.config.ts`, so `yarn test:e2e` at the root is
+just an alias for `yarn --cwd packages/tv-ui test:e2e`:
 
 - mock-stash on port 4000 (`yarn --cwd packages/mock-stash test:e2e-server` —
-  a Vitest "test" that boots the TS server and holds the process open; reused
-  if already running)
-- the tv-ui dev server on port 8888, with `STASH_PROXY=true` pointing at
-  mock-stash, and `VITE_APP_PLATFORM_URL=http://localhost:8888` so the app's
-  API/WebSocket URLs stay same-origin. ⚠️ Without that var, stash-ui's
-  `getPlatformURL` forces port **9999** (Stash's default) in dev mode, so the
-  app talks past the proxy to whatever runs on 9999 and the feed dies with
-  `Error: Failed to fetch`.
+  a Vitest "test" that boots the TS server on `MOCK_STASH_PORT` and holds the
+  process open)
+- the tv-ui dev server on port 8888 (`--strictPort`), with `STASH_PROXY=true`
+  pointing at mock-stash, and `VITE_APP_PLATFORM_URL` set to the dev server's
+  own URL so the app's API/WebSocket URLs stay same-origin. ⚠️ Without that
+  var, stash-ui's `getPlatformURL` forces port **9999** (Stash's default) in
+  dev mode, so the app talks past the proxy to whatever runs on 9999 and the
+  feed dies with `Error: Failed to fetch`.
 
-So `yarn --cwd packages/tv-ui test:e2e` is self-contained. ⚠️ The dev server's
-proxy settings come from `packages/tv-ui/.env` *and* the command's env vars
-(command wins); if e2e shows `Error: Failed to fetch`, check nothing stale is
-holding port 4000/8888 (`lsof -nP -iTCP:4000 -sTCP:LISTEN`) — a leftover
-mock-stash makes the new server's listen promise hang until timeout.
+If either port is taken, the config prints a one-line note and uses the next
+free port (`test/e2e/helpers/ports.ts`). Servers are never reused: a stale or
+real-Stash-backed server on the default port can't leak into a run. The chosen
+ports are cached in `E2E_MOCK_STASH_PORT` / `E2E_DEV_SERVER_PORT` because
+Playwright re-evaluates its config in every worker. Run standalone,
+`test:e2e-server` does the same fallback itself.
+
+⚠️ Don't background the servers from a shell script (`server & sleep && …`).
+Nothing kills them when the script exits, and killing the `vitest` parent
+leaves its worker (the one holding the port) running. Playwright avoids this by
+killing the whole process group. ⚠️ The dev server's proxy settings come from
+`packages/tv-ui/.env` *and* the command's env vars (command wins).
 
 ### Integration harness
 
@@ -146,7 +154,7 @@ describe("integration feature", () => {
 
 ⚠️ **Persisted-config tests must seed the hybrid storage's local key.** tvConfig persists through `createJSONStorage` over the hybrid storage: the localStorage half lives under **`app-state-local`** (the `-local` suffix), not the plugin-name key. Tests that seed any other key pass vacuously on defaults — this silently gutted the original migration tests.
 
-⚠️ **A stale process on mock-stash's port makes `startMockStash` hang, not error.** If port 4000 (e2e) is held by a leftover vitest/node process, the new server's `listen` promise never settles and the vitest hook times out at 60s. Check `lsof -nP -iTCP:4000 -sTCP:LISTEN` and kill leftovers before debugging "server won't start".
+⚠️ **`startMockStash` rejects with `EADDRINUSE` when its fixed port is taken** (it used to hang until the hook timeout). Find leftovers with `lsof -nP -iTCP:4000 -sTCP:LISTEN`. The WebSocket server is attached only after `listen` succeeds, because `ws` re-emits HTTP server errors and graphql-ws would log them as a noisy "internal error".
 
 ⚠️ **`DEBUG_MOCK_REQUESTS=1` logs every GraphQL operation mock-stash executes** (operation name + variables) — the fastest way to see what the app actually sends when debugging integration/e2e tests.
 

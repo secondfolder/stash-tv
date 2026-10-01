@@ -92,6 +92,17 @@ export async function startMockStash(
     yoga(req as never, res as never);
   });
 
+  // Reject on listen errors (e.g. EADDRINUSE) rather than hanging forever.
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(options.port ?? 0, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
+
+  // Attached only once listening: ws re-emits the HTTP server's errors, and
+  // graphql-ws would log a listen failure as a noisy "internal error".
   const wss = new WebSocketServer({ server, path: "/graphql" });
   const enveloped = yoga.getEnveloped({});
   useServer(
@@ -104,7 +115,6 @@ export async function startMockStash(
     wss,
   );
 
-  await new Promise<void>((resolve) => server.listen(options.port ?? 0, "127.0.0.1", resolve));
   const address = server.address() as AddressInfo;
   const baseUrl = `http://127.0.0.1:${address.port}`;
   holder.baseUrl = baseUrl;

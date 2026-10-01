@@ -17,7 +17,7 @@
     "test": "yarn --cwd packages/repo test && yarn --cwd packages/mock-stash test && yarn --cwd packages/tv-ui test && yarn --cwd packages/tv-plugin test",
     "test:watch": "yarn --cwd packages/tv-ui test:watch",
     "test:conformance": "yarn --cwd packages/mock-stash test:conformance",
-    "test:e2e": "yarn --cwd packages/mock-stash test:e2e-server & sleep 5 && STASH_ADDRESS=http://localhost:4000 STASH_PROXY=true yarn --cwd packages/tv-ui dev & sleep 10 && yarn --cwd packages/tv-ui test:e2e",
+    "test:e2e": "yarn --cwd packages/tv-ui test:e2e",
     "preview": "yarn --cwd packages/tv-ui preview",
     "storybook": "storybook dev -p 6006",
     "release": "node node_modules/.bin/light-release && yq -i '.version = \"'$(jq -r '.version' package.json)'\"' packages/tv-plugin/source.yml"
