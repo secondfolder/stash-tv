@@ -73,11 +73,11 @@ export function OCounterActionButton({
     }}
     sidePanel={
       <div className="action-button-o-counter">
-        <button onClick={() => decrementOCount()} disabled={(scene.o_counter ?? 0) <= 0}>
+        <button onClick={() => decrementOCount()} disabled={(scene.o_counter ?? 0) <= 0} aria-label="Decrease O-count">
           <FontAwesomeIcon icon={faMinus} />
         </button>
         {scene.o_counter ?? 0}
-        <button onClick={() => incrementOCount()}>
+        <button onClick={() => incrementOCount()} aria-label="Increase O-count">
           <FontAwesomeIcon icon={faPlus} />
         </button>
       </div>

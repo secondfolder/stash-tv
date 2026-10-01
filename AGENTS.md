@@ -333,6 +333,7 @@ Where the perf-critical work lives:
 - `useMediaItems` — on-demand pagination; slides read data with `useLiveMediaItem` (`useFragment`), so a cache update re-renders only the affected slide
 - `useOverflowIndicators` — memoized text overflow detection
 - Swipe gestures via `@use-gesture/react` (optimized for touch); resize/scroll handlers are throttled/debounced
+- ⚠️ Every rendered slide has its own `CrtEffect`, so its per-frame animations (canvas noise, the glitch filter) run only while the effect is on or transitioning. They used to run with the effect off, repainting on every slide every frame
 
 ---
 

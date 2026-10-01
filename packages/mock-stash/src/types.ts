@@ -56,6 +56,8 @@ export interface SceneRecord {
   studio_id: string | null;
   tag_ids: string[];
   performer_ids: string[];
+  /** The primary file's caption files (`Scene.captions`). No fixture has any; tests add them. */
+  captions?: { language_code: string; caption_type: string }[];
 }
 
 export interface MarkerRecord {

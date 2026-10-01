@@ -124,6 +124,23 @@ Some buttons step through the options of a multi-option setting instead of toggl
 - It only renders on scene slides, not marker slides.
 - The new marker only shows on the slide because `useLiveMediaItem` refetches a scene whose cached data Stash's marker mutations evict (see [media loading](media-loading.md) § "Live item data").
 
+## Per-Button Behaviour
+
+What each remaining button does, as the tests check it. Buttons not listed here simply toggle the setting their title names (`loop`, `letterboxing`, `force-landscape`, `ui-visibility`, `settings`, `fullscreen`, `show-scene-info`). `fullscreen` renders nothing in browsers without the Fullscreen API.
+
+- **`o-counter`**: the first click adds an orgasm mark. Once the scene's o-count is above what it was when the slide was shown, the button is active and a click opens a panel with −/+ instead. − removes the latest mark from `o_history` and is disabled at 0. If the count drops below its starting point, the start point moves down with it, so the next click adds a mark again. The count shows beside the button when it's above 0.
+- **`rate-scene`**: opens Stash's rating control (stars, or a number input for Stash's decimal system, focused on open). Choosing the current star rating again clears it. The rating shows beside the button: stars out of 5 (e.g. `3.5`), decimal out of 10. On marker slides it rates the marker's scene.
+- **`set-organized`**: toggles the scene's `organized` flag. Not rendered on marker slides.
+- **`quick-tag`**: adds its tag to the scene or marker, or removes it if it's already there, keeping the other tags. On a marker whose primary tag is the button's tag, clicking opens a panel explaining that a primary tag can't be removed.
+- **`edit-tags`**: opens a tag editor in a side panel. Save writes the tags and closes it. Cancel discards the edits. Its `pinnedTagIds` setting offers those tags for adding in one click. On markers it edits the marker's tags and notes the primary tag, which it never changes. Invalid config just means no pinned tags.
+- **`delete-media-item`**: opens Stash's delete confirmation for the scene or marker; once confirmed, the feed moves on.
+- **`volume`**: mutes/unmutes (to full volume) by default. With `fullControl` it opens a volume slider instead, except on iOS, where a video's volume can't be set from code. Invalid config falls back to the mute toggle.
+- **`playback-rate`**: a panel of speeds (0.5x–8x) that sets the player's rate. It follows the player's `ratechange`, so the highlighted speed is right wherever the rate was changed. Active while the rate isn't 1x.
+- **`resolution`**: lists the scene's streams grouped by resolution and sets the preferred stream (see [video player](video-player.md) § "Source Selection").
+- **`subtitles`**: only rendered when the scene has captions in Stash TV's `subtitleLanguage` (Stash plugin config); toggles `showSubtitles`.
+
+⚠️ A button's state shows through its icon (outline when inactive, filled when active) and often its title. Give every button with an active state a different icon for it, as `resolution` (`resolution.svg` / `resolution-outline.svg`) does; its title is the same in both states. `ActionButtonBase` also puts the state on the button as a `state-<value>` class (e.g. `state-active`, or `state-resume` for the start-position button), prefixed so it can't clash with Bootstrap's `.active`. In tests, `displayedIconState()` (`test/helpers/actionButtons.tsx`) reads the state from the icon, which is what the user sees.
+
 ## Rendering (`ActionButtonStack`)
 
 - Rendered by `MediaSlide` per slide with `mediaItem`, `playerRef`, `sceneInfoOpen`, etc.
@@ -146,7 +163,7 @@ Some buttons step through the options of a multi-option setting instead of toggl
 
 - The settings tab (`src/components/settings/SettingsTab/`) edits the stack with a `DraggableList`. ⚠️ The editor displays the list **reversed** (bottom-of-stack first) with pinned buttons last, and reverses back on save. Dragging a pinned button above an unpinned one **unpins it** automatically.
 - Adding a button: `createNewActionButtonConfig(type, options)` creates the initial config. If the definition has a `components.settings` form, an `ActionButtonSettingsModal` opens first (Formik + `yupFormikValidate(configSchema)`); otherwise the button is added immediately.
-- Editing a button's options re-opens the same modal with its saved config (the pen button only appears for definitions with a `settings` component).
+- Editing a button's options re-opens the same modal with its saved config (the pen button, "Edit button settings", only appears for definitions with a `settings` component). Saving replaces the button where it is, at the top level or inside a folder. The modal reads "Add …"/"Add" when adding and "Edit …"/"Save" when editing; `SettingsTab` tells it which by whether the button is already in the stack (new configs already have an id, so the id can't tell).
 - Buttons can be moved into/out of folders and pinned/unpinned via inline controls; folders can be created empty and deleted.
 - Special-cased buttons: the `settings` button can't be deleted or put in a folder, and `ui-visibility` can't be put in a folder (both must stay reachable). Only top-level items can be pinned.
 - `createNewActionButtonConfig` supplies per-type defaults — e.g. `quick-tag` needs a `tagId`, `create-marker` optionally gets `markerDefaults` (a second create-marker instance always gets them).

@@ -73,7 +73,7 @@ const ActionButtonBase = <State extends string>(props: ActionButtonBaseProps<Sta
 
   return (
     <div
-      className={cx("ActionButton", className, { state, 'left-handed': leftHandedUi, [`size-${size}`]: size })}
+      className={cx("ActionButton", className, `state-${state}`, { 'left-handed': leftHandedUi, [`size-${size}`]: size })}
     >
       {sideInfo && (
         <div className="side-info">
@@ -244,7 +244,7 @@ export function ActionButtonIcon<State extends string>({
   try {
     if (config && 'iconId' in config && typeof config.iconId === "string" && config.iconId in actionButtonIcons) {
       iconSource = actionButtonIcons[config.iconId as keyof typeof actionButtonIcons].states[state]
-    } else if (typeof iconDefinition === "function") {
+    } else if (typeof iconDefinition === "function" || typeof iconDefinition === "string") {
       iconSource = iconDefinition
     } else if (iconDefinition && typeof iconDefinition === "object" && 'icon' in iconDefinition && 'iconName' in iconDefinition) {
       iconSource = iconDefinition

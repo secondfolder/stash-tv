@@ -16,7 +16,8 @@ import { act, fireEvent, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { MockStashServer } from "mock-stash";
 import { setupIntegrationTest, bootApp, type BootedApp } from "./helpers/harness";
-import { currentSlide, pinActionButtons, sceneIdOf } from "./helpers/feed";
+import { bootWithTvConfig, currentSlide, pinActionButtons, pinUncheckedActionButton, sceneIdOf } from "./helpers/feed";
+import { actionButtonRoot, displayedIconState, isSidePanelOpen } from "../helpers/actionButtons";
 
 const integration = setupIntegrationTest();
 
@@ -236,6 +237,19 @@ describe("Create-marker button without defaults", () => {
     await app.unmount();
   });
 
+  it("closes when the form is cancelled, creating nothing", async () => {
+    const app = await bootApp();
+    const markerCountBefore = serverMarkersOf(firstScene).length;
+
+    await openNewMarkerForm(app);
+    click(within(markerForm()).getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => expect(isSidePanelOpen()).toBe(false));
+    expect(serverMarkersOf(firstScene)).toHaveLength(markerCountBefore);
+
+    await app.unmount();
+  });
+
   it("switches the form back to a new marker", async () => {
     seedMarker("marker-test-finale", { seconds: 8, title: "Finale", primary_tag_id: "tag-beta" });
     const app = await bootApp();
@@ -328,6 +342,23 @@ describe("Create-marker button with defaults", () => {
     await app.unmount();
   });
 
+  it("fills in its icon once the scene has a matching marker", async () => {
+    const app = await bootApp();
+    await pinDefaultsButton();
+    // Imported after boot: see docs/testing.md § "Gotchas" (importing app code at the top of an integration test)
+    const { actionButtonIcons } = await import("../../src/components/action-buttons/icons");
+    const displayedState = async () =>
+      await displayedIconState(actionButtonRoot(await defaultsButton(app)), actionButtonIcons["bookmark"].states);
+    expect(await displayedState()).toBe("inactive");
+
+    click(await defaultsButton(app));
+    await waitForCreatedMarkerOnSlide(app);
+
+    await waitFor(async () => expect(await displayedState()).toBe("active"));
+
+    await app.unmount();
+  });
+
   it("recognises its markers when the defaults have no title", async () => {
     const app = await bootApp();
     const { title: _title, ...untitledDefaults } = markerDefaults;
@@ -415,6 +446,31 @@ describe("Create-marker button with defaults", () => {
     await waitFor(() => expect(displayedPlayingMarker(app)).toBeNull());
     click(await defaultsButton(app));
     await waitFor(() => expect(serverMarkersOf(sceneId)).toHaveLength(markerCountBefore + 1));
+
+    await app.unmount();
+  });
+});
+
+describe("Create-marker button", () => {
+  it("isn't shown on marker slides", async () => {
+    // Fixture filter "3" is "All Markers"
+    const app = await bootWithTvConfig((tvConfig) => tvConfig.set("currentFilterId", "3"), "Intro");
+    await pinActionButtons([{ buttonType: "create-marker", iconId: "add-marker", markerDefaults: null }, "loop"]);
+    // Wait for the stack to render the other button so the absence isn't vacuous
+    await within(currentSlide(app)).findByRole("button", { name: "Loop scene" });
+
+    expect(within(currentSlide(app)).queryByRole("button", { name: /marker/ })).not.toBeInTheDocument();
+
+    await app.unmount();
+  });
+
+  it("shows an error marker instead of a button when its config is invalid", async () => {
+    const app = await bootApp();
+
+    await pinUncheckedActionButton({ buttonType: "create-marker", markerDefaults: null });
+
+    await waitFor(() => expect(currentSlide(app).querySelector(".ActionButtonStack .pinned")).toHaveTextContent("?"));
+    expect(within(currentSlide(app)).queryByRole("button", { name: /marker/ })).not.toBeInTheDocument();
 
     await app.unmount();
   });

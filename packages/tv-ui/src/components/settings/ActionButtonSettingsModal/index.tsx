@@ -12,13 +12,14 @@ const logger = getLogger(["stash-tv", "ActionButtonSettingsModal"]);
 
 type Props = {
   initialActionButtonConfig: ActionButtonConfig;
+  /** Whether the button is being added to the stack or is already in it */
+  operation: "add" | "edit";
   onClose: () => void;
   onSave: (config: ActionButtonConfig) => void;
 }
 
-export const ActionButtonSettingsModal = ({ initialActionButtonConfig, onClose, onSave }: Props) => {
+export const ActionButtonSettingsModal = ({ initialActionButtonConfig, operation, onClose, onSave }: Props) => {
   const initialConfig = initialActionButtonConfig
-  const operation = initialConfig.id ? "edit" : "add";
 
   // We memorise this so that the header shows the state of the saved config, not the config as it's being edited
   const initialButtonDefinition = useMemo(

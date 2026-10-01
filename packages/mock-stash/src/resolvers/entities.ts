@@ -32,7 +32,7 @@ export const entityResolvers = {
       sprite: `${ctx.baseUrl}/scene/${scene.id}/sprite`,
       funscript: null,
       interactive_heatmap: null,
-      caption: null,
+      caption: `${ctx.baseUrl}/scene/${scene.id}/caption`,
     }),
     sceneStreams: (scene: SceneRecord, _args: unknown, ctx: MockContext) =>
       sceneStreamEndpoints(scene, ctx.baseUrl),

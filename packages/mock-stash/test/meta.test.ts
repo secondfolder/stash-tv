@@ -238,25 +238,27 @@ describe("subscriptions", () => {
     wsClient = createClient({ url: server.wsUrl, webSocketImpl: WebSocket, lazy: false });
     const received: unknown[] = [];
 
-    await new Promise<void>((resolve, reject) => {
-      let settled = false;
-      wsClient.subscribe(
-        { query: print(GQL.ScanCompleteSubscribeDocument) },
-        {
-          next: (value) => {
-            received.push(value);
-            if (!settled) {
-              settled = true;
+    // There's no signal for when the server has set up the subscription, so keep emitting until the first event
+    // arrives. Emits before then reach no subscriber and are dropped.
+    let trigger: ReturnType<typeof setInterval> | undefined;
+    try {
+      await new Promise<void>((resolve, reject) => {
+        wsClient.subscribe(
+          { query: print(GQL.ScanCompleteSubscribeDocument) },
+          {
+            next: (value) => {
+              received.push(value);
               resolve();
-            }
+            },
+            error: reject,
+            complete: () => {},
           },
-          error: reject,
-          complete: () => {},
-        },
-      );
-      // Give the socket time to establish the subscription before emitting.
-      setTimeout(() => server.triggerScanComplete(), 250);
-    });
+        );
+        trigger = setInterval(() => server.triggerScanComplete(), 20);
+      });
+    } finally {
+      clearInterval(trigger);
+    }
 
     expect(received.length).toBeGreaterThan(0);
   });

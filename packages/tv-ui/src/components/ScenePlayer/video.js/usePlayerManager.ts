@@ -25,6 +25,13 @@ export function usePlayerManager({mediaItem}: {mediaItem: MediaItem}) {
 
   beforeSetupHooks[playerId] = []
   setupHooks[playerId] = []
+  // Forget this player's hooks once it's unmounted. They close over this instance's props and state, so keeping them
+  // would leak every player ever shown, and a later player that happens to get the same id (e.g. in a re-mounted app)
+  // would run them.
+  useEffect(() => () => {
+    delete beforeSetupHooks[playerId]
+    delete setupHooks[playerId]
+  }, [playerId])
 
   const scene = mediaItem.entityType === "scene"
     ? mediaItem.entity

@@ -42,9 +42,14 @@ export default function CrtEffect({strength = 1, infoText = "AV-1", ...props}: P
     }
   }, [props.enabled])
 
+  // The animations below run every frame, so only run them while the effect can be seen: a disabled effect would
+  // otherwise keep repainting the noise and rewriting the glitch filter on every slide for nothing
+  const animating = tvState !== "off"
+
   const rootElmRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
+    if (!animating) return
     const rootElm = rootElmRef.current
     const canvasElm = rootElm?.querySelector('canvas')
     if (!canvasElm) return
@@ -85,7 +90,7 @@ export default function CrtEffect({strength = 1, infoText = "AV-1", ...props}: P
       clearTimeout(timeoutId);
       cancelAnimationFrame(frame);
     };
-  }, []);
+  }, [animating]);
 
 
   useEffect(() => {
@@ -164,6 +169,7 @@ export default function CrtEffect({strength = 1, infoText = "AV-1", ...props}: P
   const glitchedBandsYOffset = useMotionValue(-glitchHeight)
 
   useEffect(() => {
+    if (!animating) return
     const animation = animate(-glitchHeight, contentHeight, {
       duration: (contentHeight + glitchHeight) / glitchTravelSpeed,
       repeat: Infinity,
@@ -174,7 +180,7 @@ export default function CrtEffect({strength = 1, infoText = "AV-1", ...props}: P
     });
 
     return () => animation.stop();
-  }, [contentHeight]);
+  }, [contentHeight, animating]);
 
   /**
    * Glitch-style spike-dip-decay function

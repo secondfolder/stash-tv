@@ -137,6 +137,7 @@ const Folder = ({
   return <>
     <button
       className={cx("folder", "hide-on-ui-hide", {open: isOpen})}
+      aria-label={isOpen ? "Close folder" : "Open folder"}
       ref={buttonRef}
       onClick={() => {
         if (!isOpen) {

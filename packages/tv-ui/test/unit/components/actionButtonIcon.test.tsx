@@ -26,6 +26,12 @@ describe("ActionButtonIcon", () => {
     expect(img).toHaveClass("ActionButtonIcon", "size-standard", "custom");
   });
 
+  it("renders a single string icon as an image in every state", () => {
+    const { container } = render(<ActionButtonIcon iconDefinition="icon.png" state="active" />);
+
+    expect(container.querySelector("img")).toHaveAttribute("src", "icon.png");
+  });
+
   it("renders string icon sources at the small size", () => {
     const icons: Record<string, ActionButtonIconSource> = { default: "icon.png" };
     const { container } = render(

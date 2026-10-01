@@ -232,12 +232,26 @@ const SettingsTab = memo(() => {
   const [actionButtonDraft, setActionButtonDraft] = React.useState<ActionButtonConfig | null>(null);
   useEffect(() => setDisplayedModal(actionButtonDraft ? "action-button-settings" : null), [actionButtonDraft])
 
+  const isInActionButtonStack = (actionButton: ActionButtonConfig) => actionButtonStackConfig.some(config =>
+    config.id === actionButton.id
+    || (config.type === "folder" && config.contents.some(button => button.id === actionButton.id))
+  );
+
   const saveActionButtonDraft = (actionButton: ActionButtonConfig) => {
-    const existingButtonIndex = actionButtonStackConfig.findIndex(button => button.id === actionButton.id);
-    if (existingButtonIndex !== -1) {
+    if (isInActionButtonStack(actionButton)) {
+      // The button may be at the top level or inside a folder
       setTvConfig(
         "actionButtonStackConfig",
-        actionButtonStackConfig.map((button, index) => index === existingButtonIndex ? actionButton : button)
+        actionButtonStackConfig.map(config => {
+          if (config.id === actionButton.id) return actionButton
+          if (config.type === "folder") {
+            return {
+              ...config,
+              contents: config.contents.map(button => button.id === actionButton.id ? actionButton : button),
+            }
+          }
+          return config
+        })
       );
     } else {
       setTvConfig(
@@ -349,6 +363,7 @@ const SettingsTab = memo(() => {
   >
     {displayedModal === "action-button-settings" && actionButtonDraft && <ActionButtonSettingsModal
       initialActionButtonConfig={actionButtonDraft}
+      operation={isInActionButtonStack(actionButtonDraft) ? "edit" : "add"}
       onClose={() => setActionButtonDraft(null)}
       onSave={config => {
         saveActionButtonDraft(config)
@@ -728,6 +743,7 @@ const SettingsTab = memo(() => {
                       variant="link"
                       className={cx("settings", "muted")}
                       onClick={() => setActionButtonDraft(item)}
+                      aria-label="Edit button settings"
                     >
                       <FontAwesomeIcon icon={faPenToSquare} />
                     </Button>}
