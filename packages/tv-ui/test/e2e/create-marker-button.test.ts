@@ -3,8 +3,9 @@ import { test, expect, type APIRequestContext, type Locator, type Page } from '@
 /**
  * E2E tests: dropdowns inside the create-marker button's side panel open where the user can see and use them.
  *
- * The side panel is a Popper-positioned popover with an outside-click backdrop behind it, and grows to fit content
- * overflowing it (e.g. an open dropdown menu). None of that has layout in jsdom, so it's only testable here.
+ * The side panel is a Popper-positioned popover with an outside-click backdrop behind it. Dropdown menus in it open
+ * above their input when there's no room below, without moving the panel. None of that has layout in jsdom, so it's
+ * only testable here.
  *
  * @see docs/action-buttons.md § "`ActionButtonBase`"
  * @see docs/action-buttons.md § "Create-Marker Button"
@@ -93,6 +94,37 @@ test.describe('Create-marker side panel', () => {
     await expectUsableOnScreen(option);
     await option.click();
     await expect(panel.locator('.edit-existing-marker .react-select__single-value')).toHaveText('0:08 Finale');
+  });
+
+  test("doesn't move the panel when a dropdown opens", async ({ page }) => {
+    const panel = await openPanel(page);
+    // Let the panel's open animation finish
+    await page.waitForTimeout(500);
+    const before = await panel.boundingBox();
+
+    await panel.getByLabel('Edit an existing marker').click();
+    await expect(page.getByRole('option', { name: '0:08 Finale' })).toBeVisible();
+    await page.waitForTimeout(300); // The overflow modifier checks for size changes every 100ms
+
+    expect(await panel.boundingBox()).toEqual(before);
+  });
+
+  test('opens a dropdown above its input when there is no room below', async ({ page, request }) => {
+    // Enough markers that the menu is taller than the room below the select at the bottom of the panel
+    for (let seconds = 2; seconds <= 7; seconds++) {
+      markerIds.push(await createMarker(request, `Extra ${seconds}`, seconds));
+    }
+    const panel = await openPanel(page);
+    const select = panel.getByLabel('Edit an existing marker');
+
+    await select.click();
+
+    const menu = panel.locator('.edit-existing-marker .react-select__menu');
+    await expectUsableOnScreen(page.getByRole('option', { name: '0:01 Intro' }));
+    const menuBox = await menu.boundingBox();
+    const inputBox = await panel.locator('.edit-existing-marker .react-select__control').boundingBox();
+    expect(menuBox!.y + menuBox!.height).toBeLessThanOrEqual(inputBox!.y);
+    await expect(menu).toBeInViewport({ ratio: 1 });
   });
 
   test("opens the marker form's primary tag dropdown where it can be seen and used", async ({ page }) => {

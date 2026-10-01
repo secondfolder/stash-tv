@@ -1,4 +1,5 @@
-export function getOverflowAmount(parentElement: Element) {
+/** How far the element's descendants stick out past each of its edges. Descendants matching `ignore` are skipped. */
+export function getOverflowAmount(parentElement: Element, { ignore }: { ignore?: string } = {}) {
   const parentRect = parentElement.getBoundingClientRect();
 
   let overflow = {
@@ -12,6 +13,7 @@ export function getOverflowAmount(parentElement: Element) {
     const children = Array.from(element.children);
 
     for (const child of children) {
+      if (ignore && child.matches(ignore)) continue;
       const style = getComputedStyle(child);
       if (style.display === 'none') continue; // Skip hidden elements
       const hasOverflowHidden =

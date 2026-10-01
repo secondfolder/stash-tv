@@ -18,6 +18,7 @@ import { setMaxSizeModifier } from "../../../helpers/popper-modifiers/setMaxSize
 import { hasMediaItemStateContext, useMediaItemState } from "../../../store/mediaItemState";
 import { useOffscreenModifier } from "../../../hooks/useOffscreenModifier";
 import { useOutsideClickModifier } from "../../../hooks/useOutsideClickModifier";
+import { useFitDropdownMenus } from "../../../hooks/useFitDropdownMenus";
 
 const logger = getLogger(["stash-tv", "ActionButtonBase"]);
 
@@ -142,6 +143,11 @@ const SidePanel = ({
     onOffscreen: () => useCurrentOpenPopover.setState(null)
   })
 
+  // Dropdowns in the panel open above their input when there's no room below, rather than sticking out of the panel
+  // (which would move it, see includeChildOverflowInPopperSizeModifier)
+  const [contentsElement, setContentsElement] = React.useState<HTMLDivElement | null>(null)
+  useFitDropdownMenus(contentsElement)
+
   const onSidePanelToggleRef = React.useRef(onSidePanelToggle)
   onSidePanelToggleRef.current = onSidePanelToggle
 
@@ -176,7 +182,7 @@ const SidePanel = ({
           className={cx("action-button-side-panel", sidePanelClassName, { 'left-handed': leftHandedUi })}
           id={id}
         >
-          <div className="contents">
+          <div className="contents" ref={setContentsElement}>
             {isOpenDelayedClose && (
               typeof content === "function"
                 ? content({isOpen, close: () => useCurrentOpenPopover.setState(null)})

@@ -1,4 +1,5 @@
 import { getOverflowAmount } from "../getOverflowAmount";
+import { DROPDOWN_MENU_SELECTOR } from "../fitDropdownMenu";
 import { Options as PopperOptions } from '@popperjs/core';
 
 export const includeChildOverflowInPopperSizeModifier: PopperOptions['modifiers'][number] = {
@@ -6,7 +7,9 @@ export const includeChildOverflowInPopperSizeModifier: PopperOptions['modifiers'
   enabled: true,
   phase: "beforeRead",
   fn: ({state}) => {
-    const overflowAmount = getOverflowAmount(state.elements.popper)
+    // Dropdown menus are left out: they're kept on screen by opening above their input instead (see
+    // useFitDropdownMenus), since growing the popper to fit them would move it every time one opens
+    const overflowAmount = getOverflowAmount(state.elements.popper, { ignore: DROPDOWN_MENU_SELECTOR })
     state.rects.popper.height += overflowAmount.top + overflowAmount.bottom
     state.rects.popper.width += overflowAmount.left + overflowAmount.right
   },
