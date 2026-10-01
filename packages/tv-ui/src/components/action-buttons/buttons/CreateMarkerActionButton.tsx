@@ -36,31 +36,21 @@ const configSchema = sharedActionButtonSchema.shape({
 export const buttonDefinition = {
   id,
   title: ({state, config}: {state: string, config?: Record<string, unknown>}) => {
-    let markerDefaults = null
-    let tagId = null
-    try {
-      if (config) {
-        if (config.buttonType !== id) {
-          logger.error("Invalid config for create marker action button title {*}", { config })
-          return <strong>?</strong>
-        }
-        if (typeof config.markerDefaults === "object" && config.markerDefaults !== null) {
-          markerDefaults = config.markerDefaults
-          if ('primaryTagId' in markerDefaults && markerDefaults.primaryTagId && typeof markerDefaults.primaryTagId === "string") {
-            tagId = markerDefaults.primaryTagId
-          }
-        }
-      }
-    } catch (error) {
-      logger.error("Error processing create marker action button title config {*}", { error, config })
-      return <strong>?</strong>
-    }
+    const invalidConfig = Boolean(config) && config?.buttonType !== id
+    const markerDefaults = typeof config?.markerDefaults === "object" ? config.markerDefaults : null
+    const tagId = markerDefaults && 'primaryTagId' in markerDefaults && typeof markerDefaults.primaryTagId === "string"
+      ? markerDefaults.primaryTagId
+      : null
     const [tag, setTag] = useState<Tag>()
     useEffect(() => {
       if (!tagId) return
       queryFindTagsByIDForSelect([tagId])
         .then(result => result.data.findTags.tags[0] && setTag(result.data.findTags.tags[0]))
     }, [tagId])
+    if (invalidConfig) {
+      logger.error("Invalid config for create marker action button title {*}", { config })
+      return <strong>?</strong>
+    }
     if (markerDefaults) {
       if (state === "active") {
         return <>
@@ -71,7 +61,7 @@ export const buttonDefinition = {
           {tag ? `Create "${tag.name}" marker` : "Create marker with defaults"}
         </>
       } else {
-        logger.error("Unexpected state in QuickTagActionButton title function", {state})
+        logger.error("Unexpected state in CreateMarkerActionButton title function", {state})
       }
     }
     return <>Create marker for scene</>
@@ -96,24 +86,31 @@ export function CreateMarkerActionButton(
     playerRef: React.RefObject<VideoJsPlayer>
   }
 ) {
-  let parsedConfig
-  try {
-    parsedConfig = buttonDefinition.configSchema.validateSync(config)
-  } catch (error) {
-    logger.error("Invalid config for create marker action button", { error, config })
-    return <strong>?</strong>
-  }
-  if (mediaItem.entityType !== "scene") return null
-  const scene = mediaItem.entity
+  const parsedConfig = useMemo(() => {
+    try {
+      return buttonDefinition.configSchema.validateSync(config)
+    } catch (error) {
+      logger.error("Invalid config for create marker action button", { error, config })
+      return undefined
+    }
+  }, [config])
+  const markerDefaults = parsedConfig?.markerDefaults
+  const scene = mediaItem.entityType === "scene" ? mediaItem.entity : undefined
+  // Stash stores a marker without a title as "", so match an unset default title against that
+  const defaultTitle = markerDefaults?.title ?? ""
   const existingMarker = useMemo(
-    () => parsedConfig.markerDefaults && mediaItem.entity.scene_markers
-      .find(m => m.primary_tag.id === parsedConfig.markerDefaults?.primaryTagId && m.title === parsedConfig.markerDefaults?.title),
-    [mediaItem.entity.scene_markers, parsedConfig.markerDefaults?.primaryTagId, parsedConfig.markerDefaults?.title]
+    () => markerDefaults && scene?.scene_markers
+      .find(m => m.primary_tag.id === markerDefaults.primaryTagId && m.title === defaultTitle),
+    [scene?.scene_markers, markerDefaults?.primaryTagId, defaultTitle]
   )
 
   const [sceneMarkerCreate] = useSceneMarkerCreate();
-  const handleClick = () => {
-    if (existingMarker || !parsedConfig.markerDefaults) return
+
+  if (!parsedConfig) return <strong>?</strong>
+  if (!scene) return null
+
+  const createMarkerFromDefaults = () => {
+    if (!markerDefaults) return
     const currentTime = playerRef.current?.currentTime()
     if (currentTime === undefined) {
       logger.error("Player current time is undefined when creating quick marker", {sceneId: scene.id})
@@ -122,15 +119,15 @@ export function CreateMarkerActionButton(
     sceneMarkerCreate({
       variables: {
         scene_id: scene.id,
-        title: parsedConfig.markerDefaults.title ?? "",
-        primary_tag_id: parsedConfig.markerDefaults.primaryTagId,
-        tag_ids: parsedConfig.markerDefaults.tagIds,
+        title: defaultTitle,
+        primary_tag_id: markerDefaults.primaryTagId,
+        tag_ids: markerDefaults.tagIds,
         seconds: currentTime,
         end_seconds: null,
       },
     });
   }
-  if (!parsedConfig.markerDefaults) {
+  if (!markerDefaults) {
     return <ActionButtonBase
       state="inactive"
       icon={buttonDefinition.icon}
@@ -139,31 +136,31 @@ export function CreateMarkerActionButton(
       sidePanel={({close}) => (
         <SceneMarkerForm
           className="action-button-create-marker"
-          sceneID={mediaItem.entity.id}
+          sceneID={scene.id}
           onClose={close}
           marker={undefined}
         />
       )}
-      data-testid="MediaSlide--createMarkerButton"
     />
   }
+  // Once the scene has the marker, the button edits it instead of creating another
   const renderSidePanel = existingMarker
     ? ({close}: {close: () => void}) => (
       <SceneMarkerForm
         className="action-button-create-marker"
-        sceneID={mediaItem.entity.id}
+        sceneID={scene.id}
         onClose={close}
         marker={existingMarker}
       />
     )
     : null
   return <ActionButtonBase
-    state={Boolean(existingMarker) ? "active" : "inactive"}
+    state={existingMarker ? "active" : "inactive"}
     icon={buttonDefinition.icon}
     title={buttonDefinition.title}
     className={cx(buttonDefinition.id, "hide-on-ui-hide")}
     sidePanel={renderSidePanel}
-    onClick={handleClick}
+    onClick={({toggleSidePanel}) => existingMarker ? toggleSidePanel() : createMarkerFromDefaults()}
     config={config}
   />
 }

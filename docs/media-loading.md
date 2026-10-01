@@ -38,6 +38,7 @@ The feed is keyed by a hash of the filter's contents plus the page size, not by 
 - reads `SceneData` for scenes, or a local `MarkerForTv` fragment (`SceneMarkerData` + `scene { SceneData }`, matching `FindSceneMarkersForTv`) for markers. Both are defined in `src/helpers/mediaItem.ts`
 - returns the same object until that entity's data changes, so a background update re-renders only that one slide
 - keeps returning the last complete item if the entity disappears from the cache (e.g. it was just deleted and the slide is about to be removed), so the slide doesn't blank out
+- refetches the item's scene (`FindScene`) whenever its fragment goes incomplete. Some Stash mutations evict the fields they changed instead of updating them. For example, creating, editing or deleting a marker evicts its scene's `scene_markers`, expecting a watched query to refetch them. The feed has no watched queries, so without this the slide would keep showing the old markers forever. ⚠️ This also fires once after a delete, and that request just comes back empty.
 - applies the preview-only rewrite (see [Preview-only modes](#preview-only-modes))
 
 ⚠️ **Background updates must re-render, never remount.** The play position is saved every few seconds while a scene plays. A re-render keeps component state, such as an open tag editor's unsaved selection (`EditTagSelectionForm` holds it in `useState`). A remount would lose it. Keep `MediaSlide`/`ScenePlayer` keys based on IDs, not data. Video reloads are covered in [video player](docs/video-player.md).
@@ -101,6 +102,7 @@ Users can define custom JavaScript functions to filter/transform media items (po
 
 - [media-loading.test.tsx](packages/tv-ui/test/integration/media-loading.test.tsx) — first page loads and renders
 - [background-updates.test.tsx](packages/tv-ui/test/integration/background-updates.test.tsx) — live data on later-page slides after Stash's evictions, no refetch on eviction, unsaved tag edits and the player surviving background updates
+- [create-marker-button.test.tsx](packages/tv-ui/test/integration/create-marker-button.test.tsx) — a marker created, edited or deleted from a slide shows on it straight away (Stash evicts the scene's markers)
 - [delete-media-item.test.tsx](packages/tv-ui/test/integration/delete-media-item.test.tsx) — deleting moves on to the next item and keeps every remaining item reachable across a shifted page boundary
 - [keyboard-rating.test.tsx](packages/tv-ui/test/integration/keyboard-rating.test.tsx) — includes a rating shown on a slide from page 2
 - [stream-rewriting.test.tsx](packages/tv-ui/test/integration/stream-rewriting.test.tsx) — preview-only rewrite

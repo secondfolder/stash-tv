@@ -69,7 +69,7 @@ writes.
 Feed-level helpers live in `test/integration/helpers/feed.ts`:
 - `slides` / `currentSlide` / `sceneIdOf` / `goToNextSlide` / `goToSlide`: find and move between rendered slides
 - `bootWithTvConfig(configure, readyText?)`: boot, change persisted tvConfig, then boot fresh (e.g. a different filter or page size)
-- `pinActionButtons([...])` and `displayedSideInfo(app, buttonType)`: most action buttons sit in a closed folder by default, so pin the ones whose displayed state you assert on
+- `pinActionButtons([...])` and `displayedSideInfo(app, buttonType)`: most action buttons sit in a closed folder by default, so pin the ones whose displayed state you assert on. Pass a button type, or a button's options for buttons that need them (e.g. `{ buttonType: "create-marker", iconId: "bookmark", markerDefaults: … }`)
 
 Tests that change the mock server's scenes or markers (rating, o-count, deleting) must restore them in `afterEach`: the server store outlives each test.
 
@@ -182,6 +182,10 @@ describe("integration feature", () => {
 ⚠️ **jsdom's `document` outlives each `bootApp()`.** Inline state the app writes to `<html>`/`<body>` (e.g. modals set `--fixed-right-padding`, a bogus 649px under the stubbed VisualViewport, which react-spring then fails to parse when the next boot mounts the settings drawer) leaks into the next test, so the harness `afterEach` clears it the way a page reload would. Extend that reset if you find other document-level leakage. ⚠️ Vitest runs `afterEach` hooks in reverse registration order, so the global RTL `cleanup` in `setup.ts` runs *after* the harness's reset. The harness therefore calls `cleanup()` itself first. Otherwise a test that fails before `unmount()` leaves its app mounted through the reset, and the next test's boot crashes with react-spring's "Unexpected token 0px".
 
 ⚠️ **Don't import `stash-ui/dist/src/core/StashService` at the top of an integration test.** Importing it creates an Apollo client immediately (`createClient()` at module scope). At the top of a test file that happens before the harness points `VITE_APP_PLATFORM_URL` at the mock server, so the client retries against port 9999 forever and can make the `graphql-ws` disposal `afterAll` time out. Import it dynamically inside the test after `bootApp()`, which also returns the app's own instance (see `background-updates.test.tsx`).
+
+⚠️ **Stash's form labels don't point at their react-select inputs.** In forms like `SceneMarkerForm`, `<label for="primary_tag_id">` has no matching input id, so `getByLabelText` fails. Find the field's `.form-group` from its label and take the combobox inside it (see `markerFormSelect` in `create-marker-button.test.tsx`). `MarkerTitleSuggest` is also disabled until its suggestions load, so wait for it to be enabled before typing.
+
+⚠️ **jsdom never fires `timeupdate`, and its playback position stays at 0.** Anything MediaSlide recomputes on `timeupdate` (e.g. the "currently playing marker" label) only changes in a test if you fire the event on the slide's `<video>` yourself.
 
 ⚠️ **Known jsdom limitations:** no pointer capture (Radix drag tests are skipped with reasons inline), no Gamepad API (stubbed in `setup.ts`), `HTMLMediaElement.play` stubbed. Document skipped tests inline.
 

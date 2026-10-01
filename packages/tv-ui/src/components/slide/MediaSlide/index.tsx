@@ -800,7 +800,7 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
     if (markers.length === currentlyPlayingMarkers.length && markers.every(marker => currentlyPlayingMarkers.includes(marker))) return
     logger.debug(`Marker playback update{*}`, {currentTime, markers});
     setCurrentlyPlayingMarkers(markers)
-  }, [endTimestamp, currentlyPlayingMarkers, goToItem]);
+  }, [endTimestamp, currentlyPlayingMarkers, goToItem, props.mediaItem]);
 
   /* -------------------------------- Component ------------------------------- */
 

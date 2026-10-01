@@ -106,6 +106,16 @@ Some buttons step through the options of a multi-option setting instead of toggl
 - ⚠️ `usePlaybackPositionOptions()` has an explicit return type on purpose. tvConfig's types depend on the button definitions, whose titles call this hook, so an inferred return type (which would come from `useTvConfig`) makes the types circular. That shows up as a long list of unrelated "implicitly has type 'any'" errors across the action buttons.
 - These settings only apply to scene slides (markers always play in full), and the Settings tab hides them in scene preview-only mode. The buttons stay clickable everywhere; on slides the setting doesn't apply to, it changes with no visible effect.
 
+## Create-Marker Button
+
+`create-marker` (`buttons/CreateMarkerActionButton.tsx`) has two modes, chosen by its `markerDefaults` config (the settings form's "Create with defaults" switch):
+
+- **Without defaults:** clicking opens Stash's `SceneMarkerForm` in the side panel. Its start time is the current player's position.
+- **With defaults:** clicking creates a marker right away at the current playback position, using the configured title, primary tag and tags. Once the scene has a marker with that primary tag and title, the button turns active ("Edit "<tag>" marker") and clicking it opens `SceneMarkerForm` for that marker instead of creating another. Deleting the marker from that form turns it back into a create button.
+- ⚠️ Stash stores a marker with no title as `""`, so an unset default title is matched as `""`. Otherwise an untitled default marker is never recognised and every click creates another.
+- It only renders on scene slides, not marker slides.
+- The new marker only shows on the slide because `useLiveMediaItem` refetches a scene whose cached data Stash's marker mutations evict (see [media loading](media-loading.md) § "Live item data").
+
 ## Rendering (`ActionButtonStack`)
 
 - Rendered by `MediaSlide` per slide with `mediaItem`, `playerRef`, `sceneInfoOpen`, etc.

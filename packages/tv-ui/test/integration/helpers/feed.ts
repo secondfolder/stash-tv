@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { expect } from "vitest";
 import { bootApp, type BootedApp } from "./harness";
 import type { useTvConfig } from "../../../src/store/tvConfig";
+import type { ActionButtonConfig } from "../../../src/components/action-buttons/buttons";
 
 /**
  * Boot once to change persisted tvConfig, then boot fresh so the app starts with it (as it would after a reload).
@@ -52,16 +53,25 @@ export async function goToSlide(app: BootedApp, index: number) {
   expect(currentSlide(app).dataset.index).toBe(String(index));
 }
 
+/** A button's config without the stack fields `pinActionButtons` fills in */
+type ButtonOptions = ActionButtonConfig extends infer Config
+  ? Config extends ActionButtonConfig ? Omit<Config, "id" | "type" | "pinned"> : never
+  : never;
+
 /**
  * Replace the action button stack with just the given buttons, pinned, so their displayed state is in the DOM (by
- * default most buttons sit in a closed folder).
+ * default most buttons sit in a closed folder). Pass a button type for buttons with no options of their own, or the
+ * button's options (e.g. `{ buttonType: "create-marker", iconId: "bookmark", markerDefaults: … }`).
  */
-export async function pinActionButtons(buttonTypes: ("rate-scene" | "o-counter")[]) {
+export async function pinActionButtons(buttons: ("rate-scene" | "o-counter" | ButtonOptions)[]) {
   const { useTvConfig } = await import("../../../src/store/tvConfig");
   await act(async () => {
     useTvConfig.getState().set(
       "actionButtonStackConfig",
-      buttonTypes.map((buttonType) => ({ id: buttonType, type: "button" as const, buttonType, pinned: true }))
+      buttons.map((button, index) => {
+        const options = typeof button === "string" ? { buttonType: button } : button;
+        return { ...options, id: `${options.buttonType}-${index}`, type: "button" as const, pinned: true };
+      })
     );
   });
 }
