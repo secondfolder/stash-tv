@@ -1,3 +1,16 @@
+diff --git a/ui/v2.5/graphql/data/scene-marker.graphql b/ui/v2.5/graphql/data/scene-marker.graphql
+index a5dbc8a6..d4db55e0 100644
+--- a/ui/v2.5/graphql/data/scene-marker.graphql
++++ b/ui/v2.5/graphql/data/scene-marker.graphql
+@@ -3,6 +3,8 @@ fragment SceneMarkerData on SceneMarker {
+   title
+   seconds
+   end_seconds
++  # Added by Stash TV: lets the create-marker button suggest the most recently added marker for editing
++  created_at
+   stream
+   preview
+   screenshot
 diff --git a/ui/v2.5/graphql/stash-tv.graphql b/ui/v2.5/graphql/stash-tv.graphql
 new file mode 100644
 index 00000000..ac806bbb

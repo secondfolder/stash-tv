@@ -187,6 +187,10 @@ describe("integration feature", () => {
 
 ⚠️ **jsdom never fires `timeupdate`, and its playback position stays at 0.** Anything MediaSlide recomputes on `timeupdate` (e.g. the "currently playing marker" label) only changes in a test if you fire the event on the slide's `<video>` yourself.
 
+⚠️ **Anything that depends on layout needs an e2e test.** jsdom has no layout, so positioning bugs (e.g. a dropdown menu inside an action button's side panel opening off screen or behind the panel's backdrop) pass every unit and integration test. In Playwright, `toBeVisible()` doesn't catch them either: an element off screen or covered by something else still counts as visible. Check `toBeInViewport()` and hit-test with `document.elementFromPoint` (see `expectUsableOnScreen` in `test/e2e/create-marker-button.test.ts`).
+
+⚠️ **E2E tests that need non-default config set it through the API.** tvConfig lives in Stash's plugin config, so send a `configurePlugin` mutation to `/graphql` (proxied to mock-stash) before `page.goto`, and reset it to `{}` afterwards: the mock server is shared by every e2e test. Include `showGuideOverlay: false`, or the first-run guide overlay covers the page and swallows every click.
+
 ⚠️ **Known jsdom limitations:** no pointer capture (Radix drag tests are skipped with reasons inline), no Gamepad API (stubbed in `setup.ts`), `HTMLMediaElement.play` stubbed. Document skipped tests inline.
 
 ## Test-only exceptions to app-code rules
@@ -218,7 +222,7 @@ Issues found in the 2026-09 test-suite review that were **not** fixed — pick t
 - **mock-stash `meta.test.ts`**: the `scanCompleteSubscribe` test uses a fixed 250 ms delay for subscription establishment — a CI flake risk (signal readiness instead); the marker create/update/destroy test bundles three behaviours in one `it`.
 - **Conformance suite** (`packages/mock-stash/test/conformance/`): scattered `as` casts on projections (centralise a typed-projection helper); "findScenes sorts by path consistently" sorts inside its own projection, weakening what it verifies.
 - **`docs.test.ts`**: only scans top-level `docs/` (a nested doc escapes validation); a citation pointing at a nonexistent file crashes with a raw ENOENT instead of a clean failure; `](docs/...)` links are matched anywhere in AGENTS.md, not just the Documentation table.
-- **E2E is still smoke-level**: no interaction tests (scroll advancing the slide, clicking an action button, opening settings).
+- **E2E is still mostly smoke-level**: the only interaction tests are the create-marker side panel's dropdowns. Nothing yet covers scrolling to the next slide or opening settings.
 - **`EditTagsContents` unit tests mock `EditTagSelectionForm`** — a real-form integration test would cover the prop forwarding for free and exercise the actual editing flow.
 
 ### App-code smells surfaced by the review (fix in app code, not tests)

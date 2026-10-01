@@ -7,7 +7,6 @@ import { ActionButtonIconName, actionButtonIcons } from "../icons";
 import type { ActionButtonDefinitionInput } from "./index";
 import cx from "classnames";
 import { queryFindTagsByIDForSelect, useSceneMarkerCreate } from "stash-ui/dist/src/core/StashService";
-import { SceneMarkerForm } from "stash-ui/wrappers/components/SceneMarkerForm";
 import { VideoJsPlayer } from "video.js";
 import { getLogger } from "@logtape/logtape";
 import { MediaItem } from "../../../hooks/useMediaItems";
@@ -18,6 +17,7 @@ import { MarkerTitleSuggest } from "stash-ui/dist/src/components/Shared/Select";
 import { TagIdSelect } from "stash-ui/wrappers/components/TagIdSelect";
 import Switch from "../../settings/Switch";
 import { IconSelect } from "../../settings/IconSelect";
+import { CreateMarkerPanel, DefaultMarkersPanel } from "../../MarkerPanels";
 
 const logger = getLogger(["stash-tv", "CreateMarkerActionButton"])
 
@@ -54,7 +54,7 @@ export const buttonDefinition = {
     if (markerDefaults) {
       if (state === "active") {
         return <>
-          {tag ? `Edit "${tag.name}" marker` : "Edit marker"}
+          {tag ? `Add or edit "${tag.name}" markers` : "Add or edit markers"}
         </>
       } else if (state === "inactive") {
         return <>
@@ -98,9 +98,9 @@ export function CreateMarkerActionButton(
   const scene = mediaItem.entityType === "scene" ? mediaItem.entity : undefined
   // Stash stores a marker without a title as "", so match an unset default title against that
   const defaultTitle = markerDefaults?.title ?? ""
-  const existingMarker = useMemo(
-    () => markerDefaults && scene?.scene_markers
-      .find(m => m.primary_tag.id === markerDefaults.primaryTagId && m.title === defaultTitle),
+  const existingMarkers = useMemo(
+    () => (markerDefaults && scene?.scene_markers
+      .filter(m => m.primary_tag.id === markerDefaults.primaryTagId && m.title === defaultTitle)) ?? [],
     [scene?.scene_markers, markerDefaults?.primaryTagId, defaultTitle]
   )
 
@@ -109,9 +109,10 @@ export function CreateMarkerActionButton(
   if (!parsedConfig) return <strong>?</strong>
   if (!scene) return null
 
+  const getPlayerPosition = () => playerRef.current?.currentTime()
   const createMarkerFromDefaults = () => {
     if (!markerDefaults) return
-    const currentTime = playerRef.current?.currentTime()
+    const currentTime = getPlayerPosition()
     if (currentTime === undefined) {
       logger.error("Player current time is undefined when creating quick marker", {sceneId: scene.id})
       return
@@ -134,33 +135,29 @@ export function CreateMarkerActionButton(
       title={buttonDefinition.title}
       className={cx(buttonDefinition.id, "hide-on-ui-hide")}
       sidePanel={({close}) => (
-        <SceneMarkerForm
-          className="action-button-create-marker"
-          sceneID={scene.id}
-          onClose={close}
-          marker={undefined}
-        />
+        <CreateMarkerPanel scene={scene} getPlayerPosition={getPlayerPosition} close={close} />
       )}
     />
   }
-  // Once the scene has the marker, the button edits it instead of creating another
-  const renderSidePanel = existingMarker
+  // Once the scene has a marker matching the defaults, the button offers to add another or edit the existing ones
+  const hasExistingMarkers = existingMarkers.length > 0
+  const renderSidePanel = hasExistingMarkers
     ? ({close}: {close: () => void}) => (
-      <SceneMarkerForm
-        className="action-button-create-marker"
-        sceneID={scene.id}
-        onClose={close}
-        marker={existingMarker}
+      <DefaultMarkersPanel
+        sceneId={scene.id}
+        markers={existingMarkers}
+        onAddMarker={createMarkerFromDefaults}
+        close={close}
       />
     )
     : null
   return <ActionButtonBase
-    state={existingMarker ? "active" : "inactive"}
+    state={hasExistingMarkers ? "active" : "inactive"}
     icon={buttonDefinition.icon}
     title={buttonDefinition.title}
     className={cx(buttonDefinition.id, "hide-on-ui-hide")}
     sidePanel={renderSidePanel}
-    onClick={({toggleSidePanel}) => existingMarker ? toggleSidePanel() : createMarkerFromDefaults()}
+    onClick={({toggleSidePanel}) => hasExistingMarkers ? toggleSidePanel() : createMarkerFromDefaults()}
     config={config}
   />
 }

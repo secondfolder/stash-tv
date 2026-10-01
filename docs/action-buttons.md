@@ -88,6 +88,10 @@ Side panel behaviour (implemented in `ActionButtonBase/SidePanel`):
 - Only **one side panel can be open app-wide** — coordinated via the module-level `useCurrentOpenPopover` Zustand store; opening one closes any other
 - Closes on outside click or when the button scrolls offscreen (custom popper modifiers)
 - Placement flips with `leftHandedUi`
+- ⚠️ **Dropdowns inside a side panel need two overrides on the shared `Select`** (`components/settings/Select`), or the menu opens where the user can't see it:
+  - `menuPortalTarget={null}`: by default the menu is portalled to `<body>` with react-select's default z-index of 1. The outside-click handling puts a backdrop just under the panel (the popover's z-index minus 1), so a portalled menu opens behind it.
+  - `menuPosition="absolute"`: the shared `Select` defaults to `fixed`, but Popper positions the panel with a CSS transform. A transformed ancestor makes a `position: fixed` child position relative to it rather than the viewport, which puts the menu off screen.
+  - Stash's own selects (e.g. the tag selects in `SceneMarkerForm`) render inline and absolutely positioned already. Only jsdom-free tests catch this: see `test/e2e/create-marker-button.test.ts`.
 
 ⚠️ Unknown props (e.g. `data-testid`) are **not** forwarded to the DOM by `ActionButtonBase` — it doesn't spread rest props. Don't rely on them for tests.
 
@@ -110,8 +114,11 @@ Some buttons step through the options of a multi-option setting instead of toggl
 
 `create-marker` (`buttons/CreateMarkerActionButton.tsx`) has two modes, chosen by its `markerDefaults` config (the settings form's "Create with defaults" switch):
 
-- **Without defaults:** clicking opens Stash's `SceneMarkerForm` in the side panel. Its start time is the current player's position.
-- **With defaults:** clicking creates a marker right away at the current playback position, using the configured title, primary tag and tags. Once the scene has a marker with that primary tag and title, the button turns active ("Edit "<tag>" marker") and clicking it opens `SceneMarkerForm` for that marker instead of creating another. Deleting the marker from that form turns it back into a create button.
+- **Without defaults:** clicking opens a side panel with Stash's `SceneMarkerForm` for a new marker, starting at the current player position. If the scene already has markers, an "Edit an existing marker" select (the shared `Select`) and Edit button sit below the form. Edit swaps the form for `SceneMarkerForm` editing the chosen marker.
+- **With defaults:** clicking creates a marker right away at the current playback position, using the configured title, primary tag and tags. Once the scene has one or more markers with that primary tag and title, the button turns active ("Add or edit "<tag>" markers"). Clicking it then opens a panel with an "Add another" button (creates one more from the defaults) and a list of those matching markers, each with an Edit button that swaps in `SceneMarkerForm` for it. Deleting the last matching marker turns the button back into a create button.
+- Markers are listed by start time and labelled with their start time and title (or primary tag name if untitled), e.g. "1:05 Intro". The panels live in `src/components/MarkerPanels/`; the selection and labelling logic is in `src/helpers/markers.ts`.
+- **Which marker the select suggests:** the most recently added marker if it was added in the last 10 minutes (the user is probably fixing up a marker they just made), otherwise the one starting closest to where the playhead was when the panel opened. This relies on the marker's `created_at`, which Stash's `SceneMarkerData` fragment doesn't include. The stash-ui patch adds it (see [stash-ui package](stash-ui-package.md)).
+- Saving, deleting or cancelling in `SceneMarkerForm` closes the whole panel. Stash's form calls one `onClose` for all three.
 - ⚠️ Stash stores a marker with no title as `""`, so an unset default title is matched as `""`. Otherwise an untitled default marker is never recognised and every click creates another.
 - It only renders on scene slides, not marker slides.
 - The new marker only shows on the slide because `useLiveMediaItem` refetches a scene whose cached data Stash's marker mutations evict (see [media loading](media-loading.md) § "Live item data").
