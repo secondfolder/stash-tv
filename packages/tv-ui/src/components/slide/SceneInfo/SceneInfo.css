@@ -302,6 +302,7 @@
     align-items: center;
     column-gap: 0.4em;
     row-gap: 0.8em;
+    flex: 1 1 auto;
   }
 
   /* The left side's later rows are indented (see --wrapped-line-indent), with its first field outdented back */

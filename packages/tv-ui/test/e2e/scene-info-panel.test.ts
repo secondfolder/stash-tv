@@ -1,4 +1,4 @@
-import { test, expect, type Locator, type Page } from '@playwright/test';
+import { test, expect, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 import { graphql, setTvConfig } from './helpers/stash';
 import { expectUsableOnScreen } from './helpers/layout';
 
@@ -9,6 +9,14 @@ import { expectUsableOnScreen } from './helpers/layout';
  * @see docs/scene-info-panel.md § "Customising the panel"
  * @see docs/scene-info-panel.md § "Moving fields"
  */
+
+/** A layout of the fields the tests use, each on its own line (the default has many more) */
+const SIMPLE_LAYOUT = [['studio'], ['title'], ['performers'], ['date']];
+
+/** `setTvConfig`, with the simple layout unless the settings give one */
+function setPanelConfig(request: APIRequestContext, state: Record<string, unknown>) {
+  return setTvConfig(request, { sceneInfoLayout: SIMPLE_LAYOUT, ...state });
+}
 
 function currentSlide(page: Page) {
   return page.locator('[data-testid="MediaSlide--container"][data-current-video="true"]');
@@ -148,7 +156,7 @@ async function box(locator: Locator) {
 
 test.describe('Scene info panel', () => {
   test.beforeEach(async ({ request }) => {
-    await setTvConfig(request, {});
+    await setPanelConfig(request, {});
   });
 
   test.afterEach(async ({ request }) => {
@@ -157,7 +165,7 @@ test.describe('Scene info panel', () => {
 
   for (const leftHandedUi of [false, true]) {
     test(`has an edit button in its top right corner, clear of the action buttons${leftHandedUi ? ' (left-handed)' : ''}`, async ({ page, request }) => {
-      await setTvConfig(request, { leftHandedUi });
+      await setPanelConfig(request, { leftHandedUi });
       await openInfoPanel(page);
 
       const editButton = infoPanel(page).getByRole('button', { name: 'Customise info panel' });
@@ -183,13 +191,16 @@ test.describe('Scene info panel', () => {
   });
 
   test('puts a field dragged onto a field on another line in its place, even drifting onto its right half', async ({ page, request }) => {
-    await setTvConfig(request, { sceneInfoLayout: [['date'], ['performers']] });
+    await setPanelConfig(request, { sceneInfoLayout: [['date'], ['performers']] });
     await startEditing(page);
-    const performers = await box(pill(page, 'performers'));
+    const [performers, date] = await Promise.all([box(pill(page, 'performers')), box(pill(page, 'date'))]);
 
-    // Down and a little to the right, ending over the right half of the field below. (Much further right reads as moving
-    // back onto it after taking its place, which swaps them.)
-    await dragTo(page, pill(page, 'date'), performers.x + performers.width * 0.6, performers.y + performers.height / 2);
+    // Down and a little to the right, ending over the right half of the field below, but short of where it's pushed to
+    // as the date takes its place (by about the date's width). Further right reads as moving back onto it after taking
+    // its place, which swaps them.
+    const x = performers.x + (performers.width / 2 + date.width) / 2;
+    expect(x).toBeGreaterThan(performers.x + performers.width / 2);
+    await dragTo(page, pill(page, 'date'), x, performers.y + performers.height / 2);
 
     await expect.poll(() => editorLayout(page)).toEqual([['date', 'performers']]);
   });
@@ -221,7 +232,7 @@ test.describe('Scene info panel', () => {
   });
 
   test('puts a field dragged between two lines on a new line there, and saves the layout', async ({ page, request }) => {
-    await setTvConfig(request, { sceneInfoLayout: [['title', 'date'], ['performers']] });
+    await setPanelConfig(request, { sceneInfoLayout: [['title', 'date'], ['performers']] });
     await startEditing(page);
     const title = await box(pill(page, 'title'));
     const performers = await box(pill(page, 'performers'));
@@ -281,7 +292,7 @@ test.describe('Scene info panel', () => {
   });
 
   test('marks where a new line will go with a ghost line between the lines, without moving them', async ({ page, request }) => {
-    await setTvConfig(request, { sceneInfoLayout: [['studio'], ['title', 'date'], ['performers']] });
+    await setPanelConfig(request, { sceneInfoLayout: [['studio'], ['title', 'date'], ['performers']] });
     await startEditing(page);
     const fieldsAndSections = [pill(page, 'studio'), pill(page, 'title'), pill(page, 'performers'),
       infoPanel(page).locator('.editor-toolbar'), infoPanel(page).locator('.unused-fields')];
@@ -308,7 +319,7 @@ test.describe('Scene info panel', () => {
   });
 
   test('right-aligns a field dragged over the right third of the space after a line\'s fields, and saves it', async ({ page, request }) => {
-    await setTvConfig(request, { sceneInfoLayout: [['title'], ['date']] });
+    await setPanelConfig(request, { sceneInfoLayout: [['title'], ['date']] });
     await startEditing(page);
     const lines = await box(infoPanel(page).locator('.editor-lines'));
     const title = await box(pill(page, 'title'));
@@ -345,7 +356,7 @@ test.describe('Scene info panel', () => {
   });
 
   test('highlights the line a field is dragged onto, but not between lines', async ({ page, request }) => {
-    await setTvConfig(request, { sceneInfoLayout: [{ left: ['title'], right: ['date'] }, ['performers'], ['tags']] });
+    await setPanelConfig(request, { sceneInfoLayout: [{ left: ['title'], right: ['date'] }, ['performers'], ['tags']] });
     await startEditing(page);
     const title = await box(pill(page, 'title'));
     const date = await box(pill(page, 'date'));
@@ -365,7 +376,7 @@ test.describe('Scene info panel', () => {
   });
 
   test('highlights the line the pointer\'s over while editing', async ({ page, request }) => {
-    await setTvConfig(request, { sceneInfoLayout: [{ left: ['title'], right: ['date'] }, ['performers']] });
+    await setPanelConfig(request, { sceneInfoLayout: [{ left: ['title'], right: ['date'] }, ['performers']] });
     await startEditing(page);
     const background = (line: Locator) => line.evaluate((element) => getComputedStyle(element).backgroundColor);
     const lines = infoPanel(page).locator('.editor-line');
@@ -385,7 +396,7 @@ test.describe('Scene info panel', () => {
   });
 
   test('wraps a line\'s left fields and its right-aligned ones each on their own, the right-aligned rows on the right with a hanging indent, at least 2em from the left ones', async ({ page, request }) => {
-    await setTvConfig(request, { sceneInfoLayout: [{ left: ['title', 'performers', 'date'], right: ['duration', 'resolution', 'o-count'] }, ['studio']] });
+    await setPanelConfig(request, { sceneInfoLayout: [{ left: ['title', 'performers', 'date'], right: ['duration', 'resolution', 'o-count'] }, ['studio']] });
     await page.setViewportSize({ width: 500, height: 800 });
     await startEditing(page);
     const lineBox = await box(infoPanel(page).locator('.editor-line').first());
@@ -423,7 +434,7 @@ test.describe('Scene info panel', () => {
   });
 
   test('right-aligns what\'s in right-aligned fields, and spaces tags by their list\'s gap alone', async ({ page, request }) => {
-    await setTvConfig(request, { sceneInfoLayout: [{ left: ['title'], right: ['tags', 'performers'] }] });
+    await setPanelConfig(request, { sceneInfoLayout: [{ left: ['title'], right: ['tags', 'performers'] }] });
     await openInfoPanel(page);
     const rightAligned = infoPanel(page).locator('.right-aligned-fields');
 
@@ -440,7 +451,7 @@ test.describe('Scene info panel', () => {
   });
 
   test('lays a line\'s right-aligned fields out from its end, the first at the end', async ({ page, request }) => {
-    await setTvConfig(request, { sceneInfoLayout: [{ left: ['title'], right: ['duration', 'resolution'] }] });
+    await setPanelConfig(request, { sceneInfoLayout: [{ left: ['title'], right: ['duration', 'resolution'] }] });
     await openInfoPanel(page);
     const panelField = (field: string) => box(infoPanel(page).locator(`.field-${field}`));
     expect((await panelField('duration')).x).toBeGreaterThan((await panelField('resolution')).x);
@@ -450,7 +461,7 @@ test.describe('Scene info panel', () => {
   });
 
   test('moves a field along a line\'s right-aligned fields, which run from right to left', async ({ page, request }) => {
-    await setTvConfig(request, { sceneInfoLayout: [{ left: ['title'], right: ['duration', 'resolution', 'date'] }] });
+    await setPanelConfig(request, { sceneInfoLayout: [{ left: ['title'], right: ['duration', 'resolution', 'date'] }] });
     await startEditing(page);
     const duration = await box(pill(page, 'duration'));
     const y = duration.y + duration.height / 2;
@@ -474,7 +485,7 @@ test.describe('Scene info panel', () => {
   });
 
   test('puts a field dropped on the right third of the space before a line\'s right-aligned fields beside them', async ({ page, request }) => {
-    await setTvConfig(request, { sceneInfoLayout: [{ left: ['title'], right: ['duration'] }, ['date']] });
+    await setPanelConfig(request, { sceneInfoLayout: [{ left: ['title'], right: ['duration'] }, ['date']] });
     await startEditing(page);
     const title = await box(pill(page, 'title'));
     const duration = await box(pill(page, 'duration'));
@@ -489,7 +500,7 @@ test.describe('Scene info panel', () => {
   });
 
   test('marks a new line with a ghost line across the half of the lines the field will be aligned to', async ({ page, request }) => {
-    await setTvConfig(request, { sceneInfoLayout: [['title', 'date'], ['performers']] });
+    await setPanelConfig(request, { sceneInfoLayout: [['title', 'date'], ['performers']] });
     await startEditing(page);
     const lines = await box(infoPanel(page).locator('.editor-lines'));
     const title = await box(pill(page, 'title'));
@@ -511,7 +522,7 @@ test.describe('Scene info panel', () => {
   });
 
   test('keeps the ghost dim for the whole drag', async ({ page, request }) => {
-    await setTvConfig(request, { sceneInfoLayout: [['studio', 'title'], ['date'], ['performers']] });
+    await setPanelConfig(request, { sceneInfoLayout: [['studio', 'title'], ['date'], ['performers']] });
     await startEditing(page);
     // Record the ghost's most opaque moment, every frame
     await page.evaluate(() => {
@@ -544,7 +555,7 @@ test.describe('Scene info panel', () => {
   });
 
   test('keeps the space of the line a field is dragged off until it\'s dropped', async ({ page, request }) => {
-    await setTvConfig(request, { sceneInfoLayout: [['studio'], ['date'], ['performers']] });
+    await setPanelConfig(request, { sceneInfoLayout: [['studio'], ['date'], ['performers']] });
     await startEditing(page);
     const studio = await box(pill(page, 'studio'));
     const performersBefore = await box(pill(page, 'performers'));
@@ -559,7 +570,7 @@ test.describe('Scene info panel', () => {
   });
 
   test('moves a lone field down into the next line without adding a line on the way', async ({ page, request }) => {
-    await setTvConfig(request, { sceneInfoLayout: [['studio'], ['title'], ['performers']] });
+    await setPanelConfig(request, { sceneInfoLayout: [['studio'], ['title'], ['performers']] });
     await startEditing(page);
     await page.evaluate(() => {
       const record = window as unknown as { maxLines: number };
@@ -583,7 +594,7 @@ test.describe('Scene info panel', () => {
   });
 
   test('moves a field past a longer one as soon as it\'s dragged onto it, and back once dragged back', async ({ page, request }) => {
-    await setTvConfig(request, { sceneInfoLayout: [['date', 'performers']] });
+    await setPanelConfig(request, { sceneInfoLayout: [['date', 'performers']] });
     await startEditing(page);
     const performers = await box(pill(page, 'performers'));
     const y = performers.y + performers.height / 2;
@@ -601,7 +612,7 @@ test.describe('Scene info panel', () => {
   });
 
   test('keeps every field showing as a field dragged from the bottom is dropped at the top', async ({ page, request }) => {
-    await setTvConfig(request, { sceneInfoLayout: [['studio'], ['title'], ['performers'], ['date']] });
+    await setPanelConfig(request, { sceneInfoLayout: [['studio'], ['title'], ['performers'], ['date']] });
     await startEditing(page);
     const studio = await box(pill(page, 'studio'));
 
@@ -635,7 +646,7 @@ test.describe('Scene info panel', () => {
   });
 
   test('slides the lines apart to make room for a new line once a field is dropped there', async ({ page, request }) => {
-    await setTvConfig(request, { sceneInfoLayout: [['studio'], ['title', 'date'], ['performers']] });
+    await setPanelConfig(request, { sceneInfoLayout: [['studio'], ['title', 'date'], ['performers']] });
     await startEditing(page);
     const title = await box(pill(page, 'title'));
     const performers = await box(pill(page, 'performers'));
@@ -657,7 +668,7 @@ test.describe('Scene info panel', () => {
   });
 
   test('slides a field and the ghost of one dragged onto it from the line above into their new places', async ({ page, request }) => {
-    await setTvConfig(request, { sceneInfoLayout: [['date'], ['performers']] });
+    await setPanelConfig(request, { sceneInfoLayout: [['date'], ['performers']] });
     await startEditing(page);
     const performers = await box(pill(page, 'performers'));
     await startDrag(page, pill(page, 'date'), performers.x + 4, performers.y - 12);
@@ -690,7 +701,7 @@ test.describe('Scene info panel', () => {
 
   test('moves a field along a line that wraps onto another row without sending it to the end', async ({ page, request }) => {
     const fields = ['studio', 'title', 'performers', 'date', 'details', 'tags', 'groups', 'code', 'director', 'rating'];
-    await setTvConfig(request, { sceneInfoLayout: [fields] });
+    await setPanelConfig(request, { sceneInfoLayout: [fields] });
     await page.setViewportSize({ width: 500, height: 800 });
     await startEditing(page);
     const title = await box(pill(page, 'title'));
@@ -706,7 +717,7 @@ test.describe('Scene info panel', () => {
 
   test('indents the later rows of a line that wraps', async ({ page, request }) => {
     const fields = ['studio', 'title', 'performers', 'date', 'details', 'tags', 'groups', 'code', 'director', 'rating'];
-    await setTvConfig(request, { sceneInfoLayout: [fields, ['urls']] });
+    await setPanelConfig(request, { sceneInfoLayout: [fields, ['urls']] });
     await page.setViewportSize({ width: 500, height: 800 });
     await startEditing(page);
     const firstRowStart = (await box(pill(page, 'studio'))).x;
@@ -723,7 +734,7 @@ test.describe('Scene info panel', () => {
   });
 
   test('puts a field dragged onto a line\'s first field, then rightwards off it, between that field and the next', async ({ page, request }) => {
-    await setTvConfig(request, { sceneInfoLayout: [['studio', 'title', 'performers'], ['date']] });
+    await setPanelConfig(request, { sceneInfoLayout: [['studio', 'title', 'performers'], ['date']] });
     await startEditing(page);
     const studio = await box(pill(page, 'studio'));
     const y = studio.y + studio.height / 2;
@@ -772,7 +783,7 @@ test.describe('Scene info panel', () => {
   });
 
   test('swaps a field with the one whose place it took as soon as it\'s dragged back onto it', async ({ page, request }) => {
-    await setTvConfig(request, { sceneInfoLayout: [['date'], ['performers']] });
+    await setPanelConfig(request, { sceneInfoLayout: [['date'], ['performers']] });
     await startEditing(page);
     const date = await box(pill(page, 'date'));
     const y = date.y + date.height / 2;
@@ -792,7 +803,7 @@ test.describe('Scene info panel', () => {
 
   test('moves a field between the rows of a line that wraps as if they were lines of their own', async ({ page, request }) => {
     const fields = ['studio', 'title', 'performers', 'date', 'details', 'tags', 'groups', 'code', 'director', 'rating', 'duration'];
-    await setTvConfig(request, { sceneInfoLayout: [fields] });
+    await setPanelConfig(request, { sceneInfoLayout: [fields] });
     // A width at which the field below doesn't fit back on the first row once the dragged one leaves it, which would
     // put another field under the pointer (see docs/scene-info-panel.md § "Moving fields")
     await page.setViewportSize({ width: 460, height: 800 });
@@ -824,7 +835,7 @@ test.describe('Scene info panel', () => {
 
   test('marks each line that wraps once, in the indent of its later rows', async ({ page, request }) => {
     const fields = ['studio', 'title', 'performers', 'date', 'details', 'tags', 'groups', 'code', 'director', 'rating', 'duration'];
-    await setTvConfig(request, { sceneInfoLayout: [fields, ['urls'], ['path', 'o-count']] });
+    await setPanelConfig(request, { sceneInfoLayout: [fields, ['urls'], ['path', 'o-count']] });
     // Narrow enough for the first line to wrap onto three rows
     await page.setViewportSize({ width: 450, height: 800 });
     await startEditing(page);
@@ -848,7 +859,7 @@ test.describe('Scene info panel', () => {
     // [studio] [title] [performers] [date]
     //   [tags]
     const fields = ['studio', 'title', 'performers', 'date', 'tags'];
-    await setTvConfig(request, { sceneInfoLayout: [fields] });
+    await setPanelConfig(request, { sceneInfoLayout: [fields] });
     // Taller than it's wide throughout, so the unused fields stay below the lines
     await page.setViewportSize({ width: 900, height: 1400 });
     await startEditing(page);
@@ -873,7 +884,7 @@ test.describe('Scene info panel', () => {
 
   test('marks where a field dragged onto a line it would make wrap will go, and only wraps it once it\'s dropped', async ({ page, request }) => {
     const full = ['title', 'performers', 'date', 'tags'];
-    await setTvConfig(request, { sceneInfoLayout: [['studio'], full] });
+    await setPanelConfig(request, { sceneInfoLayout: [['studio'], full] });
     // Taller than it's wide throughout, so the unused fields stay below the lines
     await page.setViewportSize({ width: 900, height: 1400 });
     await startEditing(page);
@@ -1000,7 +1011,7 @@ test.describe('Scene info panel', () => {
 
         // Find the narrowest width at which the line takes `rowsBefore` rows (as little room left on its last row as
         // there can be)
-        await setTvConfig(request, { sceneInfoLayout: layout });
+        await setPanelConfig(request, { sceneInfoLayout: layout });
         await page.setViewportSize({ width: 900, height });
         await startEditing(page);
         const draggedWidth = (await box(pill(page, dragged))).width + 20; // As it is on a line, with its ×
@@ -1018,7 +1029,7 @@ test.describe('Scene info panel', () => {
         for (let step = 0; step <= WRAP_SWEEP_STEPS; step++) {
           const extra = Math.round(draggedWidth * step / WRAP_SWEEP_STEPS);
           for (const onto of ['first', 'last'] as const) {
-            await setTvConfig(request, { sceneInfoLayout: layout });
+            await setPanelConfig(request, { sceneInfoLayout: layout });
             await page.setViewportSize({ width: width + extra, height });
             await startEditing(page);
             const before = await rowsOf(targetLine);
@@ -1045,7 +1056,7 @@ test.describe('Scene info panel', () => {
   test('doesn\'t move the lines while a long field is dragged over a full line, showing values', async ({ page, request }) => {
     test.setTimeout(120_000);
     // A line whose two sides both wrap, with long values that shrink and wrap their text, and a long description below
-    await setTvConfig(request, {
+    await setPanelConfig(request, {
       // So the video doesn't end, moving the feed on to the next one, mid-drag
       looping: true,
       sceneInfoLayout: [
@@ -1102,7 +1113,7 @@ test.describe('Scene info panel', () => {
 
   test('slides the marker of a wrapped line along with its rows', async ({ page, request }) => {
     const wrapping = ['studio', 'title', 'performers', 'date', 'details', 'tags', 'groups', 'code', 'director', 'rating', 'duration'];
-    await setTvConfig(request, { sceneInfoLayout: [wrapping, ['urls', 'path'], ['o-count']] });
+    await setPanelConfig(request, { sceneInfoLayout: [wrapping, ['urls', 'path'], ['o-count']] });
     await page.setViewportSize({ width: 500, height: 1000 });
     await startEditing(page);
     await expect(infoPanel(page).locator('.wrapped-line-marker')).toHaveCount(1);
@@ -1120,7 +1131,7 @@ test.describe('Scene info panel', () => {
 
   test('doesn\'t clip the toolbar as it slides down when the panel shrinks', async ({ page, request }) => {
     // Nearly every field in the lines, so the unused fields have room for the one removed
-    await setTvConfig(request, { sceneInfoLayout: [
+    await setPanelConfig(request, { sceneInfoLayout: [
       ['studio', 'title', 'performers'], ['date', 'details', 'tags'], ['groups', 'code', 'director'],
       ['rating', 'duration', 'resolution'], ['play-count', 'path'], ['o-count'],
     ] });
@@ -1201,7 +1212,7 @@ test.describe('Scene info panel fields', () => {
     await graphql(request, 'mutation ($input: SceneUpdateInput!) { sceneUpdate(input: $input) { id } }', {
       input: { id: sceneId, tag_ids: extraTagIds },
     });
-    await setTvConfig(request, { sceneInfoLayout: [['title'], ['tags']] });
+    await setPanelConfig(request, { sceneInfoLayout: [['title'], ['tags']] });
   });
 
   test.afterEach(async ({ request }) => {
@@ -1292,7 +1303,7 @@ test.describe('Scene info panel fields', () => {
   // 3 is too small a rating for a star (e.g. given as 0.3 out of 10 with the decimal system), so it shows as none
   for (const rating100 of [null, 3]) {
     test(`shows nothing beside the stars with a rating of ${rating100}, even hovering one`, async ({ page, request }) => {
-      await setTvConfig(request, { sceneInfoLayout: [['title', 'rating']] });
+      await setPanelConfig(request, { sceneInfoLayout: [['title', 'rating']] });
       await graphql(request, 'mutation ($input: SceneUpdateInput!) { sceneUpdate(input: $input) { id } }', {
         input: { id: sceneId, rating100 },
       });
@@ -1313,7 +1324,7 @@ test.describe('Scene info panel fields', () => {
 
   for (const rightAligned of [false, true]) {
     test(`shows "Clear" over the current rating's star, ${rightAligned ? 'left' : 'right'} of the stars${rightAligned ? ' (right-aligned)' : ''}`, async ({ page, request }) => {
-      await setTvConfig(request, { sceneInfoLayout: rightAligned ? [{ left: ['title'], right: ['rating'] }] : [['title', 'rating']] });
+      await setPanelConfig(request, { sceneInfoLayout: rightAligned ? [{ left: ['title'], right: ['rating'] }] : [['title', 'rating']] });
       await graphql(request, 'mutation ($input: SceneUpdateInput!) { sceneUpdate(input: $input) { id } }', {
         input: { id: sceneId, rating100: 60 },
       });
@@ -1337,7 +1348,7 @@ test.describe('Scene info panel fields', () => {
     });
   }
 
-  test('adds a copy of the spacer dragged in from the unused fields, which is space beside fields or between lines', async ({ page }) => {
+  test('adds a copy of the spacer dragged in from the unused fields, which is space beside fields', async ({ page }) => {
     await startEditing(page);
     const title = await box(pill(page, 'title'));
     const unusedSpacer = infoPanel(page).locator('.unused-fields .field-pill[data-field="spacer"]');
@@ -1348,20 +1359,27 @@ test.describe('Scene info panel fields', () => {
     // The layout's set up as the title's line, then the tags'
     expect(lines[0]).toEqual(['title', 'spacer']);
 
-    // And another, on a line of its own at the bottom
-    await unusedSpacer.click();
     await infoPanel(page).getByRole('button', { name: 'Save' }).click();
-
     const beside = infoPanel(page).locator('.field-line').first().locator('.field-spacer');
-    const between = infoPanel(page).locator('.field-line').last().locator('.field-spacer');
-    const [besideBox, betweenBox] = await Promise.all([box(beside), box(between)]);
-    expect(besideBox.width).toBeGreaterThan(0);
+    expect((await box(beside)).width).toBeGreaterThan(0);
+  });
+
+  test('shows a spacer alone on its line as space between the lines, but not at the panel\'s bottom', async ({ page, request }) => {
+    const spacer = (id: string) => [{ field: 'spacer', id, options: { size: 'big' } }];
+    await setPanelConfig(request, { sceneInfoLayout: [['title'], spacer('1'), ['tags'], spacer('2')] });
+    await openInfoPanel(page);
+
+    const between = infoPanel(page).locator('.field-line').nth(1).locator('.field-spacer');
+    const betweenBox = await box(between);
     expect(betweenBox.width).toBe(0);
     expect(betweenBox.height).toBeGreaterThan(0);
+    // With nothing shown after it
+    await expect(infoPanel(page).locator('.field-line').last()).toHaveClass(/collapsed-spacer/);
+    await expect(infoPanel(page).locator('.field-line').last()).toBeHidden();
   });
 
   test('opens the o-count\'s controls above it once it\'s been marked', async ({ page, request }) => {
-    await setTvConfig(request, { sceneInfoLayout: [['title'], ['o-count']] });
+    await setPanelConfig(request, { sceneInfoLayout: [['title'], ['o-count']] });
     await openInfoPanel(page);
     const oCount = infoPanel(page).locator('.field-o-count button');
     await oCount.click();

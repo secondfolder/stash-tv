@@ -41,9 +41,13 @@ function click(element: HTMLElement) {
   fireEvent.click(element);
 }
 
-/** The current slide's action button with the given accessible name (its title). */
-function actionButton(app: BootedApp, name: string | RegExp) {
-  return within(currentSlide(app)).findByRole("button", { name });
+/**
+ * The current slide's action button with the given accessible name (its title). In the action button stack: the scene
+ * info panel can have buttons of the same name (e.g. its o-count's "Mark Orgasm").
+ */
+async function actionButton(app: BootedApp, name: string | RegExp) {
+  const stack = await within(currentSlide(app)).findByTestId("MediaSlide--toggleableUi");
+  return within(stack).findByRole("button", { name });
 }
 
 function serverScene(sceneId: string) {

@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { setupIntegrationTest, bootApp, savedTvConfig, type BootedApp } from "./helpers/harness";
 import { bootWithTvConfig, currentSlide, goToNextSlide, sceneIdOf } from "./helpers/feed";
+import { defaultSceneInfoLayout } from "../../src/components/slide/SceneInfo/scene-info-config";
 
 const integration = setupIntegrationTest();
 
@@ -61,6 +62,22 @@ function editorLines(infoPanel: HTMLElement) {
   return lines;
 }
 
+/** A layout of the fields the tests use, each on its own line, to edit (the default has many more) */
+const SIMPLE_LAYOUT = [["studio"], ["title"], ["performers"], ["date"]];
+
+function bootWithSimpleLayout() {
+  return bootWithTvConfig((tvConfig) => tvConfig.set("sceneInfoLayout", SIMPLE_LAYOUT), DATE);
+}
+
+/** The panel's lines, as the fields shown on each */
+function shownFields(infoPanel: HTMLElement) {
+  return [...infoPanel.querySelectorAll<HTMLElement>(".field-line")].map(line => (
+    [...line.querySelectorAll<HTMLElement>(".line-fields > .field")].map(field => (
+      [...field.classList].find(name => name.startsWith("field-"))?.replace(/^field-/, "")
+    ))
+  ));
+}
+
 function savedLayout() {
   return savedTvConfig(integration).sceneInfoLayout;
 }
@@ -95,12 +112,25 @@ function serverOCount(sceneId: string) {
 }
 
 describe("scene info panel", () => {
-  it("shows the scene's title, performers and date on their own lines until it's customised", async () => {
+  it("shows the default fields until it's customised", async () => {
     const app = await bootApp();
     const infoPanel = await openPanel(app);
 
-    // The default studio line is empty: the scene has no studio
-    expect(shownLines(infoPanel)).toEqual(["", TITLE, PERFORMER, DATE]);
+    expect(shownFields(infoPanel)).toEqual([
+      // The scene has no studio
+      [],
+      ["title"],
+      ["spacer"],
+      ["date", "resolution", "spacer", "frame-rate"],
+      ["spacer"],
+      ["rating", "o-count", "spacer", "play-count"],
+      ["spacer"],
+      ["performers"],
+      ["spacer"],
+      ["tags"],
+      ["spacer"],
+      ["details"],
+    ]);
 
     await app.unmount();
   });
@@ -130,7 +160,7 @@ describe("scene info panel", () => {
   });
 
   it("shows the scene's values in the pills when asked to, and names again when asked again", async () => {
-    const app = await bootApp();
+    const app = await bootWithSimpleLayout();
     const infoPanel = await startEditing(app);
     const fieldName = within(infoPanel).getByRole("button", { name: "Field name" });
     const fieldValue = within(infoPanel).getByRole("button", { name: "Field value" });
@@ -149,7 +179,7 @@ describe("scene info panel", () => {
   });
 
   it("stops showing a field the user removes", async () => {
-    const app = await bootApp();
+    const app = await bootWithSimpleLayout();
     const infoPanel = await startEditing(app);
 
     click(within(infoPanel).getByRole("button", { name: "Remove Performers" }));
@@ -163,7 +193,7 @@ describe("scene info panel", () => {
   });
 
   it("adds an unused field the user taps to a new line at the bottom", async () => {
-    const app = await bootApp();
+    const app = await bootWithSimpleLayout();
     const infoPanel = await startEditing(app);
 
     // Only the fields not in the panel are offered
@@ -186,27 +216,27 @@ describe("scene info panel", () => {
     expect(within(infoPanel).queryByRole("button", { name: "Reset to default" })).not.toBeInTheDocument();
     save(infoPanel);
 
-    expect(shownLines(infoPanel)).toEqual(["", TITLE, PERFORMER, DATE]);
-    await waitFor(() => expect(savedLayout()).toEqual([["studio"], ["title"], ["performers"], ["date"]]));
+    expect(infoPanel).toHaveTextContent(TITLE);
+    await waitFor(() => expect(savedLayout()).toEqual(defaultSceneInfoLayout));
 
     await app.unmount();
   });
 
   it("doesn't change the panel until the changes are saved", async () => {
-    const app = await bootApp();
+    const app = await bootWithSimpleLayout();
     const infoPanel = await startEditing(app);
 
     click(within(infoPanel).getByRole("button", { name: "Remove Performers" }));
     click(within(infoPanel).getByRole("button", { name: "Cancel" }));
 
     expect(shownLines(infoPanel)).toEqual(["", TITLE, PERFORMER, DATE]);
-    expect(savedLayout()).toBeUndefined();
+    expect(savedLayout()).toEqual(SIMPLE_LAYOUT);
 
     await app.unmount();
   });
 
   it("discards unsaved changes when the panel is closed", async () => {
-    const app = await bootApp();
+    const app = await bootWithSimpleLayout();
     const editingPanel = await startEditing(app);
     click(within(editingPanel).getByRole("button", { name: "Remove Performers" }));
     const { useGlobalState } = await import("../../src/store/globalState");
@@ -220,7 +250,7 @@ describe("scene info panel", () => {
   });
 
   it("carries on editing, with the unsaved changes, when the feed moves to the next video", async () => {
-    const app = await bootApp();
+    const app = await bootWithSimpleLayout();
     const editingPanel = await startEditing(app);
     click(within(editingPanel).getByRole("button", { name: "Remove Performers" }));
 
@@ -235,7 +265,7 @@ describe("scene info panel", () => {
   });
 
   it("keeps showing the fields' values in the pills when the feed moves to the next video", async () => {
-    const app = await bootApp();
+    const app = await bootWithSimpleLayout();
     const editingPanel = await startEditing(app);
     click(within(editingPanel).getByRole("button", { name: "Field value" }));
 
@@ -305,7 +335,7 @@ describe("scene info panel", () => {
     });
 
     it("labels the performers with an icon by default, or their field's name, or not at all", async () => {
-      const app = await bootApp();
+      const app = await bootWithSimpleLayout();
       let infoPanel = await openPanel(app);
       expect(within(field(infoPanel, "performers")!).getByRole("img", { name: "Performers" })).toBeInTheDocument();
 
@@ -360,7 +390,7 @@ describe("scene info panel", () => {
     });
 
     it("offers no options for fields that are only shown one way", async () => {
-      const app = await bootApp();
+      const app = await bootWithSimpleLayout();
       const infoPanel = await startEditing(app);
 
       expect(within(infoPanel).queryByRole("button", { name: "Title options" })).not.toBeInTheDocument();
@@ -441,7 +471,7 @@ describe("scene info panel", () => {
     }
 
     it("adds another spacer each time one's added, leaving it among the unused fields", async () => {
-      const app = await bootApp();
+      const app = await bootWithSimpleLayout();
       const infoPanel = await startEditing(app);
 
       click(within(infoPanel).getByRole("button", { name: "Add Spacer" }));
@@ -496,7 +526,7 @@ describe("scene info panel", () => {
     });
 
     it("keeps each spacer's size its own, in the layout", async () => {
-      const app = await bootApp();
+      const app = await bootWithSimpleLayout();
       const infoPanel = await startEditing(app);
       click(within(infoPanel).getByRole("button", { name: "Add Spacer" }));
       click(within(infoPanel).getByRole("button", { name: "Add Spacer" }));
