@@ -92,16 +92,39 @@ describe("Action button folders", () => {
     await app.unmount();
   });
 
-  it("previews the icons of its first 4 buttons while closed", async () => {
+  // Which 4 is down to CSS, so it's covered by test/e2e/action-button-stack.test.ts
+
+  it("doesn't preview a button that isn't shown", async () => {
     const app = await bootApp();
+    // Fixture scenes have no captions, so the subtitles button isn't shown
     await setStackConfig([
-      { id: "a", type: "folder", pinned: false, contents: (["loop", "letterboxing", "force-landscape", "settings", "ui-visibility"] as const)
+      { id: "a", type: "folder", pinned: false, contents: (["subtitles", "loop"] as const)
         .map((buttonType) => ({ id: buttonType, type: "button", buttonType, pinned: false })) },
     ]);
 
     const folder = within(currentSlide(app)).getByRole("button", { name: "Open folder" });
 
-    expect(folder.querySelectorAll(".ActionButtonIcon")).toHaveLength(4);
+    const { getActionButtonDefinition } = await import("../../src/components/action-buttons/buttons");
+    expect(folder.querySelectorAll(".ActionButtonIcon")).toHaveLength(1);
+    expect(await displayedIconState(folder, getActionButtonDefinition("loop").icon)).not.toBeNull();
+
+    await app.unmount();
+  });
+
+  it("previews a button's current state", async () => {
+    const app = await bootApp();
+    await setStackConfig([
+      { id: "a", type: "folder", pinned: false, contents: [{ id: "a.1", type: "button", buttonType: "loop", pinned: false }] },
+    ]);
+    const { useTvConfig } = await import("../../src/store/tvConfig");
+    const { getActionButtonDefinition } = await import("../../src/components/action-buttons/buttons");
+    const folder = within(currentSlide(app)).getByRole("button", { name: "Open folder" });
+
+    await act(async () => useTvConfig.getState().set("looping", true));
+    expect(await displayedIconState(folder, getActionButtonDefinition("loop").icon)).toBe("active");
+
+    await act(async () => useTvConfig.getState().set("looping", false));
+    expect(await displayedIconState(folder, getActionButtonDefinition("loop").icon)).toBe("inactive");
 
     await app.unmount();
   });

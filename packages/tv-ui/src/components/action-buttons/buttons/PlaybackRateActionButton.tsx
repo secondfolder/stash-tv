@@ -39,12 +39,12 @@ export function PlaybackRateActionButton({
   const [playbackRate, setPlaybackRate] = useState(desiredPlaybackRate);
   const active = useMemo(() => playbackRate !== 1, [playbackRate])
   useEffect(() => {
-    if (!playerRef.current) return
-    playerRef.current.on("ratechange", () => {
-      const currentRate = playerRef.current?.playbackRate();
-      if (currentRate !== undefined) setPlaybackRate(currentRate);
-    });
-  }, [playerRef.current, setPlaybackRate])
+    const player = playerRef.current
+    if (!player) return
+    const onRateChange = () => setPlaybackRate(player.playbackRate())
+    player.on("ratechange", onRateChange)
+    return () => player.off("ratechange", onRateChange)
+  }, [playerRef.current])
   const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2, 4, 8];
   return (
     <ActionButtonBase

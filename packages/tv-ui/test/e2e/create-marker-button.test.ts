@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext, type Locator, type Page } from '@playwright/test';
+import { graphql, setActionButtons } from './helpers/stash';
 
 /**
  * E2E tests: dropdowns inside the create-marker button's side panel open where the user can see and use them.
@@ -12,29 +13,6 @@ import { test, expect, type APIRequestContext, type Locator, type Page } from '@
  */
 
 const firstSceneId = 'scene-7'; // The first slide (the newest scene)
-
-async function graphql(request: APIRequestContext, query: string, variables: Record<string, unknown> = {}) {
-  const response = await request.post('/graphql', { data: { query, variables } });
-  expect(response.ok()).toBe(true);
-  const body = await response.json();
-  expect(body.errors).toBeUndefined();
-  return body.data;
-}
-
-/**
- * Replace the persisted action button stack (stored in Stash's plugin config, see docs/state-and-config.md), with the
- * first-run guide overlay dismissed so it doesn't cover the page. `null` resets the config to defaults.
- */
-async function setActionButtons(request: APIRequestContext, actionButtonStackConfig: unknown[] | null) {
-  const input = actionButtonStackConfig
-    ? { 'app-state': JSON.stringify({ state: { actionButtonStackConfig, showGuideOverlay: false }, version: 2 }) }
-    : {};
-  await graphql(
-    request,
-    'mutation ($input: Map!) { configurePlugin(plugin_id: "stash-tv", input: $input) }',
-    { input }
-  );
-}
 
 async function createMarker(request: APIRequestContext, title: string, seconds: number): Promise<string> {
   const data = await graphql(

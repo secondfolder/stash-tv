@@ -8,7 +8,7 @@ import { MediaItem } from "../../../hooks/useMediaItems";
 import { VideoJsPlayer } from "video.js";
 import type { ActionButtonConfig } from "../buttons/index";
 import { getActionButtonDefinition } from "../buttons";
-import { ActionButtonIcon } from "../ActionButtonBase";
+import { ActionButtonIconOnlyContext } from "../ActionButtonBase";
 import { Overlay, Popover } from "react-bootstrap";
 import { usePreventOverflowModifier } from "../../../hooks/usePreventOverflowModifier";
 import { useOffscreenModifier } from "../../../hooks/useOffscreenModifier";
@@ -127,7 +127,6 @@ const Folder = ({
   const offscreenModifier = useOffscreenModifier({
     onOffscreen: () => setMediaItemState("openFolderId", "")
   })
-  const first4buttons = folderConfig.contents.slice(0,4)
 
   const buttonRef = useRef<HTMLButtonElement | null>(null)
   const folderRef = useRef<HTMLElement | null>(null);
@@ -149,18 +148,9 @@ const Folder = ({
     >
       {!isOpen && (
         <div className="folder-contents">
-          {first4buttons.map(config => {
-            const def = getActionButtonDefinition(config.buttonType)
-            return (
-              <ActionButtonIcon
-                iconDefinition={def.icon}
-                state="inactive"
-                config={config}
-                shadow
-                key={config.id}
-              />
-            )
-          })}
+          <ActionButtonIconOnlyContext.Provider value={true}>
+            {folderConfig.contents.map(config => renderActionButton(config))}
+          </ActionButtonIconOnlyContext.Provider>
         </div>
       )}
       {isOpen && <ChevronRight className="hide-icon" />}

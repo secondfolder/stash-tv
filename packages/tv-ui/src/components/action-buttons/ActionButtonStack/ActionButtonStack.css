@@ -63,6 +63,11 @@ overflow-x to visible. So we hide it instead to avoid horizontal scrollbars appe
           */
           overflow: hidden;
         }
+        /* Every button is rendered so that ones which aren't shown (e.g. subtitles without captions) render nothing
+        and so don't take a place. Only the first 4 that are shown fit. */
+        > :nth-child(n+5) {
+          display: none;
+        }
       }
 
       height: 40px;

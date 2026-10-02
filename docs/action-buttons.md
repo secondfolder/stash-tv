@@ -14,7 +14,7 @@ The action buttons are the vertical button rail on each media slide (TikTok-styl
 |---|---|
 | `buttons/index.tsx` | Registry: `allButtonDefinition` (every button definition), the `ActionButtonDefinition` / `ActionButtonConfig` / `ActionButtonProps` types, and `getActionButtonDefinition(type)` for typed lookups (returns the `UnknownActionButton` fallback for unknown types instead of throwing) |
 | `buttons/<Name>ActionButton.tsx` | One file per button: the React component + a `buttonDefinition` export |
-| `ActionButtonBase/` | Presentational shell every button renders through; also exports `ActionButtonIcon` and `ActionButtonTitle` for reuse (settings modal, folder previews) |
+| `ActionButtonBase/` | Presentational shell every button renders through; also exports `ActionButtonIcon` and `ActionButtonTitle` for reuse (settings modal), and `ActionButtonIconOnlyContext` for folder previews |
 | `ActionButtonStack/` | Renders the configured stack: scrollable unpinned section, pinned section, and folders |
 | `action-button-config.ts` | `sharedActionButtonSchema` (yup) and the `createNewActionButtonConfig()` factory used when adding buttons |
 | `icons/index.tsx` | `actionButtonIcons` registry of user-selectable icons (active/inactive states + categories) |
@@ -82,6 +82,7 @@ The presentational shell all buttons render. Props (beyond those above):
 - `onClick({toggleSidePanel})` — custom click handling; call `toggleSidePanel()` to open/close the side panel (e.g. o-counter toggles the panel only when active)
 - `displayOnly` — renders a non-interactive `<div>` instead of a `<button>`
 - `config` — passed through so dynamic titles/icons can read it
+- Inside `ActionButtonIconOnlyContext` (folder previews) it renders only `ActionButtonIcon`, with no button, side panel, side info or title
 
 Side panel behaviour (implemented in `ActionButtonBase/SidePanel`):
 
@@ -114,7 +115,7 @@ Some buttons step through the options of a multi-option setting instead of toggl
 - Each click selects the next option and wraps from the last back to the first (`getNextOption` in `src/helpers/`). The new option's label is shown briefly in the `FeedbackOverlay`.
 - The button's `state` is the current option's value, and the title (built by `cycleOptionTitle`) is the current option's label, e.g. "Play from the beginning". The icon is fixed (a location pin with a play / stop symbol) so the button is recognisable whatever is selected.
 - The current option's `shortLabel` is shown as `sideInfo` beside the button, except for the option that leaves playback unchanged (`beginning` / `video-end`, passed as `unlabelledValue`). So the label only appears when the button is changing where playback starts or ends.
-- ⚠️ The settings list and folder previews render every button in the `"inactive"` state, which isn't an option value, so the title falls back to a generic name ("Change start point").
+- ⚠️ The settings list renders every button in the `"inactive"` state, which isn't an option value, so the title falls back to a generic name ("Change start point").
 - The option lists (`START_POSITION_OPTIONS` / `END_POSITION_OPTIONS` in `src/constants/`) are shared with the Settings tab's selects, and the tvConfig types are derived from them. Add an option there (with a `shortLabel` for the side label) and both the select and the button pick it up.
 - An option's `label` and `shortLabel` can be functions of `PlaybackPositionLabelContext`. For example, fixed-length reads "Play for 1 minute 30 seconds" with a "1 minute 30 seconds" side label, using `tvConfig.playLength` ("full length" when unset, since the whole scene then plays). Read the options through `usePlaybackPositionOptions()` (`src/hooks/`), which resolves both to strings; don't use the constants directly where a label is displayed (react-select, for one, expects string labels). That's also why `cycleOptionTitle` takes a hook rather than an options array.
 - ⚠️ `usePlaybackPositionOptions()` has an explicit return type on purpose. tvConfig's types depend on the button definitions, whose titles call this hook, so an inferred return type (which would come from `useTvConfig`) makes the types circular. That shows up as a long list of unrelated "implicitly has type 'any'" errors across the action buttons.
@@ -154,7 +155,9 @@ What each remaining button does, as the tests check it. Buttons not listed here 
 
 - Rendered by `MediaSlide` per slide with `mediaItem`, `playerRef`, `sceneInfoOpen`, etc.
 - Unpinned buttons render in a scrollable `.stack` (with overflow indicators); pinned buttons render in the `.pinned` section. Pinning exists so essential buttons stay visible when the window is too short to show the whole stack without scrolling.
-- **Folders** (`type: "folder"`) group buttons: collapsed, the folder button previews the first 4 contained buttons' icons; opened, it shows the contents in a popover. Only one folder can be open per slide (`openFolderId` in `mediaItemState`).
+- **Folders** (`type: "folder"`) group buttons: collapsed, the folder button previews the icons of the first 4 contained buttons that are shown; opened, it shows the contents in a popover. Only one folder can be open per slide (`openFolderId` in `mediaItemState`).
+- The preview renders the folder's real buttons inside `ActionButtonIconOnlyContext`, which makes `ActionButtonBase` render only its icon. So the preview follows each button's own logic: a button that hides itself (e.g. subtitles without captions, fullscreen where it's unsupported) is left out, and the icon shows the button's current state and any icon chosen in its settings. Every button is rendered and CSS (`:nth-child`) hides all but the first 4, because only the DOM shows which ones rendered anything.
+- ⚠️ Since previewed buttons are mounted, their hooks run for the preview as well as the open folder. Effects that subscribe to something (e.g. player events) must clean up after themselves.
 
 ## Config Shape & Persistence
 

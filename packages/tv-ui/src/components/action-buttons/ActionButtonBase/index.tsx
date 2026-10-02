@@ -1,4 +1,5 @@
 import React, {
+  useContext,
   useEffect,
 } from "react";
 import cx from "classnames";
@@ -25,6 +26,12 @@ import { MenuShouldScrollIntoViewContext } from "stash-ui/dist/src/components/Sh
 const logger = getLogger(["stash-tv", "ActionButtonBase"]);
 
 export const useCurrentOpenPopover = create<null | string>(() => (null))
+
+/**
+ * Makes action buttons render only their icon, for previews such as a closed folder's. The buttons themselves are
+ * still rendered so that a preview reflects their own logic: whether they show at all, their state and their icon.
+ */
+export const ActionButtonIconOnlyContext = React.createContext(false)
 
 export type SidePanelContent = React.ReactNode | ((props: {isOpen: boolean, close: () => void}) => React.ReactNode)
 
@@ -61,6 +68,9 @@ const ActionButtonBase = <State extends string>(props: ActionButtonBaseProps<Sta
   } = props;
   const ButtonElement = displayOnly ? "div" : "button";
   const { leftHandedUi } = useTvConfig();
+  const iconOnly = useContext(ActionButtonIconOnlyContext);
+
+  if (iconOnly) return <ActionButtonIcon iconDefinition={icon} state={state} config={config} shadow />
 
   const getOnClickHandler = (sidePanelClick: (event: React.MouseEvent<HTMLElement>) => void) => {
     if (displayOnly) return;
