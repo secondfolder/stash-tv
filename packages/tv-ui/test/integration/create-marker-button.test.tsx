@@ -76,7 +76,7 @@ function displayedPlayingMarker(app: BootedApp) {
 
 /** The open action button side panel. */
 function sidePanel() {
-  const panel = document.querySelector<HTMLElement>(".action-button-side-panel");
+  const panel = document.querySelector<HTMLElement>(".PopoverPanel");
   if (!panel) throw new Error("Side panel not shown");
   return panel;
 }

@@ -50,7 +50,7 @@ async function openPanel(page: Page) {
   await page.goto('/');
   const slide = page.locator('[data-testid="MediaSlide--container"][data-current-video="true"]');
   await slide.getByRole('button', { name: 'Add/edit scene marker' }).click();
-  const panel = page.locator('.action-button-side-panel');
+  const panel = page.locator('.PopoverPanel');
   await expect(panel.locator('.action-button-create-marker')).toBeVisible();
   return panel;
 }
@@ -237,7 +237,7 @@ test.describe('Create-marker side panel', () => {
     await page.goto('/');
     const slide = page.locator('[data-testid="MediaSlide--container"][data-current-video="true"]');
     await slide.getByRole('button', { name: 'Add/edit "Alpha" markers' }).click();
-    const panel = page.locator('.action-button-side-panel');
+    const panel = page.locator('.PopoverPanel');
 
     // Clicked without moving focus, as tapping a button on iOS doesn't: a focus change re-positions the panel anyway,
     // which would hide the bug
@@ -255,7 +255,7 @@ test.describe('Create-marker side panel', () => {
 
     await panel.locator('label[for="primary_tag_id"]').evaluate((label) => {
       label.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-      const backdrop = label.closest('.action-button-side-panel')?.previousElementSibling;
+      const backdrop = label.closest('.PopoverPanel')?.previousElementSibling;
       if (!(backdrop instanceof HTMLElement)) throw new Error("Panel's outside-click backdrop not found");
       backdrop.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
       backdrop.click();

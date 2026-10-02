@@ -1,7 +1,7 @@
 import React from "react";
 import cx from "classnames";
 import { useOCounter } from "../../../../hooks/useOCounter";
-import { SidePanel } from "../../../action-buttons/ActionButtonBase";
+import { PopoverPanel } from "../../../PopoverPanel";
 import { OCounterControls, oCounterIcons } from "../../../OCounterControls";
 import { choice, labelOption, OptionsOf } from "../field-options";
 import { defineField, Field, labelProps, SceneInfoFieldProps } from "./shared";
@@ -41,7 +41,7 @@ function OCountControlField({ scene, preview }: Props) {
   </>;
   if (preview) return <Field field={fieldDefinition} className="o-count-control">{content}</Field>;
   return <Field field={fieldDefinition} className="o-count-control">
-    <SidePanel content={<OCounterControls oCounter={oCounter} />} placement="top">
+    <PopoverPanel content={<OCounterControls oCounter={oCounter} />} placement="top">
       {({ onClick, ref }) => <button
         type="button"
         ref={ref}
@@ -51,7 +51,7 @@ function OCountControlField({ scene, preview }: Props) {
       >
         {content}
       </button>}
-    </SidePanel>
+    </PopoverPanel>
   </Field>
 }
 

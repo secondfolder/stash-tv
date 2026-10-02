@@ -49,13 +49,13 @@ export function actionButtonRoot(button: HTMLElement) {
 
 /** The open action button side panel. */
 export function sidePanel() {
-  const panel = document.querySelector<HTMLElement>(".action-button-side-panel");
+  const panel = document.querySelector<HTMLElement>(".PopoverPanel");
   if (!panel) throw new Error("Side panel not shown");
   return panel;
 }
 
 export function isSidePanelOpen() {
-  return document.querySelector(".action-button-side-panel") !== null;
+  return document.querySelector(".PopoverPanel") !== null;
 }
 
 /**

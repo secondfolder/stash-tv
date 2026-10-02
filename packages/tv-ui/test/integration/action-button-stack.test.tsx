@@ -30,7 +30,7 @@ function slideButton(app: BootedApp, name: string | RegExp) {
 
 /** Open side panels, wherever they are in the document */
 function openSidePanels() {
-  return document.querySelectorAll(".action-button-side-panel");
+  return document.querySelectorAll(".PopoverPanel");
 }
 
 describe("Action button folders", () => {
