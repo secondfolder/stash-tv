@@ -80,11 +80,16 @@
     white-space: pre-line;
   }
 
+  /* Spaced by the gap alone, without Stash's margin around each tag */
   .field-tags {
     display: flex;
     flex-wrap: wrap;
     gap: 0.3em;
     margin: 0.2em 0;
+
+    .tag-item {
+      margin: 0;
+    }
   }
 
   .field-path, .field-urls {
@@ -99,12 +104,44 @@
   /* In the editor, a line that wraps has its later rows indented (a hanging indent), so they don't look like lines of
   their own. Room for the marker showing that, and a little space between it and the fields. */
   --wrapped-line-indent: 2em;
+  /* The least space between a line's left fields and its right-aligned ones, so they don't run together */
+  --line-sides-gap: 2em;
 
+  /* A line's left fields and its right-aligned ones side by side, each in a box wrapping on its own. As a flexbox does,
+  each box is as wide as its fields on one row if both fit, and otherwise both shrink, in proportion to that width. */
   .field-line {
+    display: flex;
+    align-items: baseline;
+    column-gap: var(--line-sides-gap);
+  }
+
+  .line-fields {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
     column-gap: 0.75em;
+  }
+
+  /* Taking the line's spare room to their left, and wrapping onto rows that are right-aligned too, as is what's in
+  them (in the editor too, showing values) */
+  .right-aligned-fields, .line-side.right .pill-value {
+    text-align: right;
+
+    .field-studio, .field-tags {
+      justify-content: flex-end;
+    }
+
+    .field-urls {
+      align-items: flex-end;
+    }
+  }
+
+  /* Laid out from the line's end, so the first is at the end (as the first left field is at the start), and wrapping
+  onto rows that start there too */
+  .right-aligned-fields {
+    margin-left: auto;
+    flex-direction: row-reverse;
+    justify-content: flex-start;
   }
 
   .editor-toolbar {
@@ -131,36 +168,76 @@
   }
 
   .editor-lines {
-    padding-left: var(--wrapped-line-indent);
     position: relative;
-    /* Every line's fields in one flexbox, each line ending in a .line-end break */
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Like the panel's lines (.field-line), each side's fields in a box wrapping on its own. The space between lines is
+  their margins (room for the ghost line); a row gap would also go around the absolutely positioned markers. */
+  .editor-line {
+    display: flex;
+    /* Each side's rows line up with the other's */
+    align-items: flex-start;
+    column-gap: var(--line-sides-gap);
+    margin: 0.4em 0;
+    /* Like the pills' corners */
+    border-radius: 1em;
+    transition: background-color 0.1s ease-out, box-shadow 0.1s ease-out;
+  }
+
+  /* The line a field's dragged onto, or that's hovered over, so it's clear which right-aligned fields share it with
+  which left ones. The shadow reaches into the space around the line, as the background alone would end at its pills. */
+  .editor-line.target {
+    background-color: rgba(255, 255, 255, 0.07);
+    box-shadow: 0 0 0 0.25em rgba(255, 255, 255, 0.07);
+  }
+
+  @media (hover: hover) {
+    .editor:not(.dragging) .editor-line:hover {
+      background-color: rgba(255, 255, 255, 0.07);
+      box-shadow: 0 0 0 0.25em rgba(255, 255, 255, 0.07);
+    }
+  }
+
+  .line-side {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     column-gap: 0.4em;
+    row-gap: 0.8em;
+  }
 
-    /* The space between lines is in the pills' margins rather than a row gap, which would also go around each
-    zero-height break. Room for the ghost line between them. */
-    .field-pill {
-      margin: 0.4em 0;
+  /* The left side's later rows are indented (see --wrapped-line-indent), with its first field outdented back */
+  .line-side.left {
+    padding-left: var(--wrapped-line-indent);
+
+    &:empty {
+      padding-left: 0;
+    }
+
+    /* Pills are no wider than their box, but the first one's outdented into its padding, so it has that much more */
+    > :first-child {
+      margin-left: calc(var(--wrapped-line-indent) * -1);
+      max-width: calc(100% + var(--wrapped-line-indent));
     }
   }
 
-  .line-end, .vacated-line {
-    flex-basis: 100%;
+  /* Like the panel's right-aligned fields, laid out from the line's end, mirroring the left side. As there, its later
+  rows are indented (from the right), with its first field outdented back. */
+  .line-side.right {
+    margin-left: auto;
+    flex-direction: row-reverse;
+    justify-content: flex-start;
+    padding-right: var(--wrapped-line-indent);
+
+    > :first-child {
+      margin-right: calc(var(--wrapped-line-indent) * -1);
+      max-width: calc(100% + var(--wrapped-line-indent));
+    }
   }
 
-  /* Each line's first item (see --wrapped-line-indent) */
-  .editor-lines > [data-line]:first-child, .editor-lines > .line-end + [data-line] {
-    margin-left: calc(var(--wrapped-line-indent) * -1);
-  }
-
-  /* Takes the height of the line's pills, and the margins around them */
-  .vacated-line {
-    margin: 0.4em 0;
-  }
-
-  /* In the indent of a line's later rows, showing they're the same line wrapped rather than lines of their own */
+  /* In the indent of a side of a line's later rows, showing they're the same line wrapped rather than lines of their own */
   .wrapped-line-marker {
     position: absolute;
     left: 0;
@@ -170,6 +247,12 @@
     justify-content: center;
     color: var(--text-muted);
     pointer-events: none;
+
+    /* In the right-aligned fields' indent */
+    &.right {
+      left: auto;
+      right: 0;
+    }
   }
 
   /* Where a dragged field will go on a line, when showing its ghost there would make the line wrap */
@@ -183,23 +266,25 @@
     pointer-events: none;
   }
 
-  /* Where a dragged field will go on a new line, between the lines */
+  /* Where a dragged field will go on a new line, between the lines: on the half of them it will be aligned to */
   .ghost-line {
     position: absolute;
     left: 0;
-    right: 0;
+    right: 50%;
     height: 3px;
     margin-top: -1.5px;
     border-radius: 2px;
     background: var(--text-muted);
     opacity: 0.7;
     pointer-events: none;
-    transition: top 0.1s ease-out;
+    transition: top 0.1s ease-out, left 0.1s ease-out, right 0.1s ease-out;
+
+    &.right {
+      left: 50%;
+      right: 0;
+    }
   }
 
-  .line-end {
-    height: 0;
-  }
 
   .editor-empty {
     color: var(--text-muted);
@@ -265,10 +350,6 @@
       .field-label, .separator {
         color: inherit;
         opacity: 0.6;
-      }
-
-      .tag-item {
-        margin: 0 0.2em 0 0;
       }
 
       h5 {

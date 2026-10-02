@@ -33,9 +33,27 @@ function pill(page: Page, field: string) {
   return infoPanel(page).locator(`.field-pill[data-field="${field}"]`);
 }
 
+/** A field's pill among its line's right-aligned fields in the editor, if it's one of them */
+function rightAlignedPill(page: Page, field: string) {
+  return infoPanel(page).locator(`.line-side.right .field-pill[data-field="${field}"]`);
+}
+
+/** Of `items`, the right edge of each row they're on (by where they start vertically), top to bottom */
+async function rowRightEdges(items: Locator) {
+  return await items.evaluateAll((elements) => {
+    const rows = new Map<number, number>();
+    for (const element of elements) {
+      const { top, right } = element.getBoundingClientRect();
+      const row = [...rows.keys()].find((rowTop) => Math.abs(rowTop - top) < 8) ?? top;
+      rows.set(row, Math.max(rows.get(row) ?? -Infinity, right));
+    }
+    return [...rows.entries()].sort(([a], [b]) => a - b).map(([, right]) => right);
+  });
+}
+
 /** The editor's lines, as the fields on each (each line's items have its index in `data-line`) */
 async function editorLayout(page: Page) {
-  return await infoPanel(page).locator('.editor-lines > [data-line]').evaluateAll((items) => {
+  return await infoPanel(page).locator('.editor-lines [data-line]').evaluateAll((items) => {
     const lines: string[][] = [];
     for (const item of items) {
       const line = lines[Number((item as HTMLElement).dataset.line)] ??= [];
@@ -109,7 +127,7 @@ async function layoutsOverTime(page: Page, milliseconds = 800) {
     const started = performance.now();
     const sample = () => {
       const lines: string[][] = [];
-      for (const item of document.querySelectorAll<HTMLElement>('[data-current-video="true"] .SceneInfo.editing .editor-lines > [data-line]')) {
+      for (const item of document.querySelectorAll<HTMLElement>('[data-current-video="true"] .SceneInfo.editing .editor-lines [data-line]')) {
         const line = lines[Number(item.dataset.line)] ??= [];
         if (item.classList.contains('field-pill')) line.push(item.dataset.field ?? '');
       }
@@ -289,6 +307,209 @@ test.describe('Scene info panel', () => {
     await expect(infoPanel(page).locator('.ghost-line')).toHaveCount(0);
   });
 
+  test('right-aligns a field dragged over the right third of the space after a line\'s fields, and saves it', async ({ page, request }) => {
+    await setTvConfig(request, { sceneInfoLayout: [['title'], ['date']] });
+    await startEditing(page);
+    const lines = await box(infoPanel(page).locator('.editor-lines'));
+    const title = await box(pill(page, 'title'));
+    const y = title.y + title.height / 2;
+    const space = { left: title.x + title.width, right: lines.x + lines.width };
+    const intoSpace = (fraction: number) => space.left + (space.right - space.left) * fraction;
+    const rightEdge = async (locator: Locator) => {
+      const { x, width } = await box(locator);
+      return x + width;
+    };
+
+    // Over the left two thirds of the space, it goes after the title
+    await startDrag(page, pill(page, 'date'), intoSpace(0.5), y);
+    await expect.poll(() => editorLayout(page)).toEqual([['title', 'date'], []]);
+    await expect(rightAlignedPill(page, 'date')).toHaveCount(0);
+    // Over the right third, it's right-aligned
+    await page.mouse.move(intoSpace(0.85), y, { steps: 5 });
+    await expect(rightAlignedPill(page, 'date')).toHaveCount(1);
+    await expect.poll(() => rightEdge(pill(page, 'date'))).toBeCloseTo(space.right, 0);
+    await page.mouse.up();
+
+    await expect.poll(() => editorLayout(page)).toEqual([['title', 'date']]);
+    await expect(rightAlignedPill(page, 'date')).toHaveCount(1);
+    await infoPanel(page).getByRole('button', { name: 'Save' }).click();
+    const line = infoPanel(page).locator('.field-line');
+    await expect(line).toHaveText(['Grotto Glow2025-02-14']);
+    const rightAligned = line.locator('.right-aligned-fields');
+    await expect(rightAligned).toHaveText('2025-02-14');
+    expect(await rightEdge(rightAligned)).toBeCloseTo(await rightEdge(line), 0);
+
+    await page.reload();
+    await currentSlide(page).getByRole('button', { name: 'Show scene info' }).click();
+    await expect(infoPanel(page).locator('.field-line .right-aligned-fields')).toHaveText('2025-02-14');
+  });
+
+  test('highlights the line a field is dragged onto, but not between lines', async ({ page, request }) => {
+    await setTvConfig(request, { sceneInfoLayout: [{ left: ['title'], right: ['date'] }, ['performers'], ['tags']] });
+    await startEditing(page);
+    const title = await box(pill(page, 'title'));
+    const date = await box(pill(page, 'date'));
+    const performers = await box(pill(page, 'performers'));
+    const highlighted = infoPanel(page).locator('.editor-line.target');
+
+    await startDrag(page, pill(page, 'tags'), (title.x + title.width + date.x) / 2, title.y + title.height / 2);
+    // The whole line, its right-aligned fields included
+    await expect(highlighted).toHaveCount(1);
+    await expect(highlighted.locator('.field-pill')).toHaveText([/Title/, /Tags/, /Date/]);
+    expect(await highlighted.evaluate((line) => getComputedStyle(line).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+
+    await page.mouse.move(performers.x + 8, (title.y + title.height + performers.y) / 2, { steps: 5 });
+    await expect(infoPanel(page).locator('.ghost-line')).toHaveCount(1);
+    await expect(highlighted).toHaveCount(0);
+    await page.mouse.up();
+  });
+
+  test('highlights the line the pointer\'s over while editing', async ({ page, request }) => {
+    await setTvConfig(request, { sceneInfoLayout: [{ left: ['title'], right: ['date'] }, ['performers']] });
+    await startEditing(page);
+    const background = (line: Locator) => line.evaluate((element) => getComputedStyle(element).backgroundColor);
+    const lines = infoPanel(page).locator('.editor-line');
+    const title = await box(pill(page, 'title'));
+    const date = await box(pill(page, 'date'));
+
+    // In the space between the line's sides, not just over a pill
+    await page.mouse.move((title.x + title.width + date.x) / 2, title.y + title.height / 2);
+    await expect.poll(() => background(lines.nth(0))).not.toBe('rgba(0, 0, 0, 0)');
+    expect(await background(lines.nth(1))).toBe('rgba(0, 0, 0, 0)');
+    // 1em corners, like the pills'
+    const { radius, em } = await lines.nth(0).evaluate((element) => ({
+      radius: parseFloat(getComputedStyle(element).borderRadius),
+      em: parseFloat(getComputedStyle(element).fontSize),
+    }));
+    expect(radius).toBeCloseTo(em, 1);
+  });
+
+  test('wraps a line\'s left fields and its right-aligned ones each on their own, the right-aligned rows on the right with a hanging indent, at least 2em from the left ones', async ({ page, request }) => {
+    await setTvConfig(request, { sceneInfoLayout: [{ left: ['title', 'performers', 'date'], right: ['duration', 'resolution', 'o-count'] }, ['studio']] });
+    await page.setViewportSize({ width: 500, height: 800 });
+    await startEditing(page);
+    const lineBox = await box(infoPanel(page).locator('.editor-line').first());
+    // A field alone on its line isn't squeezed by the left side's hanging indent
+    expect(await pill(page, 'studio').locator('.pill-name').evaluate((name) => name.scrollWidth <= name.clientWidth)).toBe(true);
+
+    const leftRows = await rowRightEdges(infoPanel(page).locator('.line-side.left .field-pill'));
+    const rightRows = await rowRightEdges(infoPanel(page).locator('.line-side.right .field-pill'));
+    expect(leftRows.length).toBeGreaterThan(1);
+    expect(rightRows.length).toBeGreaterThan(1);
+    // The right-aligned fields' first row ends at the line's right end, and their later rows are indented from it (a
+    // hanging indent, mirroring the left side's), marked with a flipped wrap marker in the indent
+    const lineEnd = lineBox.x + lineBox.width;
+    expect(rightRows[0]).toBeCloseTo(lineEnd, 0);
+    for (const right of rightRows.slice(1)) expect(right).toBeLessThan(lineEnd - 10);
+    const rightMarker = await box(infoPanel(page).locator('.wrapped-line-marker.right'));
+    expect(rightMarker.x).toBeGreaterThan(Math.max(...rightRows.slice(1)) - 1);
+    expect(rightMarker.x + rightMarker.width).toBeCloseTo(lineEnd, 0);
+    await expect(infoPanel(page).locator('.wrapped-line-marker.left')).toHaveCount(1);
+    // Every left-aligned row at least 2em before the right-aligned fields
+    const em = await infoPanel(page).locator('.editor-line').first().evaluate((line) => parseFloat(getComputedStyle(line).fontSize));
+    const rightStart = (await box(infoPanel(page).locator('.line-side.right'))).x;
+    for (const right of leftRows) expect(right).toBeLessThanOrEqual(rightStart - 2 * em + 0.5);
+
+    // And the same in the panel itself
+    await infoPanel(page).getByRole('button', { name: 'Save' }).click();
+    const line = infoPanel(page).locator('.field-line').first();
+    const panelLine = await box(line);
+    const panelRightRows = await rowRightEdges(line.locator('.right-aligned-fields > *'));
+    expect(panelRightRows.length).toBeGreaterThan(1);
+    for (const right of panelRightRows) expect(right).toBeCloseTo(panelLine.x + panelLine.width, 0);
+    const panelEm = await line.evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
+    const panelLeftEnd = Math.max(...await rowRightEdges(line.locator('.line-fields:not(.right-aligned-fields) > *')));
+    expect(panelLeftEnd).toBeLessThanOrEqual((await box(line.locator('.right-aligned-fields'))).x - 2 * panelEm + 0.5);
+  });
+
+  test('right-aligns what\'s in right-aligned fields, and spaces tags by their list\'s gap alone', async ({ page, request }) => {
+    await setTvConfig(request, { sceneInfoLayout: [{ left: ['title'], right: ['tags', 'performers'] }] });
+    await openInfoPanel(page);
+    const rightAligned = infoPanel(page).locator('.right-aligned-fields');
+
+    expect(await rightAligned.evaluate((element) => getComputedStyle(element).textAlign)).toBe('right');
+    const tags = infoPanel(page).locator('.field-tags .tag-item');
+    expect(await tags.count()).toBeGreaterThan(0);
+    for (const margin of await tags.evaluateAll((items) => items.map((item) => getComputedStyle(item).margin))) {
+      expect(margin).toBe('0px');
+    }
+    // Ends at the line's end
+    const tagsField = await box(infoPanel(page).locator('.field-tags'));
+    const lastTag = await box(tags.last());
+    expect(lastTag.x + lastTag.width).toBeCloseTo(tagsField.x + tagsField.width, 0);
+  });
+
+  test('lays a line\'s right-aligned fields out from its end, the first at the end', async ({ page, request }) => {
+    await setTvConfig(request, { sceneInfoLayout: [{ left: ['title'], right: ['duration', 'resolution'] }] });
+    await openInfoPanel(page);
+    const panelField = (field: string) => box(infoPanel(page).locator(`.field-${field}`));
+    expect((await panelField('duration')).x).toBeGreaterThan((await panelField('resolution')).x);
+
+    await infoPanel(page).getByRole('button', { name: 'Customise info panel' }).click();
+    expect((await box(pill(page, 'duration'))).x).toBeGreaterThan((await box(pill(page, 'resolution'))).x);
+  });
+
+  test('moves a field along a line\'s right-aligned fields, which run from right to left', async ({ page, request }) => {
+    await setTvConfig(request, { sceneInfoLayout: [{ left: ['title'], right: ['duration', 'resolution', 'date'] }] });
+    await startEditing(page);
+    const duration = await box(pill(page, 'duration'));
+    const y = duration.y + duration.height / 2;
+
+    // The last one (leftmost) dragged rightwards passes each field as soon as it's over it, as on the left heading the
+    // other way: passing the first (at the line's end) puts it first
+    await startDrag(page, pill(page, 'date'), duration.x + 6, y);
+    await expect.poll(() => editorLayout(page)).toEqual([['title', 'date', 'duration', 'resolution']]);
+    // Carrying on the same way keeps it there
+    await page.mouse.move(duration.x + 20, y, { steps: 3 });
+    await expect.poll(() => editorLayout(page)).toEqual([['title', 'date', 'duration', 'resolution']]);
+    await page.mouse.up();
+
+    await expect.poll(() => editorLayout(page)).toEqual([['title', 'date', 'duration', 'resolution']]);
+    // Now first, so at the line's end
+    const lines = await box(infoPanel(page).locator('.editor-lines'));
+    await expect.poll(async () => {
+      const date = await box(pill(page, 'date'));
+      return date.x + date.width;
+    }).toBeCloseTo(lines.x + lines.width, 0);
+  });
+
+  test('puts a field dropped on the right third of the space before a line\'s right-aligned fields beside them', async ({ page, request }) => {
+    await setTvConfig(request, { sceneInfoLayout: [{ left: ['title'], right: ['duration'] }, ['date']] });
+    await startEditing(page);
+    const title = await box(pill(page, 'title'));
+    const duration = await box(pill(page, 'duration'));
+    const spaceLeft = title.x + title.width;
+
+    await dragTo(page, pill(page, 'date'), spaceLeft + (duration.x - spaceLeft) * 0.85, title.y + title.height / 2);
+
+    // After it in order, so left of it, beside the space
+    await expect.poll(() => editorLayout(page)).toEqual([['title', 'duration', 'date']]);
+    await expect(rightAlignedPill(page, 'date')).toHaveCount(1);
+    await expect.poll(async () => (await box(pill(page, 'date'))).x).toBeLessThan((await box(pill(page, 'duration'))).x);
+  });
+
+  test('marks a new line with a ghost line across the half of the lines the field will be aligned to', async ({ page, request }) => {
+    await setTvConfig(request, { sceneInfoLayout: [['title', 'date'], ['performers']] });
+    await startEditing(page);
+    const lines = await box(infoPanel(page).locator('.editor-lines'));
+    const title = await box(pill(page, 'title'));
+    const performers = await box(pill(page, 'performers'));
+    const y = (title.y + title.height + performers.y) / 2;
+    const ghostLine = infoPanel(page).locator('.ghost-line');
+
+    await startDrag(page, pill(page, 'date'), lines.x + lines.width * 0.25, y);
+    await expect.poll(async () => (await box(ghostLine)).x).toBeCloseTo(lines.x, 0);
+    expect((await box(ghostLine)).width).toBeCloseTo(lines.width / 2, 0);
+
+    await page.mouse.move(lines.x + lines.width * 0.75, y, { steps: 5 });
+    await expect.poll(async () => (await box(ghostLine)).x).toBeCloseTo(lines.x + lines.width / 2, 0);
+    expect((await box(ghostLine)).width).toBeCloseTo(lines.width / 2, 0);
+    await page.mouse.up();
+
+    await expect.poll(() => editorLayout(page)).toEqual([['title'], ['date'], ['performers']]);
+    await expect(rightAlignedPill(page, 'date')).toHaveCount(1);
+  });
+
   test('keeps the ghost dim for the whole drag', async ({ page, request }) => {
     await setTvConfig(request, { sceneInfoLayout: [['studio', 'title'], ['date'], ['performers']] });
     await startEditing(page);
@@ -344,7 +565,7 @@ test.describe('Scene info panel', () => {
       const record = window as unknown as { maxLines: number };
       record.maxLines = 0;
       const sample = () => {
-        const lines = new Set([...document.querySelectorAll<HTMLElement>('[data-current-video="true"] .SceneInfo.editing .editor-lines > [data-line]')].map((item) => item.dataset.line));
+        const lines = new Set([...document.querySelectorAll<HTMLElement>('[data-current-video="true"] .SceneInfo.editing .editor-lines [data-line]')].map((item) => item.dataset.line));
         record.maxLines = Math.max(record.maxLines, lines.size);
         requestAnimationFrame(sample);
       };
@@ -772,7 +993,7 @@ test.describe('Scene info panel', () => {
         const targetLine = from === 'another line' ? 1 : 0;
         // Taller than it's wide throughout, so the unused fields stay below the lines
         const height = 1400;
-        const rowsOf = async (line: number) => await infoPanel(page).locator(`.editor-lines > .field-pill[data-line="${line}"]:not(.ghost)`)
+        const rowsOf = async (line: number) => await infoPanel(page).locator(`.editor-lines .field-pill[data-line="${line}"]:not(.ghost)`)
           .evaluateAll((pills) => new Set(pills.map((pill) => Math.round(pill.getBoundingClientRect().top))).size);
 
         // Find the narrowest width at which the line takes `rowsBefore` rows (as little room left on its last row as
@@ -804,7 +1025,7 @@ test.describe('Scene info panel', () => {
             await startDrag(page, pill(page, dragged), field.x + 6, field.y + field.height / 2);
             await page.waitForTimeout(500);
             const settled = await layoutsOverTime(page, 600);
-            const ghostOnLine = await infoPanel(page).locator('.editor-lines > .field-pill.ghost').count();
+            const ghostOnLine = await infoPanel(page).locator('.editor-lines .field-pill.ghost').count();
             const insertionLine = await infoPanel(page).locator('.insertion-line').count();
             await page.mouse.up();
             await page.waitForTimeout(400);

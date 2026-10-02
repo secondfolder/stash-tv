@@ -8,7 +8,7 @@ import { Pencil } from "react-bootstrap-icons";
 import { useTvConfig } from "../../../store/tvConfig";
 import { useGlobalState } from "../../../store/globalState";
 import { SceneInfoField } from "./fields";
-import { isKnownField, SceneInfoLayout } from "./scene-info-config";
+import { isKnownField, lineSides, SceneInfoLayout } from "./scene-info-config";
 import { SceneInfoEditor } from "./SceneInfoEditor";
 
 export type Props = {
@@ -75,13 +75,17 @@ const SceneInfo = forwardRef(({scene, open, className, style, onExternalLinkClic
             >
               <Pencil />
             </Button>
-            {sceneInfoLayout.map((line, lineIndex) => (
-              <div className="field-line" key={lineIndex}>
-                {line.filter(isKnownField).map(field => (
-                  <SceneInfoField key={field} field={field} scene={scene} onExternalLinkClick={onExternalLinkClick} />
-                ))}
-              </div>
-            ))}
+            {sceneInfoLayout.map((line, lineIndex) => {
+              const { left, right } = lineSides(line);
+              const fields = (fieldIds: string[]) => fieldIds.filter(isKnownField).map(field => (
+                <SceneInfoField key={field} field={field} scene={scene} onExternalLinkClick={onExternalLinkClick} />
+              ));
+              // Each side in a box wrapping on its own
+              return <div className="field-line" key={lineIndex}>
+                <div className="line-fields">{fields(left)}</div>
+                {right.length > 0 && <div className="line-fields right-aligned-fields">{fields(right)}</div>}
+              </div>;
+            })}
           </>
         }
         </PanelContent>

@@ -53,7 +53,7 @@ function shownLines(infoPanel: HTMLElement) {
 /** The editor's lines, as the text of each pill on them (each line's items have its index in `data-line`) */
 function editorLines(infoPanel: HTMLElement) {
   const lines: (string | null)[][] = [];
-  for (const item of infoPanel.querySelectorAll<HTMLElement>(".editor-lines > [data-line]")) {
+  for (const item of infoPanel.querySelectorAll<HTMLElement>(".editor-lines [data-line]")) {
     const line = lines[Number(item.dataset.line)] ??= [];
     if (item.classList.contains("field-pill")) line.push(item.textContent);
   }

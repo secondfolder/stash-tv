@@ -4,7 +4,7 @@ import { LayoutGroup, motion } from "framer-motion";
 import { unstable_batchedUpdates } from "react-dom";
 import cx from "classnames";
 import { Badge, Button, ButtonGroup } from "react-bootstrap";
-import { ArrowReturnRight, XLg } from "react-bootstrap-icons";
+import { ArrowReturnLeft, ArrowReturnRight, XLg } from "react-bootstrap-icons";
 import { SceneInfoField } from "./fields";
 import { useWindowSize } from "../../../hooks/useWindowSize";
 import { useGlobalState } from "../../../store/globalState";
@@ -15,16 +15,21 @@ import {
   getSlotNearGhost,
   getSlotOnArrival,
   getSlotByMidpoints,
-  countRows,
+  countLineRows,
   noValueLabel,
   isKnownField,
+  isRightAligned,
   LayoutPosition,
+  lineFields,
+  lineSides,
   placeField,
   preferVacatedLine,
   Rect,
   SceneInfoEditorPillContent,
   SceneInfoLayout,
   sceneInfoFieldLabels,
+  sideAt,
+  startsRow,
 } from "./scene-info-config";
 
 type Drag = {
@@ -67,6 +72,17 @@ type Drag = {
   arrivedOver: number | null;
 };
 
+/** A line in the editor as it's laid out: where it is, and its fields (but not the ghost) and their boxes */
+type MeasuredLine = {
+  rect: Rect;
+  /** Its left fields, then its right-aligned ones */
+  fields: Rect[];
+  leftCount: number;
+  /** The boxes each side's fields wrap in, null if the side has none (the ghost included) */
+  leftBox: Rect | null;
+  rightBox: Rect | null;
+};
+
 let nextEditorId = 0;
 
 /** How far the pointer must move before pressing a field starts dragging it */
@@ -94,6 +110,14 @@ function lineHeight(rect: Rect | undefined) {
 
 function fieldName(field: string) {
   return isKnownField(field) ? sceneInfoFieldLabels[field] : "Unknown field";
+}
+
+/**
+ * A rect mirrored left to right. A line's right-aligned fields are laid out from right to left (the first at the line's
+ * end), mirroring its left fields, so mirrored they can be worked with as fields laid out from left to right.
+ */
+function mirror(rect: Rect): Rect {
+  return { ...rect, left: -rect.right, right: -rect.left };
 }
 
 function contains(rect: Rect, point: { x: number, y: number }) {
@@ -160,7 +184,7 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
    * than from where the lines are now: a ghost on a new line moves the lines after it down, and its leaving moves them
    * back, which would otherwise move the target under a pointer that's held still.
    */
-  const startingLinesRef = useRef<{ rect: Rect; fields: Rect[] }[]>([]);
+  const startingLinesRef = useRef<MeasuredLine[]>([]);
   // Where the lines' container was then. The panel grows upwards (e.g. as the unused fields take the ghost), moving the
   // lines, so the pointer is compared with where the lines were relative to where the container is now.
   const startingLinesTopRef = useRef(0);
@@ -177,27 +201,35 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
   }
 
   /** Each line shown, with where it is and where its fields (but not the ghost) are */
-  const measureLines = () => {
+  const measureLines = (): MeasuredLine[] => {
     const container = linesRef.current;
     if (!container) return [];
     const containerRect = container.getBoundingClientRect();
-    const lines: { rect: Rect; fields: Rect[] }[] = [];
-    for (const item of container.querySelectorAll<HTMLElement>(":scope > [data-line]")) {
-      const itemRect = layoutRect(item, containerRect);
-      const line = lines[Number(item.dataset.line)] ??= {
-        rect: { left: containerRect.left, right: containerRect.right, top: itemRect.top, bottom: itemRect.bottom },
-        fields: [],
+    return [...container.querySelectorAll<HTMLElement>(":scope > .editor-line")].map(lineElement => {
+      const side = (name: "left" | "right") => {
+        const box = lineElement.querySelector<HTMLElement>(`:scope > .line-side.${name}`);
+        const pills = box ? [...box.querySelectorAll<HTMLElement>(":scope > .field-pill:not(.ghost)")] : [];
+        return {
+          box: box?.childElementCount ? layoutRect(box, containerRect) : null,
+          fields: pills.map(pill => layoutRect(pill, containerRect)),
+        };
       };
-      line.rect.top = Math.min(line.rect.top, itemRect.top);
-      line.rect.bottom = Math.max(line.rect.bottom, itemRect.bottom);
-      if (item.classList.contains("field-pill") && !item.classList.contains("ghost")) line.fields.push(itemRect);
-    }
-    return lines;
+      const left = side("left");
+      const right = side("right");
+      return {
+        // The whole width of the lines, beyond the end of either side
+        rect: { ...layoutRect(lineElement, containerRect), left: containerRect.left, right: containerRect.right },
+        fields: [...left.fields, ...right.fields],
+        leftCount: left.fields.length,
+        leftBox: left.box,
+        rightBox: right.box,
+      };
+    });
   }
 
   const measureGhost = () => {
     const container = linesRef.current;
-    const ghost = container?.querySelector<HTMLElement>(":scope > .field-pill.ghost");
+    const ghost = container?.querySelector<HTMLElement>(".field-pill.ghost");
     return container && ghost ? layoutRect(ghost, container.getBoundingClientRect()) : null;
   }
 
@@ -207,9 +239,9 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
     if (!container) return null;
     const lines = measureLines();
     const containerTop = container.getBoundingClientRect().top;
-    // Half the space between lines, which is the pills' margins
-    const pill = container.querySelector<HTMLElement>(":scope > .field-pill");
-    const halfGap = pill ? parseFloat(getComputedStyle(pill).marginBottom) || 0 : 0;
+    // Half the space between lines, which is their margins
+    const lineElement = container.querySelector<HTMLElement>(":scope > .editor-line");
+    const halfGap = lineElement ? parseFloat(getComputedStyle(lineElement).marginBottom) || 0 : 0;
     const above = lines[line - 1]?.rect;
     const below = lines[line]?.rect;
     const y = above && below ? (above.bottom + below.top) / 2
@@ -221,38 +253,60 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
 
   /**
    * If putting the dragged field on line `line` at `index` would make the line wrap onto another row, where to show the
-   * line marking the spot instead of the ghost. `fields` are where the line's other fields are.
+   * line marking the spot instead of the ghost. `measured` is where the line and its other fields are.
    */
-  const measureInsertAt = (line: number, index: number, fields: Rect[], current: Drag): Drag["insertAt"] => {
+  const measureInsertAt = (line: number, { index, right }: { index: number, right: boolean }, measured: MeasuredLine, current: Drag): Drag["insertAt"] => {
     const container = linesRef.current;
-    if (!container) return null;
+    const lineElement = container?.querySelectorAll<HTMLElement>(":scope > .editor-line")[line];
+    if (!container || !lineElement) return null;
     // All to the fraction of a pixel (offsetWidth and clientWidth round): over a line's worth of fields, rounding was
     // enough to get it wrong when the field only just fits, or only just doesn't
-    const style = getComputedStyle(container);
-    const gap = parseFloat(style.columnGap) || 0;
-    const indent = parseFloat(style.paddingLeft) || 0;
-    const otherRowWidth = container.getBoundingClientRect().width - indent - (parseFloat(style.paddingRight) || 0);
-    const pills = [...container.querySelectorAll<HTMLElement>(`:scope > .field-pill[data-line="${line}"]:not(.ghost)`)];
-    const widths = pills.map(pill => pill.getBoundingClientRect().width);
+    const leftBox = lineElement.querySelector<HTMLElement>(":scope > .line-side.left");
+    const rightBox = lineElement.querySelector<HTMLElement>(":scope > .line-side.right");
+    const leftStyle = leftBox ? getComputedStyle(leftBox) : null;
+    const gap = parseFloat(leftStyle?.columnGap ?? "") || 0;
+    // Each side's indent is only there when it has fields, the only time it matters
+    const indent = Math.max(
+      parseFloat(leftStyle?.paddingLeft ?? "") || 0,
+      rightBox ? parseFloat(getComputedStyle(rightBox).paddingRight) || 0 : 0,
+    );
+    const sideGap = parseFloat(getComputedStyle(lineElement).columnGap) || 0;
+    const containerRect = container.getBoundingClientRect();
+    const widths = (name: "left" | "right") => [...lineElement.querySelectorAll<HTMLElement>(`:scope > .line-side.${name} > .field-pill:not(.ghost)`)]
+      .map(pill => pill.getBoundingClientRect().width);
     // A field dragged from the unused fields gets a × on the line, which they don't have
     let draggedWidth = current.grab.width;
-    const removeButton = container.querySelector<HTMLElement>(":scope > .field-pill .remove-field");
+    const removeButton = container.querySelector<HTMLElement>(".field-pill .remove-field");
     if (!current.from && removeButton?.parentElement) {
       draggedWidth += removeButton.getBoundingClientRect().width + (parseFloat(getComputedStyle(removeButton.parentElement).columnGap) || 0);
     }
-    const withField = [...widths.slice(0, index), draggedWidth, ...widths.slice(index)];
+    const withFieldAt = (sides: { left: number[], right: number[] }, atRight: boolean, sideIndex: number) => {
+      const side = atRight ? sides.right : sides.left;
+      const withField = [...side.slice(0, sideIndex), draggedWidth, ...side.slice(sideIndex)];
+      return atRight ? { left: sides.left, right: withField } : { left: withField, right: sides.right };
+    };
+    const sides = { left: widths("left"), right: widths("right") };
+    const withField = withFieldAt(sides, right, right ? index - measured.leftCount : index);
     // The line as it is in the layout: with the field if it's the line it's being dragged along
-    const asItIs = current.from?.line === line
-      ? [...widths.slice(0, current.from.index), draggedWidth, ...widths.slice(current.from.index)]
-      : widths;
-    const rows = (lineWidths: number[]) => countRows(lineWidths, gap, otherRowWidth + indent, otherRowWidth);
+    const from = current.from?.line === line ? current.from : null;
+    const fromRight = from ? isRightAligned(layout, from) : false;
+    const asItIs = from
+      ? withFieldAt(sides, fromRight, fromRight ? from.index - lineSides(layout[line]).left.length : from.index)
+      : sides;
+    const rows = ({ left, right }: { left: number[], right: number[] }) => (
+      countLineRows(left, right, { gap, sideGap, width: containerRect.width, indent })
+    );
     if (rows(withField) <= rows(asItIs)) return null;
-    const containerRect = container.getBoundingClientRect();
-    const next = fields[index];
-    const previous = fields[index - 1];
-    const beside = next ?? previous;
-    if (!beside) return null;
-    const left = next ? next.left - gap / 2 : previous.right + gap / 2;
+    // Beside the fields on its side, or at that end of the line if there are none
+    const sideFields = right ? measured.fields.slice(measured.leftCount) : measured.fields.slice(0, measured.leftCount);
+    const sideIndex = right ? index - measured.leftCount : index;
+    const next = sideFields[sideIndex];
+    const previous = sideFields[sideIndex - 1];
+    const beside = next ?? previous ?? measured.rect;
+    // The right-aligned fields run from right to left
+    const left = right
+      ? next ? next.right + gap / 2 : previous ? previous.left - gap / 2 : containerRect.right
+      : next ? next.left - gap / 2 : previous ? previous.right + gap / 2 : containerRect.left;
     return { left: left - containerRect.left, top: beside.top - containerRect.top, height: beside.bottom - beside.top };
   }
 
@@ -260,25 +314,47 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
   const measureTarget = (point: { x: number, y: number }, current: Drag): Pick<Drag, "target" | "arrivedOver" | "newLineAt" | "insertAt"> => {
     const unusedRect = unusedRef.current?.getBoundingClientRect();
     if (unusedRect && contains(unusedRect, point)) return { target: { type: "remove" }, arrivedOver: null, newLineAt: null, insertAt: null };
-    const linesMoved = (linesRef.current?.getBoundingClientRect().top ?? 0) - startingLinesTopRef.current;
+    const linesRect = linesRef.current?.getBoundingClientRect();
+    const linesMoved = (linesRect?.top ?? 0) - startingLinesTopRef.current;
     const pointAtStart = { x: point.x, y: point.y - linesMoved };
-    const target = preferVacatedLine(getDropTarget(pointAtStart, startingLinesRef.current), baseLayout, current.from);
-    if (target.type === "new-line") return { target, arrivedOver: null, newLineAt: measureNewLineAt(target.line), insertAt: null };
-    if (target.type !== "same-line") return { target, arrivedOver: null, newLineAt: null, insertAt: null };
+    const centre = linesRect ? (linesRect.left + linesRect.right) / 2 : 0;
+    const lineTarget = preferVacatedLine(getDropTarget(pointAtStart, startingLinesRef.current, centre), baseLayout, current.from);
+    if (lineTarget.type === "new-line") return { target: lineTarget, arrivedOver: null, newLineAt: measureNewLineAt(lineTarget.line), insertAt: null };
     // Along the line, where its fields are now, since they move aside for the ghost
-    const fields = measureLines()[target.line]?.fields ?? [];
-    if (current.insertAt && current.target?.type === "same-line" && current.target.line === target.line) {
+    const { line } = lineTarget;
+    const measured = measureLines()[line];
+    if (!measured) return { target: { type: "same-line", line, index: 0, right: false }, arrivedOver: null, newLineAt: null, insertAt: null };
+    const place = (index: number, right: boolean, arrivedOver: number | null) => ({
+      target: { type: "same-line", line, index, right } as const,
+      arrivedOver,
+      newLineAt: null,
+      insertAt: measureInsertAt(line, { index, right }, measured, current),
+    });
+    const where = sideAt(point.x, measured.rect, measured.leftBox, measured.rightBox);
+    // Beside the space: at the end of the left fields, or of the right-aligned ones (which run from right to left)
+    if (where.side === "space") return place(where.right ? measured.fields.length : measured.leftCount, where.right, null);
+    // Each side wraps on its own, so where along it goes by that side's fields alone. The right-aligned fields run from
+    // right to left, so they're mirrored, along with the pointer and the ghost, to work with them like the left ones.
+    const right = where.side === "right";
+    const offset = right ? measured.leftCount : 0;
+    const flip = right ? mirror : (rect: Rect) => rect;
+    const fields = (right ? measured.fields.slice(measured.leftCount) : measured.fields.slice(0, measured.leftCount)).map(flip);
+    const sidePoint = right ? { x: -point.x, y: point.y } : point;
+    const ghost = measureGhost();
+    const onLine = current.target?.type === "same-line" && current.target.line === line ? current.target : null;
+    if (onLine && current.insertAt) {
       // Nothing moves aside for an insertion line, so it simply goes by which half of a field the pointer's over
-      const index = getSlotByMidpoints(point, fields);
-      return { target: { ...target, index }, arrivedOver: null, newLineAt: null, insertAt: measureInsertAt(target.line, index, fields, current) };
+      return place(offset + getSlotByMidpoints(sidePoint, fields), right, null);
     }
-    if (current.target?.type === "same-line" && current.target.line === target.line) {
-      const direction = Math.sign(point.x - current.lastX);
-      const { index, ignore } = getSlotNearGhost(point, direction, fields, current.target.index, current.arrivedOver, measureGhost());
-      return { target: { ...target, index }, arrivedOver: ignore, newLineAt: null, insertAt: measureInsertAt(target.line, index, fields, current) };
+    const fromSide = (index: number | null) => index === null ? null : index + offset;
+    if (onLine && onLine.right === right) {
+      const direction = Math.sign(point.x - current.lastX) * (right ? -1 : 1);
+      const arrivedOver = current.arrivedOver !== null && current.arrivedOver >= offset ? current.arrivedOver - offset : null;
+      const { index, ignore } = getSlotNearGhost(sidePoint, direction, fields, onLine.index - offset, arrivedOver, ghost && flip(ghost));
+      return place(offset + index, right, fromSide(ignore));
     }
-    const { index, over } = getSlotOnArrival(point, fields);
-    return { target: { ...target, index }, arrivedOver: over, newLineAt: null, insertAt: measureInsertAt(target.line, index, fields, current) };
+    const { index, over } = getSlotOnArrival(sidePoint, fields);
+    return place(offset + index, right, fromSide(over));
   }
 
   const startDrag = (event: React.PointerEvent<HTMLElement>, field: string, key: string, from: LayoutPosition | null) => {
@@ -323,7 +399,7 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
         startingLinesTopRef.current = linesRef.current?.getBoundingClientRect().top ?? 0;
         // The ghost starts where the field was
         measured = current.from
-          ? { target: { type: "same-line", ...current.from }, arrivedOver: null, newLineAt: null, insertAt: null }
+          ? { target: { type: "same-line", ...current.from, right: isRightAligned(layout, current.from) }, arrivedOver: null, newLineAt: null, insertAt: null }
           : measureTarget({ x: event.clientX, y: event.clientY }, current);
       } else {
         measured = measureTarget({ x: event.clientX, y: event.clientY }, current);
@@ -350,27 +426,32 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
     },
   };
   /**
-   * Where the lines that wrap onto more rows have their later rows, from the top of the lines' container, for the
-   * marker showing they're one line. Measured after every render (and when the editor's resized) as wrapping is down to
-   * layout.
+   * Where each side of the lines that wrap onto more rows has its later rows, from the top of the lines' container, for
+   * the marker showing they're one line. Measured after every render (and when the editor's resized) as wrapping is down
+   * to layout.
    */
-  const [wrappedRows, setWrappedRows] = useState<{ line: number; top: number; height: number }[]>([]);
+  const [wrappedRows, setWrappedRows] = useState<{ line: number; side: "left" | "right"; top: number; height: number }[]>([]);
   const measureWrappedRows = () => {
     const container = linesRef.current;
     if (!container) return;
-    const containerTop = container.getBoundingClientRect().top;
-    const next = measureLines().flatMap(({ fields }, line) => {
-      // Later rows start with a field left of the one before it
-      const laterRows = fields.filter((field, index) => index > 0 && field.left < fields[index - 1].left);
-      if (!laterRows.length) return [];
-      const first = fields.indexOf(laterRows[0]);
-      const top = Math.min(...fields.slice(first).map(field => field.top));
-      const bottom = Math.max(...fields.slice(first).map(field => field.bottom));
-      return [{ line, top: top - containerTop, height: bottom - top }];
-    });
-    setWrappedRows(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
+    const containerRect = container.getBoundingClientRect();
+    const nextRows = measureLines().flatMap(({ fields, leftCount }, line) => (["left", "right"] as const).flatMap(side => {
+      // Each side wraps on its own. Its later rows start with a field before (left of, mirrored on the right), or below,
+      // the one before it.
+      const sideFields = side === "left" ? fields.slice(0, leftCount) : fields.slice(leftCount).map(mirror);
+      const first = sideFields.findIndex((field, index) => index > 0 && startsRow(field, sideFields[index - 1]));
+      if (first === -1) return [];
+      const top = Math.min(...sideFields.slice(first).map(field => field.top));
+      const bottom = Math.max(...sideFields.slice(first).map(field => field.bottom));
+      return [{ line, side, top: top - containerRect.top, height: bottom - top }];
+    }));
+    setWrappedRows(previous => JSON.stringify(previous) === JSON.stringify(nextRows) ? previous : nextRows);
   }
   useLayoutEffect(measureWrappedRows);
+
+  // Highlighted, so it's clear which right-aligned fields share it with which left ones. Hovering a line does too (CSS).
+  const targetLine = isDragging && drag.target?.type === "same-line" ? drag.target.line : null;
+
   useEffect(() => {
     const container = linesRef.current;
     if (!container) return;
@@ -441,7 +522,7 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
     <motion.div layout="position" className="editor-toolbar">
       <div className="shown-values">
         {/* The group's own label names it for screen readers */}
-        <span aria-hidden>Show</span>
+        <span aria-hidden>Show…</span>
         <ButtonGroup aria-label="Show">
           {(["names", "values"] as const).map(option => {
             const active = option === shownValues;
@@ -465,8 +546,8 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
       </div>
     </motion.div>
     {/*
-      Every line's fields are in one flexbox, each line ending in a break, rather than a box per line, so a field moving
-      to another line isn't re-mounted, and slides there like any other move
+      Each line has its left fields and its right-aligned ones side by side, each in a box wrapping on its own. A field
+      moving to another line or side is re-mounted there, and slides there as its layoutId is the same.
     */}
     <div
       className="editor-lines"
@@ -476,28 +557,36 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
       {(() => {
         // A field can only be in the layout once, apart from fields this version doesn't know, which still need unique keys
         const seen = new Map<string, number>();
-        return shownLayout.flatMap((line, lineIndex) => [
-        ...line.length ? line.map((field, index) => {
-          if (field === ghostField && drag) {
-            return linePill({ field: drag.field, key: drag.key, line: lineIndex, from: null, isGhost: true });
-          }
-          // Only its position in the saved layout when nothing is being dragged, the only time it's used
-          const from = { line: lineIndex, index };
-          const occurrence = seen.get(field) ?? 0;
-          seen.set(field, occurrence + 1);
-          return linePill({ field, key: occurrence ? `${field}-${occurrence}` : field, line: lineIndex, from, isGhost: false });
-        }) : [
+        return shownLayout.map((line, lineIndex) => {
+          const { left, right } = lineSides(line);
+          const pill = (field: string, index: number) => {
+            if (field === ghostField && drag) {
+              return linePill({ field: drag.field, key: drag.key, line: lineIndex, from: null, isGhost: true });
+            }
+            // Only its position in the saved layout when nothing is being dragged, the only time it's used
+            const from = { line: lineIndex, index };
+            const occurrence = seen.get(field) ?? 0;
+            seen.set(field, occurrence + 1);
+            return linePill({ field, key: occurrence ? `${field}-${occurrence}` : field, line: lineIndex, from, isGhost: false });
+          };
           // The line a field was dragged off, keeping its space
-          <div key={`vacated-${lineIndex}`} className="vacated-line" data-line={lineIndex} style={{ height: vacatedLineHeight }} />,
-        ],
-        <div key={`end-${lineIndex}`} className="line-end" />,
-        ]);
+          const vacated = !left.length && !right.length;
+          return <div
+            key={lineIndex}
+            className={cx("editor-line", { "vacated-line": vacated, target: lineIndex === targetLine })}
+            data-line={lineIndex}
+            style={vacated ? { height: vacatedLineHeight } : undefined}
+          >
+            {!vacated && <div className="line-side left">{left.map((field, index) => pill(field, index))}</div>}
+            {right.length > 0 && <div className="line-side right">{right.map((field, index) => pill(field, left.length + index))}</div>}
+          </div>;
+        });
       })()}
       {!shownLayout.length && <div className="editor-empty">No fields shown. Drag some up from below.</div>}
-      {wrappedRows.map(({ line, top, height }) => (
-        // In the indent of the line's later rows, one for all of them. Slides with them, like the pills.
-        <motion.div layout="position" key={line} className="wrapped-line-marker" style={{ top, height }} aria-hidden>
-          <ArrowReturnRight />
+      {wrappedRows.map(({ line, side, top, height }) => (
+        // In the indent of the side's later rows, one for all of them. Slides with them, like the pills.
+        <motion.div layout="position" key={`${line}-${side}`} className={cx("wrapped-line-marker", side)} style={{ top, height }} aria-hidden>
+          {side === "left" ? <ArrowReturnRight /> : <ArrowReturnLeft />}
         </motion.div>
       ))}
       {isDragging && drag.target?.type === "same-line" && drag.insertAt && <div
@@ -506,7 +595,7 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
         aria-hidden
       />}
       {isDragging && drag.target?.type === "new-line" && drag.newLineAt !== null && <div
-        className="ghost-line"
+        className={cx("ghost-line", { right: drag.target.right })}
         style={{ top: drag.newLineAt }}
         aria-hidden
       />}
@@ -539,7 +628,7 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
             onClick={() => {
               // Tapping one adds it at the bottom
               if (justDraggedRef.current) return;
-              onChange(placeField(layout, field, null, { type: "new-line", line: layout.length }));
+              onChange(placeField(layout, field, null, { type: "new-line", line: layout.length, right: false }));
             }}
           >
             <PillContent field={field} scene={scene} showValues={showValues} />

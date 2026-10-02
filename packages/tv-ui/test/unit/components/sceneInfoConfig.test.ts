@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  countLineRows,
   fieldsNotInLayout,
   getDropTarget,
   getSlotNearGhost,
@@ -9,6 +10,8 @@ import {
   getSlotOnArrival,
   preferVacatedLine,
   placeField,
+  sideAt,
+  startsRow,
   type Rect,
 } from "../../../src/components/slide/SceneInfo/scene-info-config";
 
@@ -17,32 +20,32 @@ describe("placing a field in the scene info panel's layout", () => {
   const layout = [["studio"], ["title", "date"], ["performers"]];
 
   it("moves a field beside another on the same line", () => {
-    expect(placeField(layout, "performers", { line: 2, index: 0 }, { type: "same-line", line: 1, index: 1 }))
+    expect(placeField(layout, "performers", { line: 2, index: 0 }, { type: "same-line", line: 1, index: 1, right: false }))
       .toEqual([["studio"], ["title", "performers", "date"]]);
   });
 
   it("moves a field later along its own line", () => {
-    expect(placeField(layout, "title", { line: 1, index: 0 }, { type: "same-line", line: 1, index: 2 }))
+    expect(placeField(layout, "title", { line: 1, index: 0 }, { type: "same-line", line: 1, index: 2, right: false }))
       .toEqual([["studio"], ["date", "title"], ["performers"]]);
   });
 
   it("moves a field onto a new line, removing the line it leaves empty", () => {
-    expect(placeField(layout, "studio", { line: 0, index: 0 }, { type: "new-line", line: 3 }))
+    expect(placeField(layout, "studio", { line: 0, index: 0 }, { type: "new-line", line: 3, right: false }))
       .toEqual([["title", "date"], ["performers"], ["studio"]]);
   });
 
   it("keeps the line a field leaves empty when asked to, as the editor does while it's dragged", () => {
-    expect(placeField(layout, "studio", { line: 0, index: 0 }, { type: "same-line", line: 1, index: 0 }, { keepEmptyLines: true }))
+    expect(placeField(layout, "studio", { line: 0, index: 0 }, { type: "same-line", line: 1, index: 0, right: false }, { keepEmptyLines: true }))
       .toEqual([[], ["studio", "title", "date"], ["performers"]]);
   });
 
   it("splits a field off onto a new line between two lines", () => {
-    expect(placeField(layout, "date", { line: 1, index: 1 }, { type: "new-line", line: 1 }))
+    expect(placeField(layout, "date", { line: 1, index: 1 }, { type: "new-line", line: 1, right: false }))
       .toEqual([["studio"], ["date"], ["title"], ["performers"]]);
   });
 
   it("adds a field that isn't in the layout yet", () => {
-    expect(placeField(layout, "tags", null, { type: "same-line", line: 0, index: 0 }))
+    expect(placeField(layout, "tags", null, { type: "same-line", line: 0, index: 0, right: false }))
       .toEqual([["tags", "studio"], ["title", "date"], ["performers"]]);
   });
 
@@ -52,56 +55,161 @@ describe("placing a field in the scene info panel's layout", () => {
   });
 
   it("keeps fields it doesn't know, so a newer Stash TV using the same Stash server doesn't lose them", () => {
-    expect(placeField([["from-a-newer-version", "date"]], "date", { line: 0, index: 1 }, { type: "new-line", line: 0 }))
+    expect(placeField([["from-a-newer-version", "date"]], "date", { line: 0, index: 1 }, { type: "new-line", line: 0, right: false }))
       .toEqual([["date"], ["from-a-newer-version"]]);
+  });
+
+  it("right-aligns a field, keeping a line with none as a plain list", () => {
+    expect(placeField(layout, "performers", { line: 2, index: 0 }, { type: "same-line", line: 1, index: 2, right: true }))
+      .toEqual([["studio"], { left: ["title", "date"], right: ["performers"] }]);
+    expect(placeField(layout, "studio", { line: 0, index: 0 }, { type: "new-line", line: 3, right: true }))
+      .toEqual([["title", "date"], ["performers"], { left: [], right: ["studio"] }]);
+  });
+
+  it("goes at the end of a line's left fields, or the start of its right-aligned ones, between the two", () => {
+    const aligned = [{ left: ["title"], right: ["date"] }];
+    expect(placeField(aligned, "tags", null, { type: "same-line", line: 0, index: 1, right: false }))
+      .toEqual([{ left: ["title", "tags"], right: ["date"] }]);
+    expect(placeField(aligned, "tags", null, { type: "same-line", line: 0, index: 1, right: true }))
+      .toEqual([{ left: ["title"], right: ["tags", "date"] }]);
+  });
+
+  it("goes back to a plain list once a line has no right-aligned fields", () => {
+    expect(placeField([{ left: ["title"], right: ["date"] }], "date", { line: 0, index: 1 }, { type: "same-line", line: 0, index: 0, right: false }))
+      .toEqual([["date", "title"]]);
   });
 
   it("offers only the fields that aren't in the layout to add", () => {
     const notInLayout = fieldsNotInLayout(layout);
     expect(notInLayout).toContain("tags");
     expect(notInLayout).not.toContain("title");
+    expect(fieldsNotInLayout([{ left: [], right: ["tags"] }])).not.toContain("tags");
   });
 });
 
 /** @see docs/scene-info-panel.md § "Moving fields" */
-describe("where a dragged field is dropped", () => {
+describe("which line a dragged field is dropped on", () => {
   const rect = (left: number, right: number, top: number, bottom: number): Rect => ({ left, right, top, bottom });
-  // Two 20px-high lines 10px apart: [A][B] and [C]
-  const lines = [
-    { rect: rect(0, 300, 0, 20), fields: [rect(0, 50, 0, 20), rect(60, 110, 0, 20)] },
-    { rect: rect(0, 300, 30, 50), fields: [rect(0, 50, 30, 50)] },
-  ];
+  // Two 20px-high lines 10px apart, 300px wide
+  const lines = [{ rect: rect(0, 300, 0, 20) }, { rect: rect(0, 300, 30, 50) }];
+  const centre = 150;
 
-  it("goes to the left of a field when over its left half", () => {
-    expect(getDropTarget({ x: 70, y: 10 }, lines)).toEqual({ type: "same-line", line: 0, index: 1 });
-  });
-
-  it("goes to the right of a field when over its right half", () => {
-    expect(getDropTarget({ x: 100, y: 10 }, lines)).toEqual({ type: "same-line", line: 0, index: 2 });
-  });
-
-  it("goes at the end of a line when past its last field", () => {
-    expect(getDropTarget({ x: 250, y: 40 }, lines)).toEqual({ type: "same-line", line: 1, index: 1 });
+  it("goes on the line it's over", () => {
+    expect(getDropTarget({ x: 70, y: 10 }, lines, centre)).toEqual({ type: "same-line", line: 0 });
+    expect(getDropTarget({ x: 250, y: 40 }, lines, centre)).toEqual({ type: "same-line", line: 1 });
   });
 
   it("goes on a new line when between two lines", () => {
-    expect(getDropTarget({ x: 20, y: 25 }, lines)).toEqual({ type: "new-line", line: 1 });
+    expect(getDropTarget({ x: 20, y: 25 }, lines, centre)).toEqual({ type: "new-line", line: 1, right: false });
+  });
+
+  it("right-aligns a new line when the pointer's over the right half of the lines", () => {
+    expect(getDropTarget({ x: 200, y: 25 }, lines, centre)).toEqual({ type: "new-line", line: 1, right: true });
   });
 
   it("goes on a new line when near the top edge of a line", () => {
-    expect(getDropTarget({ x: 20, y: 1 }, lines)).toEqual({ type: "new-line", line: 0 });
+    expect(getDropTarget({ x: 20, y: 1 }, lines, centre)).toEqual({ type: "new-line", line: 0, right: false });
   });
 
   it("goes on the line just inside its edge", () => {
-    expect(getDropTarget({ x: 20, y: 3 }, lines)).toEqual({ type: "same-line", line: 0, index: 0 });
+    expect(getDropTarget({ x: 20, y: 3 }, lines, centre)).toEqual({ type: "same-line", line: 0 });
   });
 
   it("goes on a new line at the bottom when below every line", () => {
-    expect(getDropTarget({ x: 20, y: 200 }, lines)).toEqual({ type: "new-line", line: 2 });
+    expect(getDropTarget({ x: 20, y: 200 }, lines, centre)).toEqual({ type: "new-line", line: 2, right: false });
   });
 
   it("goes on the first line when there are no lines", () => {
-    expect(getDropTarget({ x: 20, y: 20 }, [])).toEqual({ type: "new-line", line: 0 });
+    expect(getDropTarget({ x: 20, y: 20 }, [], centre)).toEqual({ type: "new-line", line: 0, right: false });
+  });
+});
+
+/** @see docs/scene-info-panel.md § "Moving fields" */
+describe("which side of a line a dragged field goes on", () => {
+  const rect = (left: number, right: number): Rect => ({ left, right, top: 0, bottom: 20 });
+  const line = { left: 0, right: 300 };
+
+  describe("on a line with no right-aligned fields", () => {
+    // Its fields from 0 to 110, then empty space to 300
+    const leftBox = rect(0, 110);
+
+    it("goes after the last field over the left two thirds of the space after the fields", () => {
+      expect(sideAt(150, line, leftBox, null)).toEqual({ side: "space", right: false });
+      expect(sideAt(235, line, leftBox, null)).toEqual({ side: "space", right: false });
+    });
+
+    it("is right-aligned over the right third of that space, and beyond the end of the line", () => {
+      expect(sideAt(240, line, leftBox, null)).toEqual({ side: "space", right: true });
+      expect(sideAt(350, line, leftBox, null)).toEqual({ side: "space", right: true });
+    });
+
+    it("goes among the fields over them", () => {
+      expect(sideAt(20, line, leftBox, null)).toEqual({ side: "left" });
+    });
+  });
+
+  describe("on a line with fields on both sides", () => {
+    // The left fields from 0 to 50, the right-aligned ones from 200: the space between them is 50-200
+    const leftBox = rect(0, 50);
+    const rightBox = rect(200, 300);
+
+    it("goes after the left fields or before the right-aligned ones, by which part of the space it's over", () => {
+      expect(sideAt(140, line, leftBox, rightBox)).toEqual({ side: "space", right: false });
+      expect(sideAt(160, line, leftBox, rightBox)).toEqual({ side: "space", right: true });
+    });
+
+    it("goes among the fields on the side it's over", () => {
+      expect(sideAt(30, line, leftBox, rightBox)).toEqual({ side: "left" });
+      expect(sideAt(250, line, leftBox, rightBox)).toEqual({ side: "right" });
+    });
+  });
+
+  it("splits the space before a line's right-aligned fields when it has no left ones", () => {
+    expect(sideAt(100, line, null, rect(200, 300))).toEqual({ side: "space", right: false });
+    expect(sideAt(150, line, null, rect(200, 300))).toEqual({ side: "space", right: true });
+  });
+
+  it("splits the whole of an empty line the same way", () => {
+    expect(sideAt(150, line, null, null)).toEqual({ side: "space", right: false });
+    expect(sideAt(250, line, null, null)).toEqual({ side: "space", right: true });
+  });
+});
+
+/** @see docs/scene-info-panel.md § "Moving fields" */
+describe("how many rows a line with fields on both sides takes", () => {
+  const options = { gap: 10, sideGap: 20, width: 300, indent: 0 };
+
+  it("takes one row when both sides fit side by side", () => {
+    expect(countLineRows([50, 50], [50, 50], options)).toBe(1);
+  });
+
+  it("wraps each side on its own once they don't fit", () => {
+    // 170 + 20 + 170 > 300: each side gets 140, too little for its two fields
+    expect(countLineRows([80, 80], [80, 80], options)).toBe(2);
+  });
+
+  it("keeps a side no narrower than its widest field", () => {
+    // The left side shrinks to what its 200 field needs, leaving the right side 80 for its two 50s
+    expect(countLineRows([200, 50], [50, 50], options)).toBe(2);
+  });
+
+  it("gives the right-aligned side's later, indented rows less room too", () => {
+    expect(countLineRows([], [100, 100, 100, 100], { ...options, width: 210 })).toBe(2);
+    expect(countLineRows([], [100, 100, 100, 100], { ...options, width: 210, indent: 20 })).toBe(3);
+  });
+
+  it("gives the left side's later, indented rows less room", () => {
+    expect(countLineRows([100, 100, 100, 100], [], { ...options, width: 210 })).toBe(2);
+    expect(countLineRows([100, 100, 100, 100], [], { ...options, width: 210, indent: 20 })).toBe(3);
+  });
+});
+
+describe("where a line's rows start", () => {
+  it("starts a row with a field left of the one before it, or below it", () => {
+    expect(startsRow({ left: 0, right: 50, top: 30, bottom: 50 }, { left: 60, right: 110, top: 0, bottom: 20 })).toBe(true);
+    // A right-aligned field wrapped onto the next row, right of the field before it
+    expect(startsRow({ left: 250, right: 300, top: 30, bottom: 50 }, { left: 60, right: 110, top: 0, bottom: 20 })).toBe(true);
+    expect(startsRow({ left: 120, right: 170, top: 0, bottom: 20 }, { left: 60, right: 110, top: 0, bottom: 20 })).toBe(false);
   });
 });
 
@@ -221,17 +329,17 @@ describe("a field dragged off a line it was alone on", () => {
   const from = { line: 1, index: 0 };
 
   it("goes back on its own line rather than a new line straight above or below it", () => {
-    expect(preferVacatedLine({ type: "new-line", line: 1 }, layout, from)).toEqual({ type: "same-line", line: 1, index: 0 });
-    expect(preferVacatedLine({ type: "new-line", line: 2 }, layout, from)).toEqual({ type: "same-line", line: 1, index: 0 });
+    expect(preferVacatedLine({ type: "new-line", line: 1, right: false }, layout, from)).toEqual({ type: "same-line", line: 1 });
+    expect(preferVacatedLine({ type: "new-line", line: 2, right: true }, layout, from)).toEqual({ type: "same-line", line: 1 });
   });
 
   it("goes on a new line further away", () => {
-    expect(preferVacatedLine({ type: "new-line", line: 3 }, layout, from)).toEqual({ type: "new-line", line: 3 });
+    expect(preferVacatedLine({ type: "new-line", line: 3, right: false }, layout, from)).toEqual({ type: "new-line", line: 3, right: false });
   });
 
   it("goes on a new line beside a line it shared with other fields", () => {
-    expect(preferVacatedLine({ type: "new-line", line: 1 }, [["studio"], ["title"]], { line: 1, index: 1 }))
-      .toEqual({ type: "new-line", line: 1 });
+    expect(preferVacatedLine({ type: "new-line", line: 1, right: false }, [["studio"], { left: [], right: ["title"] }], { line: 1, index: 1 }))
+      .toEqual({ type: "new-line", line: 1, right: false });
   });
 });
 
