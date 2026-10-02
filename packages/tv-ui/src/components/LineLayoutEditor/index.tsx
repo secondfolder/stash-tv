@@ -5,6 +5,7 @@ import { unstable_batchedUpdates } from "react-dom";
 import cx from "classnames";
 import { Badge, Button } from "react-bootstrap";
 import { ArrowReturnLeft, ArrowReturnRight, XLg } from "react-bootstrap-icons";
+import { useResizeObserver } from "../../hooks/useResizeObserver";
 import {
   DropTarget,
   isRightAligned,
@@ -486,13 +487,7 @@ export function LineLayoutEditor<T>({
   // Highlighted, so it's clear which right-aligned items share it with which left ones. Hovering a line does too (CSS).
   const targetLine = isDragging && drag.target?.type === "same-line" ? drag.target.line : null;
 
-  useEffect(() => {
-    const container = linesRef.current;
-    if (!container) return;
-    const observer = new ResizeObserver(() => measureWrappedRows());
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, []);
+  useResizeObserver(() => linesRef.current, measureWrappedRows);
 
   const hasDrag = drag !== null;
   useEffect(() => {

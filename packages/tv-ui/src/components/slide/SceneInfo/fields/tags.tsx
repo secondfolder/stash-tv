@@ -1,4 +1,5 @@
-import React, { useLayoutEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
+import { useResizeObserver } from "../../../../hooks/useResizeObserver";
 import cx from "classnames";
 import { Button } from "react-bootstrap";
 import { Tag } from "../../../tags/tag";
@@ -44,23 +45,16 @@ function TagsField({ scene, options, preview }: SceneInfoFieldProps<OptionsOf<ty
   const [cut, setCut] = useState<TagCut | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const capping = !options.showAll && !expanded;
-  useLayoutEffect(() => {
+  // While capping, where to cut them short. Not capping, it's not used (see `capped`), and it's measured again before
+  // they're shown capped again.
+  useResizeObserver(() => listRef.current, () => {
     const list = listRef.current;
-    if (!capping || !list) {
-      setCut(null);
-      return;
-    }
-    const measure = () => {
-      const lastRow = measureRows(list)[tagRowCount - 1];
-      const hidden = lastRow ? [...list.children].filter(tag => tag instanceof HTMLElement && tag.offsetTop >= lastRow.bottom).length : 0;
-      const next = lastRow && hidden >= minHiddenTags ? { bottom: lastRow.bottom, hidden } : null;
-      setCut(previous => previous?.bottom === next?.bottom && previous?.hidden === next?.hidden ? previous : next);
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(list);
-    return () => observer.disconnect();
-  }, [capping, scene.tags]);
+    if (!list) return;
+    const lastRow = measureRows(list)[tagRowCount - 1];
+    const hidden = lastRow ? [...list.children].filter(tag => tag instanceof HTMLElement && tag.offsetTop >= lastRow.bottom).length : 0;
+    const next = lastRow && hidden >= minHiddenTags ? { bottom: lastRow.bottom, hidden } : null;
+    setCut(previous => previous?.bottom === next?.bottom && previous?.hidden === next?.hidden ? previous : next);
+  }, { enabled: capping, deps: [scene.tags] });
   if (!scene.tags.length) return null;
   const capped = capping && cut;
   const showMore = capped && `Show ${cut.hidden} more`;

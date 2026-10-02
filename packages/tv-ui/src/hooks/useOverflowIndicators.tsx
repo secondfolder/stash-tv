@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import "./useOverflowIndicators.css";
+import { useResizeObserver } from "./useResizeObserver";
 
 type ScrollClasses = "top-overflowing" | "bottom-overflowing" | "indicators-on-overflow" | "overflowing";
 
@@ -22,20 +23,15 @@ export default function useOverflowIndicators(stackElmRef: React.MutableRefObjec
 
   useEffect(() => {
     if (!stackElmRef.current) return;
-    updateStackScrollClasses(stackElmRef.current);
     stackElmRef.current.addEventListener("scroll", handleStackScroll);
-
-    const observer = new ResizeObserver(() => {
-      if (!stackElmRef.current) return;
-      updateStackScrollClasses(stackElmRef.current);
-    });
-    observer.observe(stackElmRef.current);
-
     return () => {
-      observer.disconnect();
       stackElmRef.current?.removeEventListener("scroll", handleStackScroll);
     };
   }, [stackElmRef.current]);
+
+  useResizeObserver(() => stackElmRef.current, () => {
+    if (stackElmRef.current) updateStackScrollClasses(stackElmRef.current);
+  }, { deps: [stackElmRef.current] });
 
   function updateStackScrollClasses(element: HTMLElement) {
     const isScrollable = element.scrollHeight > element.offsetHeight;

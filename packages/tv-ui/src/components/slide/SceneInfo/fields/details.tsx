@@ -1,4 +1,5 @@
-import React, { useLayoutEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
+import { useResizeObserver } from "../../../../hooks/useResizeObserver";
 import cx from "classnames";
 import { OptionsOf, toggle } from "../field-options";
 import { defineField, Field, SceneInfoFieldProps } from "./shared";
@@ -19,15 +20,10 @@ function DetailsField({ scene, options, preview }: SceneInfoFieldProps<OptionsOf
   const [overflowing, setOverflowing] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const capped = !options.showFullText && !expanded;
-  useLayoutEffect(() => {
+  useResizeObserver(() => ref.current, () => {
     const element = ref.current;
-    if (!capped || !element) return;
-    const measure = () => setOverflowing(element.scrollHeight > element.clientHeight + 1);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [capped, scene.details]);
+    if (element) setOverflowing(element.scrollHeight > element.clientHeight + 1);
+  }, { enabled: capped, deps: [scene.details] });
   if (!scene.details) return null;
   // Expandable only if it doesn't all fit, and collapsible again once expanded
   const toggleable = !preview && (expanded || overflowing);

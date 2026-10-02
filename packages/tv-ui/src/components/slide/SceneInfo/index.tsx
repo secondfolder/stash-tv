@@ -20,6 +20,7 @@ import {
   SceneInfoLayoutEntry,
 } from "./scene-info-config";
 import { SceneInfoEditor } from "./SceneInfoEditor";
+import { useResizeObserver } from "../../../hooks/useResizeObserver";
 import { lineSides } from "../../LineLayoutEditor/line-layout";
 
 export type Props = {
@@ -192,17 +193,15 @@ function FieldLines({ layout, scene, fieldOptionsConfig, fieldOptions, onExterna
 function PanelContent({ editing, children }: { editing: boolean, children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const [overflowing, setOverflowing] = useState(false);
-  useLayoutEffect(() => {
-    const content = ref.current;
-    if (!editing || !content) return;
-    const measure = () => setOverflowing(content.scrollHeight > content.clientHeight + 1);
-    measure();
+  useResizeObserver(
     // The content (its size limited by the panel's) and what's in it (the editor, growing and shrinking)
-    const observer = new ResizeObserver(measure);
-    observer.observe(content);
-    for (const child of content.children) observer.observe(child);
-    return () => observer.disconnect();
-  }, [editing]);
+    () => ref.current && [ref.current, ...ref.current.children],
+    () => {
+      const content = ref.current;
+      if (content) setOverflowing(content.scrollHeight > content.clientHeight + 1);
+    },
+    { enabled: editing },
+  );
   const className = cx("panel-content", { scrollable: !editing || overflowing });
   return editing
     ? <motion.div layoutScroll ref={ref} className={className}>{children}</motion.div>
