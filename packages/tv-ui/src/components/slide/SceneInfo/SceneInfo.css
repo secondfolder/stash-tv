@@ -1,8 +1,8 @@
 .SceneInfo {
   /* The action button stack overlaps the panel at the side, and its scrolling area is wider than its buttons, so the
   panel's content (including the edit button) keeps clear of this much space beside it */
-  --padding-left: 3em;
-  --padding-right: 6.25em;
+  --padding-left: calc(var(--safe-inset-left-min) + 1em);
+  --padding-right: calc(var(--safe-inset-right) + 5em);
   position: absolute;
   bottom: calc(5em + var(--y-dynamic-diff));
   left: 0;
@@ -398,6 +398,6 @@
 }
 
 .MediaSlide.left-handed .SceneInfo {
-  --padding-left: 6.25em;
-  --padding-right: 3em;
+  --padding-left: calc(var(--safe-inset-left-min) + 5em);
+  --padding-right: calc(var(--safe-inset-right) + 1em);
 }

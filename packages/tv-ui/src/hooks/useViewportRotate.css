@@ -6,10 +6,14 @@ html {
   --x-unit-dynamic: 1dvw;
   --y-unit-dynamic: 1dvh;
   --y-dynamic-diff: calc((100 * var(--y-unit-large)) - (100 * var(--y-unit-dynamic)));
+  /* The safe area inset for least inset part of the screen which on iOS is middle with the home indicator */
+  --physical-safe-inset-bottom-min: max(0px, calc(env(safe-area-inset-bottom, 0px) - 20px));
   --safe-inset-top: env(safe-area-inset-top, 0);
   --safe-inset-right: env(safe-area-inset-right, 0);
   --safe-inset-bottom: env(safe-area-inset-bottom, 0);
+  --safe-inset-bottom-min: var(--physical-safe-inset-bottom-min);
   --safe-inset-left: env(safe-area-inset-left, 0);
+  --safe-inset-left-min: var(--safe-inset-left);
   scroll-snap-type: y mandatory;
   scroll-behavior: auto;
   container: viewport/size;
@@ -38,7 +42,9 @@ html {
     --safe-inset-top: env(safe-area-inset-left, 0);
     --safe-inset-right: env(safe-area-inset-top, 0);
     --safe-inset-bottom: env(safe-area-inset-right, 0);
+    --safe-inset-bottom-min: var(--safe-inset-bottom);
     --safe-inset-left: env(safe-area-inset-bottom, 0);
+    --safe-inset-left-min: var(--physical-safe-inset-bottom-min);
 
     scroll-snap-type: unset; /* When the root is rotated scroll snapping doesn't seem to work on the root so we set it on a child instead */
     position: absolute;
