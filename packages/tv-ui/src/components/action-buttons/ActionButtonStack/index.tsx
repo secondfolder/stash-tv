@@ -155,7 +155,7 @@ const Folder = ({
               <ActionButtonIcon
                 iconDefinition={def.icon}
                 state="inactive"
-                config={def}
+                config={config}
                 shadow
                 key={config.id}
               />

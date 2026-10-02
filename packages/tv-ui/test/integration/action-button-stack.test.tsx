@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import { act, fireEvent, waitFor, within } from "@testing-library/react";
 import { setupIntegrationTest, bootApp, type BootedApp } from "./helpers/harness";
 import { currentSlide, pinActionButtons, pinUncheckedActionButton } from "./helpers/feed";
-import { isSidePanelOpen } from "../helpers/actionButtons";
+import { displayedIconState, isSidePanelOpen } from "../helpers/actionButtons";
 import type { ActionButtonStackConfig } from "../../src/components/action-buttons/ActionButtonStack";
 
 setupIntegrationTest();
@@ -102,6 +102,22 @@ describe("Action button folders", () => {
     const folder = within(currentSlide(app)).getByRole("button", { name: "Open folder" });
 
     expect(folder.querySelectorAll(".ActionButtonIcon")).toHaveLength(4);
+
+    await app.unmount();
+  });
+
+  it("previews the icon chosen in a button's settings", async () => {
+    const app = await bootApp();
+    await setStackConfig([
+      { id: "a", type: "folder", pinned: false, contents: [
+        { id: "a.1", type: "button", buttonType: "quick-tag", pinned: false, tagId: "tag-delta", iconId: "star" },
+      ] },
+    ]);
+
+    const folder = within(currentSlide(app)).getByRole("button", { name: "Open folder" });
+
+    const { actionButtonIcons } = await import("../../src/components/action-buttons/icons");
+    expect(await displayedIconState(folder, actionButtonIcons["star"].states)).toBe("inactive");
 
     await app.unmount();
   });
