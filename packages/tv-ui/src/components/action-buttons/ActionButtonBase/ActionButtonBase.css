@@ -42,6 +42,9 @@
 
     background-color: transparent;
     width: 40px;
+    /* Buttons will flex shrink as needed up to the size of the svg + any svg margin. We add a bit of margin to ensure
+    they don't get too close to each other. */
+    --flex-margin: 7px;
     transition: scale 0.1s ease;
     color: inherit;
 
@@ -65,11 +68,22 @@
     svg {
       height: 28px;
       width: 100%;
-      /* Buttons will flex shrink as needed up to the size of the svg + any svg margin. We add a bit of margin to ensure
-      they don't get too close to each other. */
-      --flex-margin: 7px;
       margin-top: var(--flex-margin);
       margin-bottom: var(--flex-margin);
+    }
+
+    /* A button in a folder animates its icon between the folder's preview and the open folder. The animated box is
+    just the icon so that it scales evenly. */
+    .folder-icon {
+      width: 28px;
+      height: 28px;
+      margin-top: var(--flex-margin);
+      margin-bottom: var(--flex-margin);
+
+      svg {
+        height: 100%;
+        margin: 0;
+      }
     }
   }
 }
@@ -155,10 +169,22 @@
   }
 }
 
+/* A button rendered as just its icon, for a folder's preview (see ActionButtonFolderContext) */
+.ActionButton.icon-only {
+  display: block;
+  height: auto;
+
+  .folder-icon, .ActionButtonIcon {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+}
+
 .ActionButtonIcon {
-  /* Keeps icons legible over any video. The variables can be set on an ancestor to scale the shadow for smaller icons
-  (see folder previews in ActionButtonStack.css), or on the icon itself to adjust its weight. */
-  &.with-shadow {
+  /* Keeps the icons of action buttons legible over any video. The variables can be set on an ancestor to scale the shadow
+  for smaller icons (see folder previews in ActionButtonStack.css), or on the icon itself to adjust its weight. */
+  .ActionButton & {
     filter:
       drop-shadow(calc(var(--shadow-offset, 4px) * 1)  calc(var(--shadow-offset, 4px) * 1)  var(--shadow-blur, 4px) rgba(0, 0, 0, var(--shadow-layer-opacity, 0.2)))
       drop-shadow(calc(var(--shadow-offset, 4px) * -1) calc(var(--shadow-offset, 4px) * -1) var(--shadow-blur, 4px) rgba(0, 0, 0, var(--shadow-layer-opacity, 0.2)))

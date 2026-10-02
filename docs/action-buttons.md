@@ -14,7 +14,7 @@ The action buttons are the vertical button rail on each media slide (TikTok-styl
 |---|---|
 | `buttons/index.tsx` | Registry: `allButtonDefinition` (every button definition), the `ActionButtonDefinition` / `ActionButtonConfig` / `ActionButtonProps` types, and `getActionButtonDefinition(type)` for typed lookups (returns the `UnknownActionButton` fallback for unknown types instead of throwing) |
 | `buttons/<Name>ActionButton.tsx` | One file per button: the React component + a `buttonDefinition` export |
-| `ActionButtonBase/` | Presentational shell every button renders through; also exports `ActionButtonIcon` and `ActionButtonTitle` for reuse (settings modal), and `ActionButtonIconOnlyContext` for folder previews |
+| `ActionButtonBase/` | Presentational shell every button renders through; also exports `ActionButtonIcon` and `ActionButtonTitle` for reuse (settings modal), and `ActionButtonFolderContext` for the buttons in folders |
 | `ActionButtonStack/` | Renders the configured stack: scrollable unpinned section, pinned section, and folders |
 | `action-button-config.ts` | `sharedActionButtonSchema` (yup) and the `createNewActionButtonConfig()` factory used when adding buttons |
 | `icons/index.tsx` | `actionButtonIcons` registry of user-selectable icons (active/inactive states + categories) |
@@ -82,7 +82,7 @@ The presentational shell all buttons render. Props (beyond those above):
 - `onClick({toggleSidePanel})` — custom click handling; call `toggleSidePanel()` to open/close the side panel (e.g. o-counter toggles the panel only when active)
 - `displayOnly` — renders a non-interactive `<div>` instead of a `<button>`
 - `config` — passed through so dynamic titles/icons can read it
-- Inside `ActionButtonIconOnlyContext` (folder previews) it renders only `ActionButtonIcon`, with no button, side panel, side info or title
+- Inside `ActionButtonFolderContext` it wraps its icon in a `.folder-icon` marked with the button's id, for the folder to animate. With `iconOnly` (the folder's preview) it renders only that icon in an `.ActionButton.icon-only` root, with no button, side panel, side info or title
 
 Side panel behaviour (implemented in `ActionButtonBase/SidePanel`):
 
@@ -156,7 +156,15 @@ What each remaining button does, as the tests check it. Buttons not listed here 
 - Rendered by `MediaSlide` per slide with `mediaItem`, `playerRef`, `sceneInfoOpen`, etc.
 - Unpinned buttons render in a scrollable `.stack` (with overflow indicators); pinned buttons render in the `.pinned` section. Pinning exists so essential buttons stay visible when the window is too short to show the whole stack without scrolling.
 - **Folders** (`type: "folder"`) group buttons: collapsed, the folder button previews the icons of the first 4 contained buttons that are shown; opened, it shows the contents in a popover. Only one folder can be open per slide (`openFolderId` in `mediaItemState`).
-- The preview renders the folder's real buttons inside `ActionButtonIconOnlyContext`, which makes `ActionButtonBase` render only its icon. So the preview follows each button's own logic: a button that hides itself (e.g. subtitles without captions, fullscreen where it's unsupported) is left out, and the icon shows the button's current state and any icon chosen in its settings. Every button is rendered and CSS (`:nth-child`) hides all but the first 4, because only the DOM shows which ones rendered anything.
+- The preview renders the folder's real buttons inside `ActionButtonFolderContext` with `iconOnly`, which makes `ActionButtonBase` render only its icon. So the preview follows each button's own logic: a button that hides itself (e.g. subtitles without captions, fullscreen where it's unsupported) is left out, and the icon shows the button's current state and any icon chosen in its settings. Every button is rendered and CSS (`:nth-child`) hides all but the first 4, because only the DOM shows which ones rendered anything. The rest wait, unseen, in the middle of the folder.
+- Opening and closing a folder moves each button's icon between its place in the preview and in the open folder (`animateFolderIcons` in `ActionButtonStack/folderIconAnimation.ts`, using the Web Animations API). Icons beyond the first 4 grow out of and shrink into the middle of the folder. The preview stays mounted, unseen, while the folder is open so there's always something to measure, and the open folder stays until its icons are back in the preview.
+  - Opening starts in Popper's `onFirstUpdate`: before then the popover hasn't been positioned yet, so measuring it would give the wrong target.
+  - ⚠️ Only the open folder's icons move, in both directions. The preview is inside the stack's scrolling `.stack`, so moving its icons would make the stack scrollable while they crossed it (Firefox shows a scrollbar). This is also why it isn't a Framer Motion `layoutId` animation, which always moves whichever copy is newly mounted: on close, that's the preview.
+  - ⚠️ While the icons move, the popover gets `.icons-animating`, which turns off its `overflow: auto` and the overflow indicators' `mask-image`. Either would clip icons that are still outside it.
+  - The popover has no fade transition (`transition={false}`), so react-bootstrap's `onEntering`/`onExited` don't fire. The popover element comes from `onFirstUpdate` instead.
+  - While the folder is open, its button shows an arrow instead of the preview. The arrow fades in after a short delay, once the icons are on their way out, and fades out as soon as the folder starts closing so it's gone by the time they're back.
+  - Closing it any other way (scrolled off screen, another folder opened) closes it at once, without animating.
+  - Where the user prefers reduced motion (`prefers-reduced-motion: reduce`), nothing animates: the icons go straight to their place and the arrow appears and disappears without fading.
 - ⚠️ Since previewed buttons are mounted, their hooks run for the preview as well as the open folder. Effects that subscribe to something (e.g. player events) must clean up after themselves.
 
 ## Config Shape & Persistence
@@ -185,7 +193,7 @@ What each remaining button does, as the tests check it. Buttons not listed here 
 - `actionButtonIcons` maps icon ids to `{ states: {active, inactive}, category }`.
 - `category` (`"general" | "tag" | "marker" | "main"`) controls which icons a button's settings form offers in its `IconSelect` (e.g. quick-tag offers tag + general icons).
 - Buttons with an `iconId` config field (e.g. quick-tag, create-marker) let the user pick their icon. `ActionButtonIcon` resolution order: config's `iconId` from the registry → the definition's `icon` (function component → FontAwesome definition → bootstrap icon → per-state record).
-- `ActionButtonIcon`'s `shadow` prop adds the drop shadow that keeps icons legible over video (`.ActionButtonIcon.with-shadow`). The stack's buttons and folder previews use it, the settings UI doesn't. It reads `--shadow-offset`, `--shadow-blur` and `--shadow-layer-opacity`, with defaults sized for a full-size button. Set them on an ancestor to scale the shadow for smaller icons (folder previews do this), or on the icon itself to adjust one icon's weight (the per-icon opacity tweaks for lighter icons like `fa-repeat`).
+- Icons inside an action button (`.ActionButton .ActionButtonIcon`) get a drop shadow that keeps them legible over video. This covers the stack's buttons and folder previews (whose `.icon-only` root is an `.ActionButton` too) but not the settings UI. It reads `--shadow-offset`, `--shadow-blur` and `--shadow-layer-opacity`, with defaults sized for a full-size button. Set them on an ancestor to scale the shadow for smaller icons (folder previews do this), or on the icon itself to adjust one icon's weight (the per-icon opacity tweaks for lighter icons like `fa-repeat`).
 
 ## Adding a New Button (Checklist)
 

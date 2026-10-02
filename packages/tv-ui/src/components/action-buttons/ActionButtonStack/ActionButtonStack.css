@@ -57,6 +57,9 @@ overflow-x to visible. So we hide it instead to avoid horizontal scrollbars appe
         --shadow-blur: 1.5px;
         > * {
           flex: 0 0 0.8em;
+          height: 0.8em;
+        }
+        .ActionButtonIcon {
           /*
           Inline font awesome icons try to make this overflow visible which for some reason stops them from being
           resized down so we explicitly set it svg's default of overflow hidden.
@@ -64,12 +67,17 @@ overflow-x to visible. So we hide it instead to avoid horizontal scrollbars appe
           overflow: hidden;
         }
         /* Every button is rendered so that ones which aren't shown (e.g. subtitles without captions) render nothing
-        and so don't take a place. Only the first 4 that are shown fit. */
+        and so don't take a place. Only the first 4 that are shown fit, so the rest wait unseen in the middle of the
+        folder, which is where they move out from when it opens. */
         > :nth-child(n+5) {
-          display: none;
+          position: absolute;
+          inset: 0;
+          width: 0.8em;
+          margin: auto;
+          visibility: hidden;
         }
       }
-
+      position: relative;
       height: 40px;
       width: 40px;
       margin: 5px 0;
@@ -81,10 +89,28 @@ overflow-x to visible. So we hide it instead to avoid horizontal scrollbars appe
         color: inherit;
       }
 
+      /* Shown while the folder is open. It fades in once the icons are on their way out of the folder, and fades out
+      straight away so it's gone by the time they're back. */
       .hide-icon {
+        position: absolute;
+        inset: 0;
         height: 100%;
         width: 100%;
-        opacity: 0.8;
+        opacity: 0;
+        transition: opacity 0.06s ease;
+      }
+      &.open .hide-icon {
+        opacity: 0.6;
+        transition-delay: 0.03s;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .hide-icon {
+          transition: none;
+        }
+      }
+
+      &.showing-open-folder .folder-contents {
+        visibility: hidden;
       }
     }
 
@@ -256,6 +282,13 @@ overflow-x to visible. So we hide it instead to avoid horizontal scrollbars appe
 
   &.hide {
     visibility: hidden;
+  }
+
+  /* Don't clip the icons while they move between it and the folder's preview, which is outside it. The overflow
+  indicators' mask would clip them too. */
+  &.icons-animating {
+    overflow: visible;
+    mask-image: none;
   }
 
   > .arrow {

@@ -28,10 +28,15 @@ const logger = getLogger(["stash-tv", "ActionButtonBase"]);
 export const useCurrentOpenPopover = create<null | string>(() => (null))
 
 /**
- * Makes action buttons render only their icon, for previews such as a closed folder's. The buttons themselves are
- * still rendered so that a preview reflects their own logic: whether they show at all, their state and their icon.
+ * Set for the buttons in a folder (see ActionButtonStack's Folder).
+ *
+ * `iconOnly` renders just the button's icon, for the folder's preview. The buttons themselves are still rendered so
+ * that the preview reflects their own logic: whether they show at all, their state and their icon.
+ *
+ * `buttonId` marks the button's icon so that the folder can match it with the same button's icon in the preview, to
+ * animate between them.
  */
-export const ActionButtonIconOnlyContext = React.createContext(false)
+export const ActionButtonFolderContext = React.createContext<{ iconOnly: boolean, buttonId: string } | null>(null)
 
 export type SidePanelContent = React.ReactNode | ((props: {isOpen: boolean, close: () => void}) => React.ReactNode)
 
@@ -68,9 +73,16 @@ const ActionButtonBase = <State extends string>(props: ActionButtonBaseProps<Sta
   } = props;
   const ButtonElement = displayOnly ? "div" : "button";
   const { leftHandedUi } = useTvConfig();
-  const iconOnly = useContext(ActionButtonIconOnlyContext);
+  const folderContext = useContext(ActionButtonFolderContext);
 
-  if (iconOnly) return <ActionButtonIcon iconDefinition={icon} state={state} config={config} shadow />
+  let iconElement = <ActionButtonIcon iconDefinition={icon} state={state} config={config} />
+  if (folderContext) {
+    iconElement = <div className="folder-icon" data-folder-button={folderContext.buttonId}>{iconElement}</div>
+  }
+
+  if (folderContext?.iconOnly) {
+    return <div className={cx("ActionButton", "icon-only", className, `state-${state}`)}>{iconElement}</div>
+  }
 
   const getOnClickHandler = (sidePanelClick: (event: React.MouseEvent<HTMLElement>) => void) => {
     if (displayOnly) return;
@@ -105,7 +117,7 @@ const ActionButtonBase = <State extends string>(props: ActionButtonBaseProps<Sta
               onClick={displayOnly ? undefined : getOnClickHandler(sidePanelClick)}
               ref={ref}
             >
-              <ActionButtonIcon iconDefinition={icon} state={state} config={config} shadow />
+              {iconElement}
               <span className="sr-only">
                 <ActionButtonTitle title={title} state={state} config={config} />
               </span>
@@ -246,18 +258,15 @@ export function ActionButtonIcon<State extends string>({
   state,
   size = "standard",
   config,
-  shadow = false,
   className: providedClassName,
 }: {
   iconDefinition: ActionButtonBaseProps<State>["icon"],
   state: State,
   size?: "standard" | "small" | "max"
   config?: Record<string, unknown>,
-  /** Adds the drop shadow that keeps icons legible over video */
-  shadow?: boolean,
   className?: string,
 }) {
-  const className = cx("ActionButtonIcon", `size-${size}`, {"with-shadow": shadow}, providedClassName)
+  const className = cx("ActionButtonIcon", `size-${size}`, providedClassName)
 
   let iconSource: ActionButtonIconSource | undefined
 

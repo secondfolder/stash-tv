@@ -1,4 +1,4 @@
-import React, { ReactNode, useRef, useState } from "react";
+import React, { ReactNode, useEffect, useRef, useState } from "react";
 import { useTvConfig } from "../../../store/tvConfig";
 import cx from "classnames";
 import "./ActionButtonStack.css";
@@ -8,13 +8,14 @@ import { MediaItem } from "../../../hooks/useMediaItems";
 import { VideoJsPlayer } from "video.js";
 import type { ActionButtonConfig } from "../buttons/index";
 import { getActionButtonDefinition } from "../buttons";
-import { ActionButtonIconOnlyContext } from "../ActionButtonBase";
+import { ActionButtonFolderContext } from "../ActionButtonBase";
 import { Overlay, Popover } from "react-bootstrap";
 import { usePreventOverflowModifier } from "../../../hooks/usePreventOverflowModifier";
 import { useOffscreenModifier } from "../../../hooks/useOffscreenModifier";
 import { setMaxSizeModifier } from "../../../helpers/popper-modifiers/setMaxSize";
 import { useMediaItemState } from "../../../store/mediaItemState";
 import { ChevronRight } from "react-bootstrap-icons";
+import { animateFolderIcons } from "./folderIconAnimation";
 
 const logger = getLogger(["stash-tv", "ActionButtonStack"]);
 
@@ -129,42 +130,90 @@ const Folder = ({
   })
 
   const buttonRef = useRef<HTMLButtonElement | null>(null)
+  const previewRef = useRef<HTMLDivElement | null>(null)
   const folderRef = useRef<HTMLElement | null>(null);
   const [_, setFolderRefSet] = useState(false) // We need to force a re-render when folderRef is set so useOverflowIndicators will pick it up
   const stackScrollClasses = useOverflowIndicators(folderRef);
 
+  // Opening and closing the folder animates each button's icon between the preview and the open folder (see
+  // animateFolderIcons). The open folder stays while its icons move back into the preview.
+  const [closing, setClosing] = useState(false)
+  const showOpenFolder = isOpen || closing
+  // The open folder scrolls its contents, which would clip its icons while they move in from outside it
+  const [iconsAnimating, setIconsAnimating] = useState(false)
+  // Counts animations so that one that's been superseded (or outlived the folder) is ignored
+  const latestAnimation = useRef(0)
+
+  /** Resolves to whether the icons got there without being animated again on the way */
+  async function animateIcons(movement: Parameters<typeof animateFolderIcons>[2]) {
+    const openFolder = folderRef.current
+    const preview = previewRef.current
+    if (!openFolder || !preview) return true
+    const animation = ++latestAnimation.current
+    setIconsAnimating(true)
+    await animateFolderIcons(openFolder, preview, movement)
+    if (animation !== latestAnimation.current) return false
+    setIconsAnimating(false)
+    return true
+  }
+
+  useEffect(() => {
+    if (showOpenFolder) return
+    latestAnimation.current++
+    setIconsAnimating(false)
+  }, [showOpenFolder])
+  useEffect(() => () => { latestAnimation.current++ }, [])
+
+  async function close() {
+    setMediaItemState("openFolderId", "")
+    setClosing(true)
+    if (await animateIcons({from: "current", to: "preview"})) setClosing(false)
+  }
+
+  function open() {
+    setMediaItemState("openFolderId", id)
+    if (closing) {
+      // Still on screen, so it won't be positioned again: send the icons back from wherever they've got to
+      setClosing(false)
+      animateIcons({from: "current", to: "open"})
+    }
+  }
+
+  function renderFolderButtons(iconOnly: boolean) {
+    return folderConfig.contents.map(config => (
+      <ActionButtonFolderContext.Provider key={config.id} value={{iconOnly, buttonId: config.id}}>
+        {renderActionButton(config)}
+      </ActionButtonFolderContext.Provider>
+    ))
+  }
+
   return <>
     <button
-      className={cx("folder", "hide-on-ui-hide", {open: isOpen})}
+      className={cx("folder", "hide-on-ui-hide", {open: isOpen, "showing-open-folder": showOpenFolder})}
       aria-label={isOpen ? "Close folder" : "Open folder"}
       ref={buttonRef}
-      onClick={() => {
-        if (!isOpen) {
-          setMediaItemState("openFolderId", id)
-        } else {
-          setMediaItemState("openFolderId", "")
-        }
-      }}
+      onClick={isOpen ? close : open}
     >
-      {!isOpen && (
-        <div className="folder-contents">
-          <ActionButtonIconOnlyContext.Provider value={true}>
-            {folderConfig.contents.map(config => renderActionButton(config))}
-          </ActionButtonIconOnlyContext.Provider>
-        </div>
-      )}
-      {isOpen && <ChevronRight className="hide-icon" />}
+      {/* Kept while the folder is open, unseen, for the icons to animate to and from */}
+      <div className="folder-contents" ref={previewRef}>
+        {renderFolderButtons(true)}
+      </div>
+      <ChevronRight className="hide-icon" aria-hidden />
     </button>
     <Overlay
       target={buttonRef}
       placement={leftHandedUi ? "right" : "left"}
-      show={isOpen}
-      // The "ref" prop doesn't work so we use "onEntering" to capture the dom elm
-      onEntering={(elm) => {
-        setFolderRefSet(true);
-        folderRef.current = elm
-      }}
+      show={showOpenFolder}
+      // The icons animate instead
+      transition={false}
       popperConfig={{
+        // The "ref" prop doesn't work, so get the element from Popper. Once Popper has positioned it, the icons can
+        // move into it from the preview.
+        onFirstUpdate: (state) => {
+          folderRef.current = state.elements?.popper ?? null
+          setFolderRefSet(true)
+          animateIcons({from: "preview", to: "open"})
+        },
         modifiers: [
           preventOverflowModifier,
           setMaxSizeModifier,
@@ -173,10 +222,10 @@ const Folder = ({
       }}
     >
       <Popover
-        className={cx("folder-contents-popover", { 'left-handed': leftHandedUi, hide: !uiVisible }, stackScrollClasses)}
+        className={cx("folder-contents-popover", { 'left-handed': leftHandedUi, hide: !uiVisible, 'icons-animating': iconsAnimating }, stackScrollClasses)}
         id={id}
       >
-        {folderConfig.contents.map(config => renderActionButton(config))}
+        {renderFolderButtons(false)}
       </Popover>
     </Overlay>
   </>

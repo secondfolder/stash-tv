@@ -34,8 +34,7 @@ function renderIconMarkup(
   state: string
 ) {
   const container = document.createElement("div");
-  // With a shadow, as action buttons render their icons
-  ReactDOM.render(<ActionButtonIcon iconDefinition={icon} state={state} shadow />, container);
+  ReactDOM.render(<ActionButtonIcon iconDefinition={icon} state={state} />, container);
   const markup = container.innerHTML;
   ReactDOM.unmountComponentAtNode(container);
   return markup;
