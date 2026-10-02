@@ -8,6 +8,7 @@ import { ActionButtonStackConfig } from '../components/action-buttons/ActionButt
 import { ChannelConfig, StartupChannel } from '../components/channels/channel-config';
 import { generateConfigId } from '../helpers/config-ids';
 import { END_POSITION_OPTIONS, START_POSITION_OPTIONS } from '../constants';
+import { defaultSceneInfoLayout, SceneInfoLayout } from '../components/slide/SceneInfo/scene-info-config';
 export type DebuggingInfo = "render-debugging" | "onscreen-info" | "virtualizer-debugging";
 
 export const tvConfigStorageKey = 'app-state';
@@ -38,6 +39,8 @@ type TvConfig = {
   showGuideOverlay?: boolean;
   leftHandedUi?: boolean;
   actionButtonStackConfig: ActionButtonStackConfig[];
+  /** Which fields the scene info panel shows, on which lines */
+  sceneInfoLayout: SceneInfoLayout;
   channels: ChannelConfig[];
   /** Which channel the feed shows when Stash TV loads */
   startupChannel: StartupChannel;
@@ -111,6 +114,7 @@ const defaults = {
       {id: "13.5", type: "button", buttonType: "resolution", pinned: false},
     ]}
   ],
+  sceneInfoLayout: defaultSceneInfoLayout,
   // New users start with one channel showing every scene
   channels: [
     {id: "all-scenes", sources: [{type: "all", entityType: "scene", randomise: false}]},

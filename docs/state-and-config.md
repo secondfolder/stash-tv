@@ -8,7 +8,7 @@
 
 | Store | Persistence | Purpose |
 |---|---|---|
-| `tvConfig.ts` | Hybrid (Stash plugin config + localStorage) | User preferences & plugin settings: volume, subtitles, playback rate, CRT effect, UI layout, page size, channels, dev options |
+| `tvConfig.ts` | Hybrid (Stash plugin config + localStorage) | User preferences & plugin settings: volume, subtitles, playback rate, CRT effect, UI layout, the scene info panel's layout, page size, channels, dev options |
 | `globalState.ts` | None (transient) | UI toggles: settings panel, scene info, fullscreen, `tvConfigLoaded` flag |
 | `mediaItemState.tsx` | None (one store per slide, via context) | Per-slide UI state: open action-button folder, the o-count the slide was shown with, the slide's element. ⚠️ `MediaItemStateContextProvider`'s `initialValues` are only read on mount: they're the slide's starting values, and the o-counter button relies on `preIncrementOCounterValue` not following the live count |
 | Accumulator store (in `useMediaItems`) | None | Feed pagination state — see [media loading](media-loading.md) |

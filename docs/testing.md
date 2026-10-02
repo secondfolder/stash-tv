@@ -50,7 +50,7 @@ ports are cached in `E2E_MOCK_STASH_PORT` / `E2E_DEV_SERVER_PORT` because
 Playwright re-evaluates its config in every worker. Run standalone,
 `test:e2e-server` does the same fallback itself.
 
-E2E tests set up server-side state through `test/e2e/helpers/stash.ts`: `graphql(request, query, variables)` runs an operation against mock-stash, and `setActionButtons(request, config)` replaces the persisted action button stack (`null` restores the defaults; call it in `afterEach`).
+E2E tests set up server-side state through `test/e2e/helpers/stash.ts`: `graphql(request, query, variables)` runs an operation against mock-stash, `setTvConfig(request, state)` replaces the persisted tvConfig with the given settings, and `setActionButtons(request, config)` replaces just the action button stack (`null` restores the defaults for either; call it in `afterEach`). `expectUsableOnScreen(locator)` (`test/e2e/helpers/layout.ts`) checks an element is on screen with nothing covering it. ⚠️ It hit-tests the element's corners, which aren't part of an element with rounded corners (e.g. a pill): check something inside it instead.
 
 ⚠️ Don't background the servers from a shell script (`server & sleep && …`).
 Nothing kills them when the script exits, and killing the `vitest` parent
@@ -218,7 +218,7 @@ describe("integration feature", () => {
 
 ⚠️ **The mock server is only as realistic as its resolvers.** Some queries the app makes are stubbed to return nothing (e.g. `sceneMarkerTags`, `plugins`). If a Stash component behaves differently in tests than against real Stash, check the mock's resolver first. `markerStrings` used to return `[]`, which made Stash's marker title field blank when editing an existing marker.
 
-⚠️ **Anything that depends on layout needs an e2e test.** jsdom has no layout, so positioning bugs (e.g. a dropdown menu inside an action button's side panel opening off screen or behind the panel's backdrop) pass every unit and integration test. In Playwright, `toBeVisible()` doesn't catch them either: an element off screen or covered by something else still counts as visible. Check `toBeInViewport()` and hit-test with `document.elementFromPoint` (see `expectUsableOnScreen` in `test/e2e/create-marker-button.test.ts`).
+⚠️ **Anything that depends on layout needs an e2e test.** jsdom has no layout, so positioning bugs (e.g. a dropdown menu inside an action button's side panel opening off screen or behind the panel's backdrop) pass every unit and integration test. In Playwright, `toBeVisible()` doesn't catch them either: an element off screen or covered by something else still counts as visible. Check `toBeInViewport()` and hit-test with `document.elementFromPoint` (see `expectUsableOnScreen` in `test/e2e/helpers/layout.ts`).
 
 ⚠️ **jsdom tests don't load stylesheets**, so anything CSS decides, such as which elements are hidden, also needs an e2e test (e.g. the folder preview's 4-icon limit in `test/e2e/action-button-stack.test.ts`).
 

@@ -8,9 +8,10 @@ import type { ActionButtonDefinitionInput } from "./index";
 import cx from "classnames";
 import { useTvConfig } from "../../../store/tvConfig";
 import { ConfigurationContext } from "stash-ui/dist/src/hooks/Config";
-import { defaultRatingSystemOptions, RatingSystemType } from "stash-ui/dist/src/utils/rating";
+import { defaultRatingSystemOptions } from "stash-ui/dist/src/utils/rating";
 import { RatingSystem } from "stash-ui/wrappers/components/shared/RatingSystem";
 import { useSetRating } from "../../../hooks/rating/useSetRating";
+import { formatRating } from "../../../helpers/rating";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 
 const id = "rate-scene";
@@ -43,14 +44,9 @@ export function RateSceneActionButton({
   const ratingSystemOptions =
     stashConfig?.ui.ratingSystemOptions ?? defaultRatingSystemOptions;
 
-  let sceneRatingFormatted
-  if (typeof scene.rating100 === "number") {
-    if (ratingSystemOptions.type === RatingSystemType.Stars) {
-      sceneRatingFormatted = (scene.rating100 / 20).toFixed(1).replace(/\.0$/, ""); // Convert 0-100 to 0-5
-    } else {
-      sceneRatingFormatted = (scene.rating100 / 10).toString();
-    }
-  }
+  const sceneRatingFormatted = typeof scene.rating100 === "number"
+    ? formatRating(scene.rating100, ratingSystemOptions.type)
+    : undefined
 
   const setRating = useSetRating(scene);
 

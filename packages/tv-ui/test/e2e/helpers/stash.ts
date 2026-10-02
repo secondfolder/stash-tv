@@ -10,16 +10,22 @@ export async function graphql(request: APIRequestContext, query: string, variabl
 }
 
 /**
- * Replace the persisted action button stack (stored in Stash's plugin config, see docs/state-and-config.md), with the
- * first-run guide overlay dismissed so it doesn't cover the page. `null` resets the config to defaults.
+ * Replace the persisted tvConfig (stored in Stash's plugin config, see docs/state-and-config.md) with the given
+ * settings, with the first-run guide overlay dismissed so it doesn't cover the page. `null` resets the config to
+ * defaults.
  */
-export async function setActionButtons(request: APIRequestContext, actionButtonStackConfig: unknown[] | null) {
-  const input = actionButtonStackConfig
-    ? { 'app-state': JSON.stringify({ state: { actionButtonStackConfig, showGuideOverlay: false }, version: 2 }) }
+export async function setTvConfig(request: APIRequestContext, state: Record<string, unknown> | null) {
+  const input = state
+    ? { 'app-state': JSON.stringify({ state: { ...state, showGuideOverlay: false }, version: 3 }) }
     : {};
   await graphql(
     request,
     'mutation ($input: Map!) { configurePlugin(plugin_id: "stash-tv", input: $input) }',
     { input }
   );
+}
+
+/** Replace the persisted action button stack (see `setTvConfig`). `null` resets the config to defaults. */
+export async function setActionButtons(request: APIRequestContext, actionButtonStackConfig: unknown[] | null) {
+  await setTvConfig(request, actionButtonStackConfig && { actionButtonStackConfig });
 }

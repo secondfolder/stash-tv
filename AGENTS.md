@@ -34,6 +34,7 @@ Feature-specific documentation lives under `docs/`. Read the one that covers wha
 | [Action buttons](docs/action-buttons.md) | Adding an action button or touching `src/components/action-buttons/` (schemas, config, folders)           |
 | [Release process](docs/release-process.md) | Writing commits, preparing releases, or understanding versioning/deployment flow                          |
 | [Testing](docs/testing.md)              | Writing or modifying any test, running the suites, or touching test infrastructure/polyfills          |
+| [Scene info panel](docs/scene-info-panel.md) | Touching the scene info panel (`src/components/slide/SceneInfo/`), its fields, or how users customise it |
 | [Keyboard shortcuts](docs/keyboard-shortcuts.md) | Adding, removing or rebinding a keyboard shortcut, or touching the shortcut help text                  |
 
 Adding a new doc means adding its row to this table. A test validates that every doc in `docs/` is listed here and every link points to a real file — a doc without a row is caught rather than going unnoticed.
@@ -191,7 +192,7 @@ App.tsx (main entry point)
 Settings & UI Overlays:
 ├── GuideOverlay (help/tutorial)
 ├── EditTagsContents (tag editing interface)
-├── SceneInfoPanel (scene metadata display)
+├── SceneInfo (scene metadata panel, user-customisable layout)
 ```
 
 ### GraphQL Integration
@@ -212,6 +213,8 @@ Settings & UI Overlays:
 
 - **Components:** one per folder in `src/components/<Name>/` (usually `index.tsx`), styles colocated next to it
 - **Styles:** plain global stylesheets applied with `classnames` (`cx(...)`) — not CSS modules; Bootstrap 4 + custom CSS
+- **Look & feel:** match Stash's UI. Build UI from the same components Stash uses (react-bootstrap's `Button`, `Badge`, `Form`… or Stash's own components via `stash-ui/wrappers/`), or at least the same style (e.g. Stash's classes like `.tag-item`), rather than custom-styled lookalikes
+- **Icons:** use `react-bootstrap-icons`, as the rest of the interface does. ⚠️ Some older code still uses FontAwesome; don't add new FontAwesome icons
 - **Types:** all Stash API types come from `stash-ui/dist/src/core/generated-graphql`
 - **Constants:** centralized in `src/constants/index.ts`
 

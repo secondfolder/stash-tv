@@ -935,7 +935,7 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
           <SceneInfo
             ref={sceneInfoPanelRef}
             scene={scene}
-            className={cx({active: sceneInfoOpen})}
+            open={sceneInfoOpen}
             onExternalLinkClick={() => videojsPlayerRef.current?.pause()}
           />
           <ActionButtonStack
