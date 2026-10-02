@@ -17,14 +17,12 @@ export const stashConfigStorage = {
     .catch(console.error),
   setItem: async (key: string, value: string) => await updateTvConfig(config => ({...config, [key]: value}))
     .catch(console.error),
-  removeItem: async (key: string) => {
-    await updateTvConfig(
-      config => {
-        const {[key]: _, ...rest} = config;
-        return rest
-      }
-    )
-  },
+  removeItem: async (key: string) => await updateTvConfig(
+    config => {
+      const {[key]: _, ...rest} = config;
+      return rest
+    }
+  ).catch(console.error),
 }
 
 async function getStashTvConfig() {
@@ -34,10 +32,20 @@ async function getStashTvConfig() {
   return result.data?.configuration.plugins[PLUGIN_NAMESPACE];
 }
 
+// Config writes that haven't reached Stash yet
+const pendingWrites = new Set<Promise<unknown>>();
+
+/** Resolves once every config write started so far has reached Stash (or failed) */
+export async function stashConfigWritesSettled() {
+  while (pendingWrites.size > 0) {
+    await Promise.allSettled(pendingWrites);
+  }
+}
+
 async function updateTvConfig(
   configUpdate: (tvConfig: Record<string, unknown>) => Record<string, unknown>
 ) {
-  getStashTvConfig()
+  const write = getStashTvConfig()
     .then(config => {
       return client().mutate({
         mutation: GQL.ConfigurePluginDocument,
@@ -47,4 +55,10 @@ async function updateTvConfig(
         }
       })
     })
+  pendingWrites.add(write);
+  try {
+    await write;
+  } finally {
+    pendingWrites.delete(write);
+  }
 }

@@ -44,6 +44,7 @@ jobs:
         run: npx commitlint --last --verbose
 
       - name: Set version number for release
+        id: version
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')
         working-directory: stash-tv
         env:
@@ -67,7 +68,7 @@ jobs:
         run: yarn test
 
       - name: Release
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main') && steps.version.outputs.release == 'true'
         working-directory: stash-tv
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

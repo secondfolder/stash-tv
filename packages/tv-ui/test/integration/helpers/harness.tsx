@@ -21,6 +21,9 @@ import { startMockStash, type MockStashServer } from "mock-stash";
 
 let server: MockStashServer;
 
+// For each app booted in the current test, waits for the config writes it has sent towards the server
+let configWritesSettledPerBoot: (() => Promise<void>)[] = [];
+
 // RTL's default 1s for `waitFor`/`findBy*` is too tight here: the app and the mock server share one thread, so a
 // mutation's round trip plus the re-render it causes (~200ms alone) can take several times longer when the whole suite
 // runs in parallel. A longer timeout only slows down tests that are failing anyway.
@@ -34,11 +37,15 @@ export function setupIntegrationTest() {
     vi.stubEnv("VITE_APP_PLATFORM_URL", server.url);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     // Unmount anything a failed test left mounted *before* resetting the document below. Vitest runs afterEach hooks
     // in reverse registration order, so the global RTL cleanup in setup.ts would otherwise run after this reset and
     // the unmount would leak state (e.g. a modal's inline styles) into the next test's boot.
     cleanup();
+    // The app doesn't wait for its config saves, so one can still be on its way to the server. Let it land before the
+    // reset below, or it would land after it and leak into the next test's boot.
+    await Promise.all(configWritesSettledPerBoot.map((settled) => settled()));
+    configWritesSettledPerBoot = [];
     localStorage.clear();
     // jsdom's document outlives each boot. Opening a modal writes inline state onto <html>/<body> (e.g.
     // `--fixed-right-padding`, which under the stubbed VisualViewport is a bogus 649px that react-spring then fails
@@ -87,8 +94,7 @@ export function restoreServerMediaAfterEach(integration: ReturnType<typeof setup
 
 /**
  * The tvConfig the app has saved to the server's plugin config (its Stash-persisted half). The app saves without
- * waiting for the write, so a test that changes persisted config must wait for it to land here before it ends:
- * otherwise the write can land after the `afterEach` reset and leak into the next test's boot.
+ * waiting for the write, so wait for a change to land here before checking it.
  */
 export function savedTvConfig(integration: ReturnType<typeof setupIntegrationTest>): Record<string, unknown> {
   const saved = integration.server.store.pluginConfig["stash-tv"]?.["app-state"];
@@ -108,7 +114,10 @@ export async function loadFreshAppModules() {
 export interface BootedApp {
   rendered: ReturnType<typeof render>;
   apolloClient: Awaited<ReturnType<typeof import("../../../src/hooks/getApolloClient").getApolloClient>>;
-  /** Unmount the app (Apollo clients are deliberately not stopped — see setupIntegrationTest). */
+  /**
+   * Unmount the app, then wait for the config saves it started to reach the server, so a boot after it starts with
+   * them (Apollo clients are deliberately not stopped — see setupIntegrationTest).
+   */
   unmount: () => Promise<void>;
 }
 
@@ -123,6 +132,8 @@ export interface BootedApp {
 export async function bootApp(readyText = "Aurora Ascending"): Promise<BootedApp> {
   const { default: App } = await loadFreshAppModules();
   const { getApolloClient } = await import("../../../src/hooks/getApolloClient");
+  const { stashConfigWritesSettled } = await import("../../../src/helpers/stash-config-storage");
+  configWritesSettledPerBoot.push(stashConfigWritesSettled);
 
   const apolloClient = getApolloClient();
   let rendered!: ReturnType<typeof render>;
@@ -148,6 +159,7 @@ export async function bootApp(readyText = "Aurora Ascending"): Promise<BootedApp
       await act(async () => {
         rendered.unmount();
       });
+      await stashConfigWritesSettled();
     },
   };
 }

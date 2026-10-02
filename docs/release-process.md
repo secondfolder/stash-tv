@@ -27,4 +27,6 @@ Beyond the standard `feat` (minor) / `fix` + breaking (major/minor) behaviour, f
 4. Plugin built to `packages/tv-plugin/dist/`
 5. `scripts/deploy-to-stash-plugins.sh` deploys the built plugin to the `secondfolder/stash-plugins` repository (users install from there via Stash's plugin manager)
 
+CI works out the next version before building, with a Semantic Release dry run (`scripts/update-version-number.ts`). If no commit since the last release triggers one (e.g. only `test` commits), the job still builds and tests, skips the Release step, and notes "No publishable changes" in its summary rather than failing.
+
 ⚠️ Changing the release/versioning setup (`release.config.js`, version handling in `package.json` / `source.yml`) is an **ask first** area — releases are fully automated on merge to `main`.

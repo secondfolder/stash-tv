@@ -11,12 +11,14 @@ async function main() {
     dryRun: true,
   });
 
-  if (!result || !result.nextRelease) {
-    console.error("No release detected. Nothing to update.");
-    process.exit(1);
+  const nextVersion = result ? result.nextRelease.version : undefined;
+  setStepOutput("release", nextVersion ? "true" : "false");
+
+  if (!nextVersion) {
+    console.log("No release detected. Nothing to update.");
+    return;
   }
 
-  const nextVersion = result.nextRelease.version;
   console.log("Next version:", nextVersion);
 
   // Update package.json
@@ -32,6 +34,13 @@ async function main() {
   ymlContent.version = nextVersion;
   fs.writeFileSync(ymlPath, yaml.dump(ymlContent));
   console.log("Updated source.yml");
+}
+
+/** Lets later steps of the GitHub Actions job know the outcome (does nothing outside GitHub Actions) */
+function setStepOutput(name: string, value: string) {
+  if (process.env.GITHUB_OUTPUT) {
+    fs.appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
+  }
 }
 
 main().catch(err => {
