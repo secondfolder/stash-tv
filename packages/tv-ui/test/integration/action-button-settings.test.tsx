@@ -1,5 +1,5 @@
 /**
- * Action button settings forms. Buttons with options (quick tag, edit tags, volume, create marker) open a settings
+ * Action button settings forms. Buttons with options (quick tag, edit tags, volume, change channel, create marker) open a settings
  * form when added from the Settings tab, and again from the button's edit control in the Settings tab's list.
  *
  * @see docs/action-buttons.md § "Settings Integration"
@@ -227,6 +227,26 @@ describe("Volume settings", () => {
       expect.objectContaining({ fullControl: true }),
     ]);
     await waitFor(() => expect(JSON.stringify(savedTvConfig(integration))).toContain('"fullControl":true'));
+
+    await app.unmount();
+  });
+});
+
+describe("Change channel settings", () => {
+  it("switches the default change channel button to cycling through channels", async () => {
+    const app = await bootApp();
+    await openActionButtonSettings();
+
+    editButton("Change channel");
+    const modal = await settingsModal();
+    click(within(modal).getByLabelText("Cycle through channels"));
+    click(within(modal).getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(document.querySelector(".ActionButtonSettingsModal")).toBeNull());
+    expect((await stackButtons()).filter((button) => button.buttonType === "change-channel")).toEqual([
+      expect.objectContaining({ cycle: true }),
+    ]);
+    await waitFor(() => expect(JSON.stringify(savedTvConfig(integration))).toContain('"cycle":true'));
 
     await app.unmount();
   });

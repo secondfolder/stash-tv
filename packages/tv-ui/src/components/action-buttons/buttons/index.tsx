@@ -5,6 +5,7 @@ import { MediaItem } from "../../../hooks/useMediaItems";
 import { VideoJsPlayer } from "video.js";
 import * as yup from "yup";
 import { useFormik } from "formik";
+import { buttonDefinition as changeChannelButtonDefinition } from "./ChangeChannelActionButton";
 import { buttonDefinition as createMarkerButtonDefinition } from "./CreateMarkerActionButton";
 import { buttonDefinition as deleteMediaItemButtonDefinition } from "./DeleteMediaItemActionButton";
 import { buttonDefinition as editTagsButtonDefinition } from "./EditTagsActionButton";
@@ -56,6 +57,7 @@ export type ActionButtonDefinitionInput<Config extends Record<string, unknown> =
 }
 
 export const allButtonDefinition = [
+  changeChannelButtonDefinition,
   createMarkerButtonDefinition,
   deleteMediaItemButtonDefinition,
   editTagsButtonDefinition,

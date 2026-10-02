@@ -8,14 +8,8 @@ import { useMediaItemFilters } from "../../../hooks/useMediaItemFilters";
 import { AddConfigItemButton, ConfigList, ConfigListItem } from "../ConfigList";
 import { ChannelSettingsModal } from "../ChannelSettingsModal";
 import Select from "../Select";
-import { ChannelConfig, ChannelSourceEntityType, createNewChannelConfig, getChannelSourceInfo, StartupChannel } from "../../channels/channel-config";
+import { ChannelConfig, createNewChannelConfig, getChannelName, StartupChannel } from "../../channels/channel-config";
 import "./ChannelSettings.scss";
-
-// Shown before the names of filters to tell scene and marker filters apart
-const savedFilterNamePrefixes: Record<ChannelSourceEntityType, string> = {
-  scene: "Scenes: ",
-  marker: "Markers: ",
-}
 
 const startupChannelOptions: { value: StartupChannel, label: string }[] = [
   { value: "last-viewed", label: "Last viewed" },
@@ -63,7 +57,7 @@ export function ChannelSettings() {
           const dragHandleProps = getDragHandleProps({className: "drag-handle"})
           // Channels have a single source for now
           const source = channel.sources[0]
-          const sourceInfo = source && getChannelSourceInfo(source, availableSavedFilters, availableSavedFiltersLoading)
+          const { prefix, name, sourceInfo } = getChannelName(channel, availableSavedFilters, availableSavedFiltersLoading)
           const isActive = channel.id === activeChannel?.id
           return <ConfigListItem
             className={cx("channel", {active: isActive, missing: sourceInfo?.missing})}
@@ -75,10 +69,8 @@ export function ChannelSettings() {
               onClick={() => setActiveChannel(channel.id)}
             >
               <span className="channel-title">
-                {source?.type === "stash-saved-filter" && sourceInfo?.entityType && <span className="channel-name-prefix">
-                  {savedFilterNamePrefixes[sourceInfo.entityType]}
-                </span>}
-                <span className="channel-name">{sourceInfo?.name ?? "Empty channel"}</span>
+                {prefix && <span className="channel-name-prefix">{prefix}</span>}
+                <span className="channel-name">{name}</span>
               </span>
               {source?.randomise && !sourceInfo?.sortedRandomly && <FontAwesomeIcon
                 className="randomised-icon"

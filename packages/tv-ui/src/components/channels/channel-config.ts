@@ -136,3 +136,28 @@ export function getChannelSourceInfo(
   source satisfies never
   return { name: "Unknown source", missing: true, sortedRandomly: false }
 }
+
+// Shown before the names of filters to tell scene and marker filters apart
+const savedFilterNamePrefixes: Record<ChannelSourceEntityType, string> = {
+  scene: "Scenes: ",
+  marker: "Markers: ",
+}
+
+/**
+ * How to label a channel: its source's name, with a prefix saying the type of a saved filter (an "All …" source's name
+ * already says it).
+ */
+export function getChannelName(
+  channel: ChannelConfig,
+  availableSavedFilters: AvailableSavedFilter[],
+  availableSavedFiltersLoading: boolean,
+) {
+  // Channels have a single source for now
+  const source = channel.sources[0]
+  if (!source) return { prefix: "", name: "Empty channel", sourceInfo: undefined }
+  const sourceInfo = getChannelSourceInfo(source, availableSavedFilters, availableSavedFiltersLoading)
+  const prefix = source.type === "stash-saved-filter" && sourceInfo.entityType
+    ? savedFilterNamePrefixes[sourceInfo.entityType]
+    : ""
+  return { prefix, name: sourceInfo.name, sourceInfo }
+}

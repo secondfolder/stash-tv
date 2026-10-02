@@ -41,7 +41,7 @@ If a channel's Stash filter has been deleted, the channel stays in the list, sho
 
 The **active channel** is the one the feed is showing. It's transient state (`activeChannelId` in `useMediaItemFilters`' module-level store), separate from the persisted `lastViewedChannelId`:
 
-- Clicking a channel in the Settings tab (`setActiveChannel(id)`) makes it active and records it as last viewed. Adding a channel also makes it active.
+- Clicking a channel in the Settings tab, or choosing one with the `change-channel` action button (see [action buttons](action-buttons.md) § "Per-Button Behaviour"), calls `setActiveChannel(id)`. That makes it active and records it as last viewed. Adding a channel also makes it active.
 - Editing the active channel reloads the feed. Changing what a source points at refetches its filter (keyed by `getSourceTargetKey()`). Changing only `randomise` re-sorts without refetching the filter.
 - Deleting the active channel moves to the first remaining channel.
 - New users start with a single "All scenes" channel (`id: "all-scenes"`, from tvConfig's defaults). The UI won't delete the last channel, so there's always one to show.

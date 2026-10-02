@@ -1,7 +1,7 @@
 import React from "react";
 import { Form } from "react-bootstrap";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faTv } from "@fortawesome/free-solid-svg-icons";
+import TvChannelOutlineIcon from "../../../assets/tv-channel-outline.svg?react";
+import { ActionButtonIcon } from "../../action-buttons/ActionButtonBase";
 import { ConfigItemModal } from "../ConfigItemModal";
 import { ChannelSourceSelect } from "../ChannelSourceSelect";
 import Switch from "../Switch";
@@ -29,7 +29,7 @@ export const ChannelSettingsModal = ({ initialChannelConfig, operation, onClose,
       onClose={onClose}
       onSave={onSave}
       header={<>
-        <FontAwesomeIcon icon={faTv} />
+        <ActionButtonIcon iconDefinition={TvChannelOutlineIcon} state="inactive" size="small" />
         <span>{operation === "add" ? "Add" : "Edit"} Channel</span>
       </>}
     >
