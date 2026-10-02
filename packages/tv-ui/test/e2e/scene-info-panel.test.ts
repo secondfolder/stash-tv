@@ -149,6 +149,25 @@ async function layoutsOverTime(page: Page, milliseconds = 800) {
   }), milliseconds);
 }
 
+/**
+ * Resizes the window (keeping it taller than it's wide) to the first of `widths` at which `holds` does, for tests
+ * relying on how things wrap at a width, which moves whenever what's in the pills, or the panel's padding, changes.
+ * Returns the width, and fails the test if `holds` doesn't at any of them.
+ */
+async function resizeUntil(page: Page, widths: number[], height: number, holds: () => Promise<boolean>) {
+  for (const width of widths) {
+    await page.setViewportSize({ width, height });
+    await page.waitForTimeout(150);
+    if (await holds()) return width;
+  }
+  throw new Error(`No width of ${widths[0]}–${widths.at(-1)} that the test's set up needs`);
+}
+
+/** Widths from `from` to `to`, every `step` */
+function widthsBetween(from: number, to: number, step = 10) {
+  return Array.from({ length: Math.floor((to - from) / step) + 1 }, (_, i) => from + i * step);
+}
+
 async function box(locator: Locator) {
   const result = await locator.boundingBox();
   if (!result) throw new Error('Element not rendered');
@@ -805,10 +824,27 @@ test.describe('Scene info panel', () => {
   test('moves a field between the rows of a line that wraps as if they were lines of their own', async ({ page, request }) => {
     const fields = ['studio', 'title', 'performers', 'date', 'details', 'tags', 'groups', 'code', 'director', 'rating', 'duration'];
     await setPanelConfig(request, { sceneInfoLayout: [fields] });
-    // A width at which the field below doesn't fit back on the first row once the dragged one leaves it, which would
-    // put another field under the pointer (see docs/scene-info-panel.md § "Moving fields")
     await page.setViewportSize({ width: 460, height: 800 });
     await startEditing(page);
+    // A width at which, without the dragged field, the first row would still have no room for the next row's first
+    // field: otherwise it moves up as the dragged field leaves, putting another field under the pointer (see
+    // docs/line-layout-editor.md § "Moving items"). Tried on a copy of the line's left side without it.
+    await resizeUntil(page, widthsBetween(400, 700), 800, () => infoPanel(page).locator('.layout-line .line-side.left').first().evaluate((side) => {
+      const rows = (element: Element) => [...element.children].reduce<number[][]>((found, pill) => {
+        const top = (pill as HTMLElement).offsetTop;
+        const row = found.find((tops) => Math.abs(tops[0] - top) < 4);
+        if (row) row.push(top); else found.push([top]);
+        return found;
+      }, []);
+      if (rows(side).length < 2) return false;
+      const copy = side.cloneNode(true) as HTMLElement;
+      copy.style.cssText = `position: absolute; visibility: hidden; width: ${side.getBoundingClientRect().width}px; box-sizing: border-box`;
+      copy.querySelector('[data-field="title"]')?.remove();
+      side.parentElement!.append(copy);
+      const firstRowWithout = rows(copy)[0].length;
+      copy.remove();
+      return firstRowWithout === rows(side)[0].length - 1;
+    }));
     const dragged = await box(pill(page, 'title'));
     // The field straight below it, on the line's next row
     const x = dragged.x + dragged.width / 2;
@@ -920,12 +956,13 @@ test.describe('Scene info panel', () => {
   });
 
   test('doesn\'t shrink the unused fields while a field is dragged out of them, so nothing above moves', async ({ page }) => {
-    // The URLs are alone on the unused fields' last row
     await page.setViewportSize({ width: 520, height: 1000 });
     await startEditing(page);
+    // A width at which the URLs are alone on the unused fields' last row
+    await resizeUntil(page, widthsBetween(400, 900), 1000, async () => (
+      (await box(pill(page, 'urls'))).y > (await box(pill(page, 'path'))).y + 1
+    ));
     const unused = infoPanel(page).locator('.available-items');
-    const urls = await box(pill(page, 'urls'));
-    expect(urls.y).toBeGreaterThan((await box(pill(page, 'path'))).y);
     const [unusedBefore, studioBefore] = await Promise.all([box(unused), box(pill(page, 'studio'))]);
     const title = await box(pill(page, 'title'));
 
@@ -940,9 +977,16 @@ test.describe('Scene info panel', () => {
   });
 
   test('grows upwards, not downwards, as the unused fields take a field\'s ghost', async ({ page }) => {
-    // A width at which the unused fields' last row has no room for another
     await page.setViewportSize({ width: 750, height: 1000 });
     await startEditing(page);
+    // A width at which the unused fields' last row has no room for another (the performers, which will be dragged there)
+    await resizeUntil(page, widthsBetween(400, 900), 1000, () => infoPanel(page).locator('.available-item-list').evaluate((list) => {
+      const pills = [...list.children] as HTMLElement[];
+      const last = pills.at(-1)!.getBoundingClientRect();
+      const gap = parseFloat(getComputedStyle(list).columnGap) || 0;
+      const performers = list.closest('.SceneInfo')!.querySelector('.layout-lines .field-pill[data-field="performers"]')!;
+      return list.getBoundingClientRect().right - last.right < gap + performers.getBoundingClientRect().width;
+    }));
     const panelBottom = async () => { const panel = await box(infoPanel(page)); return panel.y + panel.height; };
     const bottomBefore = await panelBottom();
     const unusedBefore = await box(infoPanel(page).locator('.available-items'));
