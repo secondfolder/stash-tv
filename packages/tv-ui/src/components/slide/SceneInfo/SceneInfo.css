@@ -255,7 +255,18 @@
     }
   }
 
-  /* Where a dragged field will go on a line, when showing its ghost there would make the line wrap */
+  /* A hidden copy of a line, to measure how tall it would be with the dragged field on it (see probeLineHeight) */
+  .editor-line.height-probe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    margin: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  /* Where a dragged field will go on a line, when showing its ghost there would make the line taller */
   .insertion-line {
     position: absolute;
     width: 3px;

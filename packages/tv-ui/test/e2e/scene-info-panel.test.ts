@@ -1,5 +1,5 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
-import { setTvConfig } from './helpers/stash';
+import { graphql, setTvConfig } from './helpers/stash';
 import { expectUsableOnScreen } from './helpers/layout';
 
 /**
@@ -1039,6 +1039,63 @@ test.describe('Scene info panel', () => {
       });
     }
   }
+
+  test('doesn\'t move the lines while a long field is dragged over a full line, showing values', async ({ page, request }) => {
+    test.setTimeout(120_000);
+    // A line whose two sides both wrap, with long values that shrink and wrap their text, and a long description below
+    await setTvConfig(request, {
+      // So the video doesn't end, moving the feed on to the next one, mid-drag
+      looping: true,
+      sceneInfoLayout: [
+        { left: ['studio', 'title', 'performers', 'date', 'tags', 'groups', 'path', 'urls'], right: ['rating', 'duration', 'resolution', 'play-count', 'o-count', 'code', 'director'] },
+        ['details'],
+      ],
+    });
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.goto('/');
+    const id = await currentSlide(page).getAttribute('data-scene-id');
+    const sceneQuery = 'query ($id: ID!) { findScene(id: $id) { details urls } }';
+    const original = (await graphql(request, sceneQuery, { id })).findScene;
+    const updateScene = (input: Record<string, unknown>) => graphql(
+      request, 'mutation ($input: SceneUpdateInput!) { sceneUpdate(input: $input) { id } }', { input: { id, ...input } },
+    );
+    try {
+      await updateScene({
+        urls: [`https://example.com/scenes/${'a-very-long-slug-'.repeat(6)}`, `https://example.org/videos/${'y'.repeat(60)}`],
+        details: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
+      });
+      await page.reload();
+      await startEditing(page);
+      await infoPanel(page).getByRole('button', { name: 'Field value' }).click();
+      await page.waitForTimeout(500);
+      const lines = infoPanel(page).locator('.editor-lines > .editor-line');
+      const linesBox = await box(infoPanel(page).locator('.editor-lines'));
+      const fullLine = await box(lines.first());
+
+      const details = await box(pill(page, 'details'));
+      await page.mouse.move(details.x + 10, details.y + details.height / 2);
+      await page.mouse.down();
+      const moved: string[] = [];
+      let ghostShown = false;
+      for (const fy of [0.1, 0.5, 0.9]) {
+        for (let fx = 0.05; fx < 1; fx += 0.15) {
+          await page.mouse.move(linesBox.x + linesBox.width * fx, fullLine.y + fullLine.height * fy, { steps: 5 });
+          await page.waitForTimeout(300);
+          ghostShown ||= await infoPanel(page).locator('.editor-lines .field-pill.ghost').count() > 0;
+          const [line, next] = await Promise.all([box(lines.nth(0)), box(lines.nth(1))]);
+          if (Math.abs(line.height - fullLine.height) > 1 || Math.abs(next.y - (fullLine.y + fullLine.height)) > 20) {
+            moved.push(`at ${fx.toFixed(2)}, ${fy}: line ${fullLine.height}→${line.height}px high`);
+          }
+        }
+      }
+      await page.mouse.up();
+      expect(moved).toEqual([]);
+      // Where it fits without moving anything, it still shows its ghost
+      expect(ghostShown).toBe(true);
+    } finally {
+      await updateScene(original);
+    }
+  });
 
   test('slides the marker of a wrapped line along with its rows', async ({ page, request }) => {
     const wrapping = ['studio', 'title', 'performers', 'date', 'details', 'tags', 'groups', 'code', 'director', 'rating', 'duration'];

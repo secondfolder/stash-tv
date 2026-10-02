@@ -15,7 +15,6 @@ import {
   getSlotNearGhost,
   getSlotOnArrival,
   getSlotByMidpoints,
-  countLineRows,
   noValueLabel,
   isKnownField,
   isRightAligned,
@@ -162,7 +161,7 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
   const justDraggedRef = useRef(false);
 
   // While a field is dragged, targets are positions in the layout without it. The line it's dragged off keeps its place
-  // (and its space, see vacatedLineHeight) until it's dropped, even if it's left empty, so the lines after it don't move
+  // (and its space, see fromLineHeight) until it's dropped, even if it's left empty, so the lines after it don't move
   // up and back.
   const isDragging = !!drag?.active;
   const baseLayout = drag?.from
@@ -188,7 +187,9 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
   // Where the lines' container was then. The panel grows upwards (e.g. as the unused fields take the ghost), moving the
   // lines, so the pointer is compared with where the lines were relative to where the container is now.
   const startingLinesTopRef = useRef(0);
-  const vacatedLineHeight = drag?.from ? lineHeight(startingLinesRef.current[drag.from.line]?.rect) : undefined;
+  // The line a field's dragged off doesn't get shorter until it's dropped: its leaving (making the line stop wrapping,
+  // or a pill on it stop wrapping its text) would move every line after it
+  const fromLineHeight = isDragging && drag.from ? lineHeight(startingLinesRef.current[drag.from.line]?.rect) : undefined;
   /**
    * Where an item in the lines is laid out on screen: where it's going rather than where it is, while framer-motion
    * slides it there with a transform. Measured mid-slide, items moved under a still pointer, so the target jumped about.
@@ -252,54 +253,88 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
   }
 
   /**
-   * If putting the dragged field on line `line` at `index` would make the line wrap onto another row, where to show the
-   * line marking the spot instead of the ghost. `measured` is where the line and its other fields are.
+   * How tall line `line` would be with the dragged field on side `right` at `sideIndex` among that side's fields, or
+   * without it if `place` is null. Measured on a hidden copy of the line, laid out like it in the lines' container, so
+   * the browser decides: showing values, pills shrink and their text wraps (a long description or URL), so the line can
+   * grow without taking another row, which working it out from the pills' widths missed. Cached for the drag (cleared
+   * as it starts), as the lines without the dragged field don't change during one.
+   */
+  const probeHeightsRef = useRef(new Map<string, number>());
+  const probeLineHeight = (line: number, place: { right: boolean, sideIndex: number } | null, field: string) => {
+    const container = linesRef.current;
+    const lineElement = container?.querySelectorAll<HTMLElement>(":scope > .editor-line")[line];
+    if (!container || !lineElement) return 0;
+    const key = `${container.clientWidth}:${line}:${place ? `${place.right}:${place.sideIndex}` : "none"}`;
+    const cached = probeHeightsRef.current.get(key);
+    if (cached !== undefined) return cached;
+    const copy = lineElement.cloneNode(true) as HTMLElement;
+    copy.removeAttribute("style");
+    copy.classList.add("height-probe");
+    copy.setAttribute("aria-hidden", "true");
+    copy.querySelectorAll(".field-pill.ghost").forEach(ghost => ghost.remove());
+    copy.querySelectorAll(":scope > .line-side.right:empty").forEach(side => side.remove());
+    if (place) {
+      const sideName = place.right ? "right" : "left";
+      let side = copy.querySelector<HTMLElement>(`:scope > .line-side.${sideName}`);
+      if (!side) {
+        side = document.createElement("div");
+        side.className = `line-side ${sideName}`;
+        if (place.right) copy.append(side);
+        else copy.prepend(side);
+      }
+      side.insertBefore(copyOfDraggedPill(field), side.children[place.sideIndex] ?? null);
+    }
+    container.append(copy);
+    const height = copy.getBoundingClientRect().height;
+    copy.remove();
+    probeHeightsRef.current.set(key, height);
+    return height;
+  }
+
+  /** A copy of the dragged field's pill as it is on a line (with its ×), for `probeLineHeight` */
+  const copyOfDraggedPill = (field: string) => {
+    const editor = editorRef.current!;
+    // The pill following the pointer, or before it's shown (the drag's first move), the field's pill itself
+    const source = editor.querySelector<HTMLElement>(".drag-overlay .field-pill")
+      ?? editor.querySelector<HTMLElement>(`.field-pill[data-field="${CSS.escape(field)}"]`);
+    // A div, like the pills on the lines: the unused fields' are buttons, which are styled a little differently
+    const pill = document.createElement("div");
+    if (!source) return pill;
+    pill.className = source.className;
+    pill.classList.remove("dragged", "ghost");
+    pill.append(...[...source.childNodes].map(node => node.cloneNode(true)));
+    // The unused fields have no ×, which they get on a line
+    const removeButton = editor.querySelector(".editor-lines .field-pill .remove-field");
+    if (!pill.querySelector(".remove-field") && removeButton) pill.append(removeButton.cloneNode(true));
+    return pill;
+  }
+
+  /**
+   * If putting the dragged field on line `line` at `index` would change the line's height, where to show the line
+   * marking the spot instead of the ghost: the ghost would move every line after it. It can make the line taller (taking
+   * another row, or a pill on it wrapping its text) or shorter (e.g. with fields on both sides, which share the line in
+   * proportion to their fields' widths). `measured` is where the line and its other fields are.
    */
   const measureInsertAt = (line: number, { index, right }: { index: number, right: boolean }, measured: MeasuredLine, current: Drag): Drag["insertAt"] => {
     const container = linesRef.current;
-    const lineElement = container?.querySelectorAll<HTMLElement>(":scope > .editor-line")[line];
-    if (!container || !lineElement) return null;
-    // All to the fraction of a pixel (offsetWidth and clientWidth round): over a line's worth of fields, rounding was
-    // enough to get it wrong when the field only just fits, or only just doesn't
-    const leftBox = lineElement.querySelector<HTMLElement>(":scope > .line-side.left");
-    const rightBox = lineElement.querySelector<HTMLElement>(":scope > .line-side.right");
-    const leftStyle = leftBox ? getComputedStyle(leftBox) : null;
-    const gap = parseFloat(leftStyle?.columnGap ?? "") || 0;
-    // Each side's indent is only there when it has fields, the only time it matters
-    const indent = Math.max(
-      parseFloat(leftStyle?.paddingLeft ?? "") || 0,
-      rightBox ? parseFloat(getComputedStyle(rightBox).paddingRight) || 0 : 0,
-    );
-    const sideGap = parseFloat(getComputedStyle(lineElement).columnGap) || 0;
-    const containerRect = container.getBoundingClientRect();
-    const widths = (name: "left" | "right") => [...lineElement.querySelectorAll<HTMLElement>(`:scope > .line-side.${name} > .field-pill:not(.ghost)`)]
-      .map(pill => pill.getBoundingClientRect().width);
-    // A field dragged from the unused fields gets a × on the line, which they don't have
-    let draggedWidth = current.grab.width;
-    const removeButton = container.querySelector<HTMLElement>(".field-pill .remove-field");
-    if (!current.from && removeButton?.parentElement) {
-      draggedWidth += removeButton.getBoundingClientRect().width + (parseFloat(getComputedStyle(removeButton.parentElement).columnGap) || 0);
-    }
-    const withFieldAt = (sides: { left: number[], right: number[] }, atRight: boolean, sideIndex: number) => {
-      const side = atRight ? sides.right : sides.left;
-      const withField = [...side.slice(0, sideIndex), draggedWidth, ...side.slice(sideIndex)];
-      return atRight ? { left: sides.left, right: withField } : { left: withField, right: sides.right };
-    };
-    const sides = { left: widths("left"), right: widths("right") };
-    const withField = withFieldAt(sides, right, right ? index - measured.leftCount : index);
+    if (!container) return null;
+    const sideIndex = right ? index - measured.leftCount : index;
     // The line as it is in the layout: with the field if it's the line it's being dragged along
     const from = current.from?.line === line ? current.from : null;
     const fromRight = from ? isRightAligned(layout, from) : false;
-    const asItIs = from
-      ? withFieldAt(sides, fromRight, fromRight ? from.index - lineSides(layout[line]).left.length : from.index)
-      : sides;
-    const rows = ({ left, right }: { left: number[], right: number[] }) => (
-      countLineRows(left, right, { gap, sideGap, width: containerRect.width, indent })
-    );
-    if (rows(withField) <= rows(asItIs)) return null;
+    const asItIs = probeLineHeight(line, from && {
+      right: fromRight,
+      sideIndex: fromRight ? from.index - lineSides(layout[line]).left.length : from.index,
+    }, current.field);
+    const withField = probeLineHeight(line, { right, sideIndex }, current.field);
+    // Allowing for rounding. The line the field's dragged off can't get shorter while it's dragged (see fromLineHeight),
+    // so on that one only its getting taller would move the lines after it.
+    if (from ? withField <= asItIs + 0.5 : Math.abs(withField - asItIs) <= 0.5) return null;
     // Beside the fields on its side, or at that end of the line if there are none
+    const containerRect = container.getBoundingClientRect();
+    const sideBox = container.querySelectorAll(":scope > .editor-line")[line]?.querySelector(":scope > .line-side");
+    const gap = sideBox ? parseFloat(getComputedStyle(sideBox).columnGap) || 0 : 0;
     const sideFields = right ? measured.fields.slice(measured.leftCount) : measured.fields.slice(0, measured.leftCount);
-    const sideIndex = right ? index - measured.leftCount : index;
     const next = sideFields[sideIndex];
     const previous = sideFields[sideIndex - 1];
     const beside = next ?? previous ?? measured.rect;
@@ -360,6 +395,7 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
   const startDrag = (event: React.PointerEvent<HTMLElement>, field: string, key: string, from: LayoutPosition | null) => {
     if (event.button !== 0 || dragRef.current) return;
     const pillRect = event.currentTarget.getBoundingClientRect();
+    probeHeightsRef.current.clear();
     setDrag({
       field,
       key,
@@ -569,13 +605,13 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
             seen.set(field, occurrence + 1);
             return linePill({ field, key: occurrence ? `${field}-${occurrence}` : field, line: lineIndex, from, isGhost: false });
           };
-          // The line a field was dragged off, keeping its space
+          // The line a field was dragged off, which keeps its space, left empty
           const vacated = !left.length && !right.length;
           return <div
             key={lineIndex}
             className={cx("editor-line", { "vacated-line": vacated, target: lineIndex === targetLine })}
             data-line={lineIndex}
-            style={vacated ? { height: vacatedLineHeight } : undefined}
+            style={lineIndex === drag?.from?.line && fromLineHeight !== undefined ? { minHeight: fromLineHeight } : undefined}
           >
             {!vacated && <div className="line-side left">{left.map((field, index) => pill(field, index))}</div>}
             {right.length > 0 && <div className="line-side right">{right.map((field, index) => pill(field, left.length + index))}</div>}

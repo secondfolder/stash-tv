@@ -304,55 +304,6 @@ export function sideAt(
 }
 
 /**
- * How many rows a line takes, its left fields `left` wide and its right-aligned ones `right` wide: side by side in a
- * line `width` wide, `sideGap` apart, each side in a box wrapping on its own (fields `gap` apart). As a flexbox does,
- * each box is as wide as its fields on one row if both fit, and otherwise both shrink in proportion to that width, but
- * no narrower than their widest field. Each box's later rows are indented by `indent` (a hanging indent, on the left
- * for the left fields and on the right for the right-aligned ones).
- */
-export function countLineRows(
-  left: number[],
-  right: number[],
-  { gap, sideGap, width, indent }: { gap: number; sideGap: number; width: number; indent: number },
-): number {
-  const oneRow = (widths: number[]) => widths.reduce((total, field) => total + field, 0) + gap * Math.max(widths.length - 1, 0);
-  const leftMin = Math.max(left[0] ?? 0, ...left.slice(1).map(field => field + indent));
-  const rightMin = Math.max(right[0] ?? 0, ...right.slice(1).map(field => field + indent));
-  const room = width - (left.length && right.length ? sideGap : 0);
-  let leftWidth = oneRow(left);
-  let rightWidth = oneRow(right);
-  const overflow = leftWidth + rightWidth - room;
-  if (overflow > 0) {
-    const total = leftWidth + rightWidth;
-    leftWidth -= overflow * leftWidth / total;
-    rightWidth -= overflow * rightWidth / total;
-    if (leftWidth < leftMin) [leftWidth, rightWidth] = [leftMin, Math.max(rightMin, room - leftMin)];
-    else if (rightWidth < rightMin) [leftWidth, rightWidth] = [Math.max(leftMin, room - rightMin), rightMin];
-  }
-  return Math.max(countRows(left, gap, leftWidth, leftWidth - indent), countRows(right, gap, rightWidth, rightWidth - indent));
-}
-
-/**
- * How many rows a line of fields `widths` wide takes, wrapping as a flexbox does: as many fields on a row as fit, with
- * `gap` between them. The first row has `firstRowWidth`, the rest `otherRowWidth` (they're indented).
- */
-export function countRows(widths: number[], gap: number, firstRowWidth: number, otherRowWidth: number): number {
-  let rows = 0;
-  let used = 0;
-  for (const width of widths) {
-    const rowWidth = rows === 1 ? firstRowWidth : otherRowWidth;
-    // Allowing for rounding in the measured widths
-    if (rows && used + gap + width <= rowWidth + 0.5) {
-      used += gap + width;
-    } else {
-      rows++;
-      used = width;
-    }
-  }
-  return rows;
-}
-
-/**
  * Where on a line a dragged field goes when nothing moves aside for it (an insertion line marks the spot rather than its
  * ghost): before or after the field the pointer's over, by which half of it it's over, on the pointer's row.
  */

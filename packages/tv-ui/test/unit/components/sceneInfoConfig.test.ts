@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  countLineRows,
   fieldsNotInLayout,
   getDropTarget,
   getSlotNearGhost,
   getSlotByMidpoints,
-  countRows,
   noValueLabel,
   getSlotOnArrival,
   preferVacatedLine,
@@ -175,35 +173,6 @@ describe("which side of a line a dragged field goes on", () => {
   });
 });
 
-/** @see docs/scene-info-panel.md § "Moving fields" */
-describe("how many rows a line with fields on both sides takes", () => {
-  const options = { gap: 10, sideGap: 20, width: 300, indent: 0 };
-
-  it("takes one row when both sides fit side by side", () => {
-    expect(countLineRows([50, 50], [50, 50], options)).toBe(1);
-  });
-
-  it("wraps each side on its own once they don't fit", () => {
-    // 170 + 20 + 170 > 300: each side gets 140, too little for its two fields
-    expect(countLineRows([80, 80], [80, 80], options)).toBe(2);
-  });
-
-  it("keeps a side no narrower than its widest field", () => {
-    // The left side shrinks to what its 200 field needs, leaving the right side 80 for its two 50s
-    expect(countLineRows([200, 50], [50, 50], options)).toBe(2);
-  });
-
-  it("gives the right-aligned side's later, indented rows less room too", () => {
-    expect(countLineRows([], [100, 100, 100, 100], { ...options, width: 210 })).toBe(2);
-    expect(countLineRows([], [100, 100, 100, 100], { ...options, width: 210, indent: 20 })).toBe(3);
-  });
-
-  it("gives the left side's later, indented rows less room", () => {
-    expect(countLineRows([100, 100, 100, 100], [], { ...options, width: 210 })).toBe(2);
-    expect(countLineRows([100, 100, 100, 100], [], { ...options, width: 210, indent: 20 })).toBe(3);
-  });
-});
-
 describe("where a line's rows start", () => {
   it("starts a row with a field left of the one before it, or below it", () => {
     expect(startsRow({ left: 0, right: 50, top: 30, bottom: 50 }, { left: 60, right: 110, top: 0, bottom: 20 })).toBe(true);
@@ -340,24 +309,6 @@ describe("a field dragged off a line it was alone on", () => {
   it("goes on a new line beside a line it shared with other fields", () => {
     expect(preferVacatedLine({ type: "new-line", line: 1, right: false }, [["studio"], { left: [], right: ["title"] }], { line: 1, index: 1 }))
       .toEqual({ type: "new-line", line: 1, right: false });
-  });
-});
-
-/** @see docs/scene-info-panel.md § "Moving fields" */
-describe("how many rows a line takes", () => {
-  it("fits as many fields on a row as there's room for, with the gaps between them", () => {
-    // 40 + 10 + 40 = 90 fits in 100; another 10 + 40 doesn't
-    expect(countRows([40, 40, 40], 10, 100, 100)).toBe(2);
-    expect(countRows([40, 40], 10, 100, 100)).toBe(1);
-  });
-
-  it("gives the later, indented rows less room than the first", () => {
-    expect(countRows([40, 40, 40, 40], 10, 100, 80)).toBe(3);
-    expect(countRows([40, 40, 40, 40], 10, 100, 100)).toBe(2);
-  });
-
-  it("takes no rows with no fields", () => {
-    expect(countRows([], 10, 100, 100)).toBe(0);
   });
 });
 
