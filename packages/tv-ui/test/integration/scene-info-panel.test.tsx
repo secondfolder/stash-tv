@@ -9,7 +9,9 @@ import { describe, expect, it } from "vitest";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { setupIntegrationTest, bootApp, savedTvConfig, type BootedApp } from "./helpers/harness";
 import { bootWithTvConfig, currentSlide, goToNextSlide, sceneIdOf } from "./helpers/feed";
-import { defaultSceneInfoLayout } from "../../src/components/slide/SceneInfo/scene-info-config";
+// From the module of its own, not the panel's config: that imports the fields, and with them the Stash API client,
+// which connects as it's imported, before the mock Stash server is set up
+import { defaultSceneInfoLayout } from "../../src/components/slide/SceneInfo/default-layout";
 
 const integration = setupIntegrationTest();
 

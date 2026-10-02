@@ -1,4 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// The config imports the fields' definitions, and with them their components, some of which import Stash's API client
+// (StashService), which connects as it's imported. These tests don't render anything.
+vi.mock("stash-ui/dist/src/core/StashService", () => ({}));
 import { replaceItem } from "../../../src/components/LineLayoutEditor/line-layout";
 import {
   defaultSceneInfoFieldOptions,

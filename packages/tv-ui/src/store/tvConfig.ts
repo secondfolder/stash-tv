@@ -8,7 +8,8 @@ import { ActionButtonStackConfig } from '../components/action-buttons/ActionButt
 import { ChannelConfig, StartupChannel } from '../components/channels/channel-config';
 import { generateConfigId } from '../helpers/config-ids';
 import { END_POSITION_OPTIONS, START_POSITION_OPTIONS } from '../constants';
-import { defaultSceneInfoLayout, SceneInfoFieldOptionsConfig, SceneInfoLayout } from '../components/slide/SceneInfo/scene-info-config';
+import { defaultSceneInfoLayout } from '../components/slide/SceneInfo/default-layout';
+import type { SceneInfoFieldOptionsConfig, SceneInfoLayout } from '../components/slide/SceneInfo/scene-info-config';
 export type DebuggingInfo = "render-debugging" | "onscreen-info" | "virtualizer-debugging";
 
 export const tvConfigStorageKey = 'app-state';
