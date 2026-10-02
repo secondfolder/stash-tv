@@ -13,6 +13,14 @@
   align-items: end;
   z-index: 3;
   max-height: calc(var(--y-unit-small) * 100 - var(--bottom-offset));
+  /* Only its buttons take the pointer. Its scrolling area is wider than they are (room for their shadows and the scroll
+  bar), and reaches over what's beside the stack (e.g. the scene info panel's edit button), which it would otherwise
+  take clicks from. Scrolling it by touch or wheel over its buttons still works, as their events bubble to it. */
+  pointer-events: none;
+
+  .ActionButton, .folder {
+    pointer-events: auto;
+  }
 
   &.left-handed {
     --side-offset: calc(0.8em + (var(--crt-inset-right) / 2));

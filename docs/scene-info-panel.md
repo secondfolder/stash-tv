@@ -90,7 +90,7 @@ The pencil button in the panel's top right corner switches the panel to edit mod
 - **Reset to default** puts the default layout (`defaultSceneInfoLayout`: the studio, the title, the date with the resolution and frame rate right-aligned, the rating with the o-count and play count right-aligned, the performers, the tags and the details, with spacers between) in the draft. As with the settings' reset buttons, it's an `outline-warning` button shown only when the layout isn't the default.
 - The buttons follow the settings panel's: full-size, with Save in its primary style (like Show Guide).
 
-⚠️ The action button stack overlaps the panel's right side (left side in the left-handed UI), and its scrolling area is wider than its buttons. The panel reserves `--padding-right` (6.25em) beside it for its content and edit button; less than that and the stack's empty area takes the edit button's clicks. `test/e2e/scene-info-panel.test.ts` checks the button isn't covered.
+⚠️ The action button stack overlaps the panel's right side (left side in the left-handed UI), and its scrolling area is wider than its buttons. The panel's content and edit button keep clear of its buttons (`--padding-right`, 5em plus the safe-area inset), but not of all of its scrolling area, so the stack lets the pointer through to what's under it everywhere but its buttons and folders (`pointer-events`, see `ActionButtonStack.css`). Otherwise the stack's empty area took the edit button's clicks. `test/e2e/scene-info-panel.test.ts` checks the button isn't covered.
 
 ⚠️ The panel scrolls when it's taller than the space above the controls, with `overscroll-behavior: contain`: the feed scrolls the page, so scrolling past the end would otherwise move on to another video.
 

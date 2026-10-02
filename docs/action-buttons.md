@@ -15,7 +15,7 @@ The action buttons are the vertical button rail on each media slide (TikTok-styl
 | `buttons/index.tsx` | Registry: `allButtonDefinition` (every button definition), the `ActionButtonDefinition` / `ActionButtonConfig` / `ActionButtonProps` types, and `getActionButtonDefinition(type)` for typed lookups (returns the `UnknownActionButton` fallback for unknown types instead of throwing) |
 | `buttons/<Name>ActionButton.tsx` | One file per button: the React component + a `buttonDefinition` export |
 | `ActionButtonBase/` | Presentational shell every button renders through; also exports `ActionButtonIcon` and `ActionButtonTitle` for reuse (settings modal), and `ActionButtonFolderContext` for the buttons in folders |
-| `ActionButtonStack/` | Renders the configured stack: scrollable unpinned section, pinned section, and folders |
+| `ActionButtonStack/` | Renders the configured stack: scrollable unpinned section, pinned section, and folders. Only its buttons and folders take the pointer: its scrolling area is wider than they are, and reaches over the scene info panel's edit button |
 | `action-button-config.ts` | `sharedActionButtonSchema` (yup) and the `createNewActionButtonConfig()` factory used when adding buttons |
 | `icons/index.tsx` | `actionButtonIcons` registry of user-selectable icons (active/inactive states + categories) |
 
