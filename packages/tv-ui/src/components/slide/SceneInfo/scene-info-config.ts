@@ -1,5 +1,19 @@
 import { generateConfigId } from "../../../helpers/config-ids";
 import { Layout, Line, lineItems } from "../../LineLayoutEditor/line-layout";
+import { Eye, EyeFill, Person, PersonFill } from "react-bootstrap-icons";
+import ResolutionIcon from "../../../assets/resolution.svg?react";
+import { oCounterIcons } from "../../OCounterControls";
+import {
+  choice,
+  defaultOptions,
+  labelOption,
+  LabelIcons,
+  LabelOption,
+  OptionsOf,
+  OptionsSchema,
+  resolveOptions,
+  toggle,
+} from "./field-options";
 
 /** Every field the scene info panel can show */
 export const sceneInfoFieldIds = [
@@ -94,12 +108,6 @@ export function entryLabel(entry: SceneInfoLayoutEntry, options: SceneInfoFieldO
   return sceneInfoFieldLabels[field];
 }
 
-export const spacerSizeLabels: Record<SceneInfoFieldOptions["spacer"]["size"], string> = {
-  small: "Small",
-  medium: "Medium",
-  big: "Big",
-};
-
 /**
  * What a field with no value for the scene shows in the editor, e.g. "No studio code", in sentence case. Only a first
  * word that's simply capitalised is lowercased, so names like "URLs" and "O-count" keep their capitals.
@@ -122,44 +130,83 @@ export type SceneInfoLayout = Layout<SceneInfoLayoutEntry>;
 /** What the editor's pills show: each field's name, or its value for the scene */
 export type SceneInfoEditorPillContent = "names" | "values";
 
-/** How the fields that can be shown more than one way are shown, chosen in the editor with each field's options button */
+export const spacerSizeLabels = {
+  small: "Small",
+  medium: "Medium",
+  big: "Big",
+} as const;
+
+/**
+ * The options of the fields that can be shown more than one way, chosen in the editor with each field's options button.
+ * Their types, defaults, validation and the options dialog's controls all come from this (see field-options.tsx).
+ */
+export const sceneInfoFieldOptionSchemas = {
+  rating: {
+    /** As Stash's rating stars (or number), which set the rating, or as text */
+    display: choice({ control: "Rating control", text: "Text" }, "control", {
+      label: "Show as",
+      description: "The rating control sets the scene's rating, and shows even when it has none.",
+    }),
+  },
+  "o-count": {
+    /** As a button marking an orgasm, like the o-counter action button, or as text */
+    display: choice({ control: "O-counter button", text: "Text" }, "control", {
+      label: "Show as",
+      description: "The button marks an orgasm, like the O-counter action button, and shows even when the O-count is 0.",
+    }),
+    /** As text, labelled with the o-counter icon or the field's name */
+    label: labelOption({ name: "O-count", icons: oCounterIcons, default: "icon", shown: options => options.display === "text" }),
+  },
+  performers: {
+    label: labelOption({ name: "Performers", icons: { active: PersonFill, inactive: Person }, allowNone: true, default: "icon" }),
+  },
+  "play-count": {
+    /** Labelled with an eye icon (an outline until the scene's been played) or the field's name */
+    label: labelOption({
+      name: "Play count",
+      icons: { active: EyeFill, inactive: Eye },
+      default: "icon",
+      description: "With the icon, it shows before the scene's been played too, the icon an outline until it has.",
+    }),
+  },
+  details: {
+    /** Whether the details are always shown in full, rather than cut short until clicked */
+    showFullText: toggle(false, {
+      label: "Always show the full text",
+      description: "Otherwise the details are cut short after 3 lines. Click them to show the rest.",
+    }),
+  },
+  tags: {
+    /** Whether every tag is always shown, rather than cut short until "Show N more" is clicked */
+    showAll: toggle(false, {
+      label: "Always show every tag",
+      description: "Otherwise only 2 rows of tags are shown, with a button below them showing the rest.",
+    }),
+  },
+  spacer: {
+    /** Space between fields, beside them on a line, or above and below on a line of its own */
+    size: choice(spacerSizeLabels, "medium", {
+      label: "Size",
+      description: "Alone on its line, it's space between lines. Beside other fields, it's space between them.",
+    }),
+  },
+  resolution: {
+    /** Shown as e.g. "1080p" (`name`) or "1920×1080" (`dimensions`) */
+    format: choice({ name: "Name (e.g. 1080p)", dimensions: "Width × height (e.g. 1920×1080)" }, "name", { label: "Show as" }),
+    label: labelOption({ name: "Resolution", icons: { active: ResolutionIcon, inactive: ResolutionIcon }, allowNone: true, default: "none" }),
+  },
+} satisfies Partial<Record<SceneInfoFieldId, OptionsSchema>>;
+
+export type SceneInfoFieldWithOptions = keyof typeof sceneInfoFieldOptionSchemas;
+
+/** How the fields that can be shown more than one way are shown */
 export type SceneInfoFieldOptions = {
-  /** As Stash's rating stars (or number), which set the rating, or as text */
-  rating: { display: "control" | "text" };
-  /**
-   * As a button marking an orgasm, like the o-counter action button, or as text. As text, labelled with the o-counter
-   * icon or the field's name (`label`).
-   */
-  "o-count": { display: "control" | "text"; label: SceneInfoFieldLabelStyle };
-  /** Labelled with a person icon or the field's name, or not labelled */
-  performers: { label: SceneInfoFieldLabelStyle | "none" };
-  /** Labelled with an eye icon (an outline until the scene's been played) or the field's name */
-  "play-count": { label: SceneInfoFieldLabelStyle };
-  /** Whether the details are always shown in full, rather than capped at 3 lines until clicked */
-  details: { showFullText: boolean };
-  /** Whether every tag is always shown, rather than capped at 3 rows until "Show more" is clicked */
-  tags: { showAll: boolean };
-  /** Space between fields, beside them on a line, or above and below on a line of its own */
-  spacer: { size: "small" | "medium" | "big" };
-  /** Shown as e.g. "1080p" (`name`) or "1920×1080" (`dimensions`), unlabelled or labelled with an icon or its name */
-  resolution: { format: "name" | "dimensions"; label: SceneInfoFieldLabelStyle | "none" };
+  [F in SceneInfoFieldWithOptions]: OptionsOf<typeof sceneInfoFieldOptionSchemas[F]>
 };
 
-/** How a field's value is labelled: with an icon, or with the field's name */
-export type SceneInfoFieldLabelStyle = "icon" | "text";
-
-export type SceneInfoFieldWithOptions = keyof SceneInfoFieldOptions;
-
-export const defaultSceneInfoFieldOptions: SceneInfoFieldOptions = {
-  rating: { display: "control" },
-  "o-count": { display: "control", label: "icon" },
-  "play-count": { label: "icon" },
-  performers: { label: "icon" },
-  details: { showFullText: false },
-  tags: { showAll: false },
-  resolution: { format: "name", label: "none" },
-  spacer: { size: "medium" },
-};
+export const defaultSceneInfoFieldOptions = Object.fromEntries(
+  Object.entries(sceneInfoFieldOptionSchemas).map(([field, schema]) => [field, defaultOptions(schema)]),
+) as SceneInfoFieldOptions;
 
 /**
  * `tvConfig.sceneInfoFieldOptions`: each field's options that have been set, by field. Loosely typed because it comes
@@ -169,45 +216,26 @@ export const defaultSceneInfoFieldOptions: SceneInfoFieldOptions = {
 export type SceneInfoFieldOptionsConfig = Record<string, Record<string, unknown> | undefined>;
 
 export function hasFieldOptions(field: string): field is SceneInfoFieldWithOptions {
-  return Object.hasOwn(defaultSceneInfoFieldOptions, field);
+  return Object.hasOwn(sceneInfoFieldOptionSchemas, field);
+}
+
+/** The icons a field's value can be labelled with, if it has a "Label" option */
+export function fieldLabelIcons(field: SceneInfoFieldWithOptions): LabelIcons | undefined {
+  const label = (sceneInfoFieldOptionSchemas[field] as OptionsSchema).label;
+  return label && "icons" in label ? (label as LabelOption).icons : undefined;
 }
 
 /**
- * Every field's options: those set in `config`, and the defaults for the rest. A value of the wrong type (e.g. an option
- * whose choices have since changed) is replaced by the default, and options this version doesn't know are dropped.
- * With `entry`, an instance of a repeatable field, that field's options are the instance's own.
+ * Every field's options: those set in `config`, and the defaults for the rest. A value an option can't take (e.g. a
+ * choice since removed) is replaced by the default, and options this version doesn't know are dropped. With `entry`,
+ * an instance of a repeatable field, that field's options are the instance's own.
  */
 export function resolveFieldOptions(config: SceneInfoFieldOptionsConfig | undefined, entry?: SceneInfoLayoutEntry): SceneInfoFieldOptions {
   const instance = entry !== undefined && typeof entry !== "string" ? entry : null;
-  const resolved: Record<string, Record<string, unknown>> = Object.fromEntries(
-    Object.entries(defaultSceneInfoFieldOptions).map(([field, defaults]) => [field, { ...defaults }]),
-  );
-  for (const [field, defaults] of Object.entries(resolved)) {
+  return Object.fromEntries(Object.entries(sceneInfoFieldOptionSchemas).map(([field, schema]) => {
     const set = instance && field === entryField(instance) ? instance.options : config?.[field];
-    if (!set || typeof set !== "object") continue;
-    for (const [option, defaultValue] of Object.entries(defaults)) {
-      const value = set[option];
-      if (value !== undefined && typeof value === typeof defaultValue && isAllowedValue(field, option, value)) {
-        defaults[option] = value;
-      }
-    }
-  }
-  return resolved as SceneInfoFieldOptions;
-}
-
-/** The values a field's options can take, for those that are a choice between strings */
-export const sceneInfoFieldOptionChoices: { [F in SceneInfoFieldWithOptions]?: { [O in keyof SceneInfoFieldOptions[F]]?: readonly SceneInfoFieldOptions[F][O][] } } = {
-  rating: { display: ["control", "text"] },
-  "o-count": { display: ["control", "text"], label: ["icon", "text"] },
-  "play-count": { label: ["icon", "text"] },
-  performers: { label: ["none", "icon", "text"] },
-  resolution: { format: ["name", "dimensions"], label: ["none", "icon", "text"] },
-  spacer: { size: ["small", "medium", "big"] },
-};
-
-function isAllowedValue(field: string, option: string, value: unknown) {
-  const choices = (sceneInfoFieldOptionChoices as Record<string, Record<string, readonly unknown[]> | undefined>)[field]?.[option];
-  return !choices || choices.includes(value);
+    return [field, resolveOptions(schema, set && typeof set === "object" ? set : undefined)];
+  })) as SceneInfoFieldOptions;
 }
 
 /** A spacer in the default layout. Its id need only be unique in the layout. */

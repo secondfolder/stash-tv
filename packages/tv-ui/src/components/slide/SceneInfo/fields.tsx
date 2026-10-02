@@ -3,8 +3,7 @@ import React, { ReactNode, useContext, useEffect, useLayoutEffect, useRef, useSt
 import { FormattedDate, FormattedMessage, useIntl } from "react-intl";
 import escapeStringRegexp from "escape-string-regexp";
 import { getLogger } from "@logtape/logtape";
-import { ChevronLeft, Eye, EyeFill, Person, PersonFill } from "react-bootstrap-icons";
-import ResolutionIcon from "../../../assets/resolution.svg?react";
+import { ChevronLeft } from "react-bootstrap-icons";
 import cx from "classnames";
 import { Button } from "react-bootstrap";
 import { queryFindStudio } from "stash-ui/dist/src/core/StashService";
@@ -22,12 +21,14 @@ import { Tag } from "../../tags/tag";
 import { SidePanel } from "../../action-buttons/ActionButtonBase";
 import { OCounterControls, oCounterIcons } from "../../OCounterControls";
 import {
+  fieldLabelIcons,
   sceneInfoFieldLabels,
   spacerSizeLabels,
   type SceneInfoFieldId,
-  type SceneInfoFieldLabelStyle,
   type SceneInfoFieldOptions,
+  type SceneInfoFieldWithOptions,
 } from "./scene-info-config";
+import type { LabelStyle } from "./field-options";
 
 const logger = getLogger(["stash-tv", "SceneInfo"]);
 
@@ -44,17 +45,6 @@ export type SceneInfoFieldProps = {
   rightAligned?: boolean;
   onExternalLinkClick?: () => void;
 }
-
-/**
- * The icons the fields that can be labelled with one are labelled with (see `SceneInfoFieldLabelStyle`), as they are
- * with a value (`active`, e.g. the scene's been played) and without one. Their options dialog shows them too.
- */
-export const sceneInfoFieldLabelIcons = {
-  "play-count": { active: EyeFill, inactive: Eye },
-  performers: { active: PersonFill, inactive: Person },
-  "o-count": oCounterIcons,
-  resolution: { active: ResolutionIcon, inactive: ResolutionIcon },
-} satisfies Record<string, Record<"active" | "inactive", React.ComponentType<React.SVGProps<SVGSVGElement>>>>;
 
 /** Renders one of the panel's fields, or nothing if the scene doesn't have a value for it */
 export function SceneInfoField({ field, ...props }: SceneInfoFieldProps & { field: SceneInfoFieldId }) {
@@ -85,13 +75,15 @@ function Field({ field, showLabel, icon, className, children }: {
 }
 
 /**
- * The props labelling a field's value as `style` says: with its name, with its icon (`active` if it has a value), or
- * not at all
+ * The props labelling a field's value as its "Label" option (`style`) says: with its name, with its icon (`active` if
+ * it has a value), or not at all
  */
-function labelProps(field: keyof typeof sceneInfoFieldLabelIcons, style: SceneInfoFieldLabelStyle | "none", active: boolean) {
+function labelProps(field: SceneInfoFieldWithOptions, style: LabelStyle, active: boolean) {
   if (style === "none") return {};
   if (style === "text") return { showLabel: true };
-  const Icon = sceneInfoFieldLabelIcons[field][active ? "active" : "inactive"];
+  const icons = fieldLabelIcons(field);
+  if (!icons) return {};
+  const Icon = icons[active ? "active" : "inactive"];
   return { icon: <Icon aria-hidden /> };
 }
 
