@@ -302,7 +302,6 @@
     align-items: center;
     column-gap: 0.4em;
     row-gap: 0.8em;
-    flex: 1 1 auto;
   }
 
   /* The left side's later rows are indented (see --wrapped-line-indent), with its first field outdented back */
@@ -582,6 +581,11 @@
 
     .spacer-preview {
       opacity: 1;
+    }
+
+    /* Its value is just its name, which mustn't wrap where a line's sides shrink to fit (a long value's text does) */
+    .pill-value {
+      white-space: nowrap;
     }
   }
 
