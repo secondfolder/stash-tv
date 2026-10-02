@@ -1,5 +1,6 @@
 import * as yup from "yup";
 import type { ActionButtonConfig } from "./buttons";
+import { generateConfigId } from "../../helpers/config-ids";
 
 export const sharedActionButtonSchema = yup.object({
   id: yup.string().required(),
@@ -12,7 +13,7 @@ export const createNewActionButtonConfig = <ButtonType extends ActionButtonConfi
   options?: {includeMarkerDefaults?: boolean}
 ): Extract<ActionButtonConfig, { buttonType: ButtonType }> => {
   const sharedDefaults = {
-    id: `${Date.now()}-${Math.random().toString().slice(2)}` ,
+    id: generateConfigId(),
     type: "button" as const,
     pinned: false
   }

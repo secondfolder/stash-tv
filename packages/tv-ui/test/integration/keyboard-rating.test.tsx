@@ -22,6 +22,7 @@ import {
   pinActionButtons,
   sceneIdOf,
   slides,
+  setChannel,
 } from "./helpers/feed";
 
 const integration = setupIntegrationTest();
@@ -69,7 +70,7 @@ function displayedRating(app: BootedApp) {
 
 async function bootMarkersFeed() {
   // Fixture filter "3" is "All Markers", sorted by scene
-  return await bootWithTvConfig((tvConfig) => tvConfig.set("currentFilterId", "3"), "Intro");
+  return await bootWithTvConfig((tvConfig) => setChannel(tvConfig, "3"), "Intro");
 }
 
 describe("Keyboard rating shortcuts", () => {

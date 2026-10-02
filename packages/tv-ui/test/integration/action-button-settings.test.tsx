@@ -55,7 +55,7 @@ function addButton(title: string) {
 
 /** Open the settings of the button with the given title in the Settings tab's list of buttons */
 function editButton(title: string) {
-  const item = [...document.querySelectorAll<HTMLElement>(".draggable-list-item")].find(
+  const item = [...document.querySelectorAll<HTMLElement>(".config-list-item")].find(
     (element) => !element.classList.contains("folder") && element.textContent === title
   );
   if (!item) throw new Error(`No "${title}" button in the Settings tab's list`);

@@ -1,9 +1,8 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faChevronLeft, faCirclePlay, faLocationDot, faGripVertical, faThumbtack, faAdd, faTrashCan, faPenToSquare, faHeart } from "@fortawesome/free-solid-svg-icons";
+import { faChevronLeft, faThumbtack, faTrashCan, faPenToSquare, faHeart } from "@fortawesome/free-solid-svg-icons";
 import ISO6391 from "iso-639-1";
 import React, { memo, useContext, useEffect, useMemo, useState } from "react";
 import Select from "../Select";
-import { components } from "react-select";
 import "./SettingsTab.scss";
 import { DebuggingInfo, useTvConfig } from "../../../store/tvConfig";
 import SideDrawer from "../SideDrawer";
@@ -16,10 +15,11 @@ import cx from "classnames";
 import useStashTvConfig from "../../../hooks/useStashTvConfig";
 import { getLogger, LogLevel } from "@logtape/logtape";
 import { getLoggers } from "../../../helpers/logging";
-import DraggableList from "../../DraggableList";
+import { AddConfigItemButton, ConfigList, ConfigListItem } from "../ConfigList";
+import { generateConfigId } from "../../../helpers/config-ids";
 import objectHash from "object-hash";
 import { ActionButtonSettingsModal } from "../ActionButtonSettingsModal";
-import { getStashOrigin } from "../../../helpers/getStashOrigin";
+import { ChannelSettings } from "../ChannelSettings";
 import Slider from "../../controls/slider";
 import { getFunctionFromString } from "../../../helpers/getFunctionFromString";
 import { usePlaybackPositionOptions } from "../../../hooks/usePlaybackPositionOptions";
@@ -37,11 +37,9 @@ const SettingsTab = memo(() => {
     mediaItemFiltersLoading,
     mediaItemFiltersError,
     currentMediaItemFilter,
-    availableSavedFilters,
   } = useMediaItemFilters()
 
   const {
-    isRandomised,
     crtEffect,
     crtEffectStrength,
     scenePreviewOnly,
@@ -85,38 +83,7 @@ const SettingsTab = memo(() => {
 
   /* ---------------------------------- Forms --------------------------------- */
 
-  const allFilters = useMemo(
-    () => availableSavedFilters
-      .map(filter => ({
-        value: filter.id,
-        label: filter.name,
-        filterType: filter.entityType
-      }))
-      .sort((a, b) => a.label.localeCompare(b.label)),
-    [availableSavedFilters]
-  )
-  const allFiltersGrouped = useMemo(
-    () => [
-        {
-          label: "Scene Filters",
-          filterType: "scene",
-          options: allFilters.filter(filter => filter.filterType === "scene")
-        },
-        {
-          label: "Marker Filters",
-          filterType: "marker",
-          options: allFilters.filter(filter => filter.filterType === "marker")
-        },
-      ] as const,
-    [allFilters]
-  )
-  const selectedFilter = allFilters.find(filter => filter.value === currentMediaItemFilter?.savedFilter?.id)
-
-  // 2. Set current filter as default
-
-  // 3. Randomise filter order
-
-  // 4. Set subtitles language
+  // Set subtitles language
   const subtitlesList = ISO6391.getAllNames()
     .map((name) => ({
       label: name,
@@ -256,7 +223,7 @@ const SettingsTab = memo(() => {
     } else {
       setTvConfig(
         "actionButtonStackConfig",
-        [...actionButtonStackConfig, {...actionButton, id: Date.now().toString()}]
+        [...actionButtonStackConfig, {...actionButton, id: generateConfigId()}]
       );
     }
   }
@@ -372,76 +339,27 @@ const SettingsTab = memo(() => {
     />}
     <Accordion defaultActiveKey="0">
       <AccordionToggle eventKey="0">
-        Media Feed
+        Channels
       </AccordionToggle>
       <Accordion.Collapse eventKey="0">
         <>
-          <Form.Group>
-            <label htmlFor="filter">
-              Media Filter
-            </label>
-            <Select<{ value: string; label: string; filterType: "scene" | "marker" }, false, { label: string; filterType: "scene" | "marker"; options: readonly { value: string; label: string; filterType: "scene" | "marker"; }[] }>
-              inputId="filter"
-              isLoading={mediaItemFiltersLoading || mediaItemsLoading}
-              value={selectedFilter ?? null}
-              onChange={(newValue: { value: string; label: string; filterType: "scene" | "marker" } | null) => newValue && setTvConfig("currentFilterId", newValue.value)}
-              options={allFiltersGrouped}
-              placeholder={`${allFilters.length > 0 ? "No filter selected" : "No filters saved in stash"}. Showing all scenes.`}
-              components={{
-                GroupHeading: (props: import('react-select').GroupHeadingProps<{ value: string; label: string; filterType: "scene" | "marker" }>) => (
-                  <components.GroupHeading {...props}>
-                    <FontAwesomeIcon icon={props.data.filterType === "scene" ? faCirclePlay : faLocationDot} />
-                    {props.data.label}
-
-                  </components.GroupHeading>
-                ),
-                SingleValue: (props: import('react-select').SingleValueProps<{ value: string; label: string; filterType: "scene" | "marker" }>) => (
-                  <components.SingleValue {...props}>
-                    <FontAwesomeIcon icon={props.data.filterType === "scene" ? faCirclePlay : faLocationDot} />
-                    {props.data.label}
-                  </components.SingleValue>
-                ),
-              }}
-            />
-            <Form.Text className="text-muted">
-              Choose a filter from Stash to use as your Stash TV filter. If you don't have any filters create a new
-              {" "}<a href={new URL('/scenes', getStashOrigin()).toString()}>scene filter</a> or
-              {" "}<a href={new URL('/scenes/markers', getStashOrigin()).toString()}>marker filter</a> in
-              Stash and it will appear here.
-            </Form.Text>
-
-            {mediaItemFiltersError ? (
-              <div className="error">
-                <h2>An error occurred loading scene filters.</h2>
-                <p>
-                  Try reloading the page.
-                </p>
-              </div>
-            ) : null}
-            {noMediaItemsAvailable && (
-              <div className="error">
-                <h2>Filter contains no scenes!</h2>
-                <p>
-                  No scenes were found in the currently selected filter. Please choose
-                  a different one.
-                </p>
-              </div>
-            )}
-          </Form.Group>
-
-          <Form.Group>
-            {currentMediaItemFilter?.savedFilter?.find_filter?.sort?.startsWith("random_") ? (
-              <span>Filter sort order is random</span>
-            ) : <>
-                <Switch
-                  id="randomise-filter"
-                  checked={isRandomised}
-                  label="Randomise filter order"
-                  onChange={event => setTvConfig("isRandomised", event.target.checked)}
-                />
-              <Form.Text className="text-muted">Randomise the order of scenes in the filter.</Form.Text>
-            </>}
-          </Form.Group>
+          <ChannelSettings />
+          {mediaItemFiltersError ? (
+            <div className="error">
+              <h2>An error occurred loading the channel.</h2>
+              <p>
+                {mediaItemFiltersError instanceof Error ? mediaItemFiltersError.message : "Try reloading the page."}
+              </p>
+            </div>
+          ) : null}
+          {noMediaItemsAvailable && (
+            <div className="error">
+              <h2>Channel contains no media!</h2>
+              <p>
+                No media was found for the current channel. Please choose a different one.
+              </p>
+            </div>
+          )}
 
           <Form.Group>
             <Switch
@@ -469,7 +387,7 @@ const SettingsTab = memo(() => {
             <Form.Text className="text-muted">Automatically play scenes.</Form.Text>
           </Form.Group>
 
-          {selectedFilter?.filterType === "scene" && (
+          {currentMediaItemFilter?.entityType === "scene" && (
             <Form.Group>
               <Switch
                 id="scene-preview-only"
@@ -480,7 +398,7 @@ const SettingsTab = memo(() => {
               <Form.Text className="text-muted">Play a short preview rather than the full scene. (Requires the preview files to have been generated in Stash for a scene otherwise the full scene will be shown.)</Form.Text>
             </Form.Group>
           )}
-          {selectedFilter?.filterType === "marker" && (
+          {currentMediaItemFilter?.entityType === "marker" && (
             <Form.Group>
               <Switch
                 id="marker-preview-only"
@@ -492,7 +410,7 @@ const SettingsTab = memo(() => {
             </Form.Group>
           )}
 
-          {(!selectedFilter || selectedFilter.filterType === "scene") && !scenePreviewOnly && <>
+          {(!currentMediaItemFilter || currentMediaItemFilter.entityType === "scene") && !scenePreviewOnly && <>
             <Form.Group>
               <label htmlFor="start-position">
                 Play From…
@@ -657,8 +575,8 @@ const SettingsTab = memo(() => {
           <Form.Group>
             <label>Action Buttons</label>
 
-            <DraggableList
-              className={cx("draggable-list")}
+            <ConfigList<ActionButtonStackConfig>
+              className="action-button-list"
               items={editableActionButtonStackConfig}
               onItemsOrderChange={updateEditableActionButtonStackConfig}
               nestingKey="contents"
@@ -674,32 +592,28 @@ const SettingsTab = memo(() => {
                 const configType = item.type
                 if (item.type === "folder") {
                   return (
-                    <div className={cx("draggable-list-item", "folder")}>
-                      <div className="inline">
-                        <div className="drag-handle" {...getDragHandleProps({className: "drag-handle"})}>
-                          <FontAwesomeIcon icon={faGripVertical} />
-                          <ActionButtonIcon
-                            iconDefinition={Folder}
-                            state="inactive"
-                            size="small"
-                          />
-                          Folder
-                        </div>
-                        <div className="controls">
-                          <Button
-                            variant="link"
-                            className={cx("hide-button", "muted")}
-                            onClick={() => updateList(items.filter(listItem => listItem !== item))}
-                          >
-                            <FontAwesomeIcon icon={faTrashCan} />
-                          </Button>
-                        </div>
-                      </div>
+                    <ConfigListItem
+                      className="folder"
+                      dragHandleProps={getDragHandleProps({className: "drag-handle"})}
+                      icon={<ActionButtonIcon
+                        iconDefinition={Folder}
+                        state="inactive"
+                        size="small"
+                      />}
+                      title="Folder"
+                      controls={<Button
+                        variant="link"
+                        className={cx("hide-button", "muted")}
+                        onClick={() => updateList(items.filter(listItem => listItem !== item))}
+                      >
+                        <FontAwesomeIcon icon={faTrashCan} />
+                      </Button>}
+                    >
                       {!item.contents.length && <div className="text-muted instructions">
                         (click <Arrow90degRight /> on items below to add to folder)
                       </div>}
                       {nestedChildren}
-                    </div>
+                    </ConfigListItem>
                   )
                 } else if (item.type !== "button") {
                   item satisfies never;
@@ -718,27 +632,20 @@ const SettingsTab = memo(() => {
                 const isInsideFolder = currentNestingParent
                 const canAddToFolder = previousNestingParent && item.buttonType !== "settings" && item.buttonType !== "ui-visibility"
 
-                return <div className={cx("draggable-list-item")}>
-                  <div className="inline">
-                    <div
-                      className={cx("drag-handle", {disable: items.length === 1})}
-                      {...(items.length > 1 ? dragHandleProps: {})}
-                    >
-                      <FontAwesomeIcon icon={faGripVertical} />
-                      <ActionButtonIcon
-                        iconDefinition={buttonDefinition.icon}
-                        state="inactive"
-                        size="small"
-                        config={item}
-                      />
-                    </div>
-                    <ActionButtonTitle
-                      title={buttonDefinition.title}
-                      state="inactive"
-                      config={item}
-                    />
-                  </div>
-                  <div className="inline controls">
+                return <ConfigListItem
+                  dragHandleProps={items.length > 1 ? dragHandleProps : undefined}
+                  icon={<ActionButtonIcon
+                    iconDefinition={buttonDefinition.icon}
+                    state="inactive"
+                    size="small"
+                    config={item}
+                  />}
+                  title={<ActionButtonTitle
+                    title={buttonDefinition.title}
+                    state="inactive"
+                    config={item}
+                  />}
+                  controls={<>
                     {'settings' in buttonDefinition.components && <Button
                       variant="link"
                       className={cx("settings", "muted")}
@@ -815,51 +722,41 @@ const SettingsTab = memo(() => {
                     >
                       <FontAwesomeIcon icon={faThumbtack} />
                     </Button>}
-                  </div>
-                </div>
+                  </>}
+                />
               }}
               getItemKey={(item) => item.id}
             />
             <div className="form-subgroup">
               {addableActionButtons.map(actionButton => (
-                <Button
+                <AddConfigItemButton
                   key={actionButton.definition.id}
-                  variant="link"
-                  className={cx("add-config-item", "add-action-button")}
+                  className="add-action-button"
                   onClick={() => actionButton.add()}
-                >
-                  <FontAwesomeIcon icon={faAdd} />
-                  <div className="info">
-                    <ActionButtonIcon
-                      iconDefinition={actionButton.definition.icon}
-                      state="inactive"
-                      size="small"
-                    />
-                    <ActionButtonTitle
-                      title={actionButton.definition.title}
-                      state="inactive"
-                    />
-                  </div>
-                </Button>
-              ))}
-              <Button
-                variant="link"
-                className={cx("add-config-item", "add-folder")}
-                onClick={() => setTvConfig("actionButtonStackConfig", [...actionButtonStackConfig, {id: Date.now().toString(), type: "folder", pinned: false, contents: []}])}
-              >
-                <FontAwesomeIcon icon={faAdd} />
-                <div className="info">
-                  <ActionButtonIcon
-                    iconDefinition={Folder}
+                  icon={<ActionButtonIcon
+                    iconDefinition={actionButton.definition.icon}
                     state="inactive"
                     size="small"
-                  />
-                  <ActionButtonTitle
-                    title="New Folder"
+                  />}
+                  title={<ActionButtonTitle
+                    title={actionButton.definition.title}
                     state="inactive"
-                  />
-                </div>
-              </Button>
+                  />}
+                />
+              ))}
+              <AddConfigItemButton
+                className="add-folder"
+                onClick={() => setTvConfig("actionButtonStackConfig", [...actionButtonStackConfig, {id: generateConfigId(), type: "folder", pinned: false, contents: []}])}
+                icon={<ActionButtonIcon
+                  iconDefinition={Folder}
+                  state="inactive"
+                  size="small"
+                />}
+                title={<ActionButtonTitle
+                  title="New Folder"
+                  state="inactive"
+                />}
+              />
             </div>
             {!actionButtonStackConfigIsDefault && <div className="inline form-subgroup">
               <Button

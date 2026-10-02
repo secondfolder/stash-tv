@@ -1,9 +1,0 @@
-.ActionButtonSettingsModal {
-  .modal-dialog {
-    .modal-body {
-      #filter {
-        caret-color: transparent;
-      }
-    }
-  }
-}

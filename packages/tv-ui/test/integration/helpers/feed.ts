@@ -4,6 +4,7 @@ import { expect } from "vitest";
 import { bootApp, type BootedApp } from "./harness";
 import type { useTvConfig } from "../../../src/store/tvConfig";
 import type { ActionButtonConfig } from "../../../src/components/action-buttons/buttons";
+import type { ChannelSource } from "../../../src/components/channels/channel-config";
 
 /**
  * Boot once to change persisted tvConfig, then boot fresh so the app starts with it (as it would after a reload).
@@ -20,6 +21,18 @@ export async function bootWithTvConfig(
   });
   await first.unmount();
   return await bootApp(readyText);
+}
+
+/**
+ * Make a single channel showing the given source the last viewed one, so the next boot starts on it. Pass a saved
+ * filter id as shorthand for a channel showing that Stash filter.
+ */
+export function setChannel(tvConfig: ReturnType<typeof useTvConfig.getState>, source: string | ChannelSource) {
+  const channelSource: ChannelSource = typeof source === "string"
+    ? { type: "stash-saved-filter", savedFilterId: source, randomise: false }
+    : source
+  tvConfig.set("channels", [{ id: "test-channel", sources: [channelSource] }]);
+  tvConfig.set("lastViewedChannelId", "test-channel");
 }
 
 /** Every rendered MediaSlide (the virtualizer only renders those near the current one). */

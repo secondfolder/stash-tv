@@ -1,12 +1,8 @@
 import React, { useMemo } from "react";
-import { Modal } from "../../containers/Modal";
-import { Button } from "react-bootstrap";
-import "./ActionButtonSettingsModal.css";
-import { yupFormikValidate } from "stash-ui/dist/src/utils/yup";
 import { getLogger } from "@logtape/logtape";
-import { useFormik } from "formik";
 import { ActionButtonConfig, allButtonDefinition, getActionButtonDefinition } from "../../action-buttons/buttons";
 import { ActionButtonIcon, ActionButtonTitle } from "../../action-buttons/ActionButtonBase";
+import { ConfigItemModal } from "../ConfigItemModal";
 
 const logger = getLogger(["stash-tv", "ActionButtonSettingsModal"]);
 
@@ -36,19 +32,17 @@ export const ActionButtonSettingsModal = ({ initialActionButtonConfig, operation
     logger.warn("Action button definition has no settings component", { actionButtonDefinition })
     return null
   }
-
-  const formik = useFormik({
-    initialValues: initialConfig,
-    enableReinitialize: true,
-    validate: yupFormikValidate(actionButtonDefinition.configSchema),
-    onSubmit: (values) => onSave(actionButtonDefinition.configSchema.cast(values)),
-  });
-  // @ts-expect-error - formik and the button's settings should necessarily be for the same config schema but not sure how to type that
-  const form = <actionButtonDefinition.components.settings formik={formik} />
+  const SettingsForm = actionButtonDefinition.components.settings
 
   return (
-    <Modal show onHide={() => onClose()} title="" className="ActionButtonSettingsModal">
-      <Modal.Header>
+    <ConfigItemModal<ActionButtonConfig>
+      className="ActionButtonSettingsModal"
+      operation={operation}
+      initialValues={initialConfig}
+      schema={actionButtonDefinition.configSchema}
+      onClose={onClose}
+      onSave={onSave}
+      header={<>
         <ActionButtonIcon
           iconDefinition={initialButtonDefinition.icon}
           state="inactive"
@@ -66,20 +60,10 @@ export const ActionButtonSettingsModal = ({ initialActionButtonConfig, operation
           </em>{" "}
           Action Button
         </span>
-      </Modal.Header>
-      <Modal.Body>
-        <div className="dialog-content">
-          {form}
-        </div>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={() => onClose()}>
-          Cancel
-        </Button>
-        <Button variant="primary" onClick={() => formik.submitForm()}>
-          {operation === "add" ? "Add" : "Save"}
-        </Button>
-      </Modal.Footer>
-    </Modal>
+      </>}
+    >
+      {/* @ts-expect-error - formik and the button's settings should necessarily be for the same config schema but not sure how to type that */}
+      {formik => <SettingsForm formik={formik} />}
+    </ConfigItemModal>
   )
 }

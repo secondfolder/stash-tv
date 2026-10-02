@@ -9,7 +9,7 @@ import { create } from "zustand";
 import { useConditionalMemo } from "./useMemoConditional";
 import { ConfigurationContext } from "stash-ui/dist/src/hooks/Config";
 import { useFindSavedFilters } from "stash-ui/dist/src/core/StashService";
-import useStashTvConfig from "./useStashTvConfig";
+import { ChannelConfig, entityTypeToFilterMode, getSourceTargetKey, makeEmptySavedFilter, StartupChannel } from "../components/channels/channel-config";
 
 /** In Stash a filter has a different format when it's saved vs when it's used in a search. The stash codebase doesn't
  * seem to do a great job of naming these different formats to make that clear. When a filter is saved it usually just
@@ -30,7 +30,6 @@ type SavedMediaItemFilter = GQL.SavedFilter
 export type SearchableMediaItemFilter = {
   savedFilter?: SavedMediaItemFilter,
   generalFilter: GQL.FindFullScenesQueryVariables["filter"],
-  isCurrentFilter: boolean,
 } & (
   {
     entityFilter: GQL.FindFullScenesQueryVariables["scene_filter"]
@@ -46,20 +45,42 @@ type EntityType = SearchableMediaItemFilter["entityType"]
 
 const useGlobalFilterState = create<{
   loadingResponsibilityClaimed: boolean,
+  /** The channel the feed is showing. `undefined` until the startup channel has been chosen, `null` if there's none
+   * (no channels have been set up) in which case Stash's default filter is shown. */
+  activeChannelId: string | null | undefined,
   currentSavedFilter: SavedMediaItemFilter | undefined,
   loading: boolean,
   error: unknown,
   randomSeed?: number,
 }>(() => ({
   loadingResponsibilityClaimed: false,
+  activeChannelId: undefined,
   currentSavedFilter: undefined,
   loading: false,
   error: undefined,
   randomSeed: getRandomSeed(),
 }))
 
+/**
+ * Pick the channel to show when Stash TV loads.
+ *
+ * @see docs/channels.md § "Startup channel"
+ */
+export function getStartupChannel(
+  channels: ChannelConfig[],
+  startupChannel: StartupChannel,
+  lastViewedChannelId: string | undefined,
+) {
+  if (startupChannel === "last-viewed") {
+    const lastViewed = channels.find(channel => channel.id === lastViewedChannelId)
+    if (lastViewed) return lastViewed
+  }
+  return channels[0]
+}
+
 export function useMediaItemFilters() {
   const {
+    activeChannelId,
     currentSavedFilter,
     loading: mediaItemFiltersLoading,
     error: mediaItemFiltersError,
@@ -90,8 +111,20 @@ export function useMediaItemFilters() {
 
   const loadingDataRequiredBeforeLoadingCurrentFilter = stashConfigurationLoading || loadingAvailableSavedSceneFilters || loadingAvailableSavedMarkerFilters;
 
-  const { isRandomised, onlyShowMatchingOrientation, currentFilterId } = useTvConfig();
+  const {
+    onlyShowMatchingOrientation,
+    channels,
+    startupChannel,
+    lastViewedChannelId,
+    set: setTvConfig,
+  } = useTvConfig();
   const { orientation } = useWindowSize()
+
+  const activeChannel = channels.find(channel => channel.id === activeChannelId)
+  // Channels have a single source for now
+  const activeSource = activeChannel?.sources[0]
+  const activeSourceTargetKey = getSourceTargetKey(activeSource)
+  const randomise = !!activeSource?.randomise
 
   let limitOrientation: "landscape" | "portrait" | undefined = undefined
   if (onlyShowMatchingOrientation && orientation !== "square") {
@@ -99,8 +132,8 @@ export function useMediaItemFilters() {
   }
 
   const currentSearchableFilter = useMemo(
-    () => currentSavedFilter ? convertSavedToSearchableFilter(currentSavedFilter) : undefined,
-    [currentSavedFilter, isRandomised && randomSeed, limitOrientation]
+    () => currentSavedFilter ? convertSavedToSearchableFilter(currentSavedFilter, { randomise }) : undefined,
+    [currentSavedFilter, randomise, randomise && randomSeed, limitOrientation]
   )
   const lastLoadedCurrentMediaItemFilter = useConditionalMemo(
     () => currentSearchableFilter,
@@ -110,78 +143,93 @@ export function useMediaItemFilters() {
 
   const [isResponsibleForLoading, setIsResponsibleForLoading] = useState(false);
 
-  // Load default filter on initial load.
+  // Only one instance of this hook loads filters, the rest just read the shared state
   useEffect(() => {
     if (useGlobalFilterState.getState().loadingResponsibilityClaimed) return;
     useGlobalFilterState.setState({ loadingResponsibilityClaimed: true, loading: true });
     setIsResponsibleForLoading(true);
   }, [])
 
+  // Choose the startup channel on initial load, and move to another channel if the active one is deleted
+  useEffect(() => {
+    if (!isResponsibleForLoading) return;
+    if (activeChannelId === undefined) {
+      useGlobalFilterState.setState({
+        activeChannelId: getStartupChannel(channels, startupChannel, lastViewedChannelId)?.id ?? null
+      })
+    } else if (!activeChannel && (activeChannelId !== null || channels.length)) {
+      useGlobalFilterState.setState({ activeChannelId: channels[0]?.id ?? null })
+    }
+  }, [isResponsibleForLoading, activeChannelId, activeChannel, channels])
+
+  // Load the active channel's filter whenever what it points at changes
   useEffect(() => {
     if (!isResponsibleForLoading || loadingDataRequiredBeforeLoadingCurrentFilter) return;
+    if (activeChannelId === undefined || (activeChannelId !== null && !activeChannel)) return;
+
+    let cancelled = false
+    useGlobalFilterState.setState({ loading: true, error: undefined });
 
     // Place most of the logic into a separate function so we can use async/await
-    async function setCurrentMediaItemFilterOnInitialLoad() {
-      try {
-        if (currentFilterId) {
-          await setCurrentMediaItemFilterById(currentFilterId)
-        } else if (stashDefaultScenesFilter)  {
-          // No default filter ID set for Stash TV specifically so we use the default Stash filter
-          useGlobalFilterState.setState({
-            currentSavedFilter: {
-              ...stashDefaultScenesFilter,
-              filter: '', // The filter prop is deprecated in favour of find_filter and object_filter, and it's not
-                // provided when getting a default saved filter so we can safely set an empty string here.
-            }
-          })
-        } else {
-          // No Stash default filter so we should use an empty filter
-          useGlobalFilterState.setState({
-            currentSavedFilter: {
-              id: "",
-              mode: GQL.FilterMode.Scenes,
-              name: "",
-              filter: "", // See the comment above about the `filter` prop
-            }
-          })
+    async function loadActiveSource(): Promise<SavedMediaItemFilter> {
+      if (!activeSource) {
+        // No channels so we use the default Stash filter, or if there's none an empty filter
+        if (stashDefaultScenesFilter) {
+          return {
+            ...stashDefaultScenesFilter,
+            filter: '', // The filter prop is deprecated in favour of find_filter and object_filter, and it's not
+              // provided when getting a default saved filter so we can safely set an empty string here.
+          }
         }
-      } catch (error) {
-        useGlobalFilterState.setState({ error });
+        return makeEmptySavedFilter(GQL.FilterMode.Scenes)
       }
-      useGlobalFilterState.setState({ loading: false });
-    }
-    setCurrentMediaItemFilterOnInitialLoad()
-  }, [isResponsibleForLoading, loadingDataRequiredBeforeLoadingCurrentFilter, currentFilterId, stashDefaultScenesFilter]);
-
-  async function setCurrentMediaItemFilterById(id: string) {
-    useGlobalFilterState.setState({ loading: true });
-    const {name, entityType} = availableSavedFilters.find(f => f.id === id) || {}
-    if (name && entityType) {
-      // Optimistically set the filter so change is immediately reflected in the UI
-      useGlobalFilterState.setState({
-        currentSavedFilter: {
-          id,
-          mode: entityType === "scene" ? GQL.FilterMode.Scenes : GQL.FilterMode.SceneMarkers,
-          name: name,
+      if (activeSource.type === "all") {
+        return makeEmptySavedFilter(entityTypeToFilterMode(activeSource.entityType))
+      }
+      if (activeSource.type === "stash-saved-filter") {
+        const id = activeSource.savedFilterId
+        const {name, entityType} = availableSavedFilters.find(f => f.id === id) || {}
+        if (name && entityType) {
+          // Optimistically set the filter so change is immediately reflected in the UI
+          useGlobalFilterState.setState({
+            currentSavedFilter: {
+              id,
+              mode: entityTypeToFilterMode(entityType),
+              name: name,
+              filter: '', // See the comment above about the `filter` prop
+            }
+          });
+        }
+        const savedFilter = await fetchSavedFilterFromStash(apolloClient, id);
+        if (!savedFilter) {
+          throw new Error("The filter used by this channel no longer exists in Stash. Edit or delete the channel in settings.")
+        }
+        return {
+          ...savedFilter,
           filter: '', // See the comment above about the `filter` prop
         }
-      });
-    }
-    const mediaItemFiltersStashResponse = await fetchSavedFilterFromStash(apolloClient, id);
-
-    if (!mediaItemFiltersStashResponse) {
-      // Stash has no record of a filter with this ID
-      return undefined;
+      }
+      activeSource satisfies never
+      throw new Error(`Unsupported channel source: ${JSON.stringify(activeSource)}`)
     }
 
-    useGlobalFilterState.setState({
-      randomSeed: getRandomSeed(),
-      currentSavedFilter: {
-        ...mediaItemFiltersStashResponse,
-        filter: '', // See the comment above about the `filter` prop
-      },
-      loading: false,
-    });
+    loadActiveSource()
+      .then(savedFilter => {
+        if (cancelled) return;
+        useGlobalFilterState.setState({ randomSeed: getRandomSeed(), currentSavedFilter: savedFilter, loading: false });
+      })
+      .catch(error => {
+        if (cancelled) return;
+        useGlobalFilterState.setState({ error, currentSavedFilter: undefined, loading: false });
+      })
+
+    return () => { cancelled = true }
+  }, [isResponsibleForLoading, loadingDataRequiredBeforeLoadingCurrentFilter, activeChannelId, activeSourceTargetKey, stashDefaultScenesFilter]);
+
+  /** Switch the feed to the given channel */
+  function setActiveChannel(channelId: string) {
+    useGlobalFilterState.setState({ activeChannelId: channelId });
+    setTvConfig("lastViewedChannelId", channelId)
   }
 
   async function fetchSavedFilterFromStash(apolloClient: ApolloClient<NormalizedCacheObject>, filterId: string): Promise<GQL.SavedFilterDataFragment | null> {
@@ -194,14 +242,15 @@ export function useMediaItemFilters() {
   }
 
   function convertSavedToSearchableFilter(
-    savedFilter: SavedMediaItemFilter
+    savedFilter: SavedMediaItemFilter,
+    { randomise }: { randomise: boolean },
   ): SearchableMediaItemFilter {
     function getGeneralFilter() {
       const filter = new ListFilterModel(savedFilter.mode)
       filter.configureFromSavedFilter(savedFilter);
       const updatedFilter = { ...filter.makeFindFilter() };
 
-      if (updatedFilter.sort?.match(/^random_\d*$/) || isRandomised) {
+      if (updatedFilter.sort?.match(/^random_\d*$/) || randomise) {
         updatedFilter.sort = `random_${randomSeed}`
       }
 
@@ -243,9 +292,6 @@ export function useMediaItemFilters() {
     const sharedProps = {
       savedFilter,
       generalFilter: getGeneralFilter(),
-      get isCurrentFilter() {
-        return savedFilter.id === currentFilterId;
-      }
     }
 
     if (savedFilter.mode === GQL.FilterMode.Scenes) {
@@ -268,7 +314,7 @@ export function useMediaItemFilters() {
   const availableSavedFilters = useMemo(
     () => {
       const savedFilters = []
-      const savedFiltersByType: [EntityType, {id: string, name: string}[]][] = [
+      const savedFiltersByType: [EntityType, GQL.SavedFilterDataFragment[]][] = [
         ["scene", availableSavedSceneFilters],
         ["marker", availableSavedMarkerFilters],
       ]
@@ -276,23 +322,24 @@ export function useMediaItemFilters() {
         for (const savedFilter of savedFiltersOfType) {
           savedFilters.push({
             ...savedFilter,
-            isCurrentFilter: savedFilter.id === currentFilterId,
             entityType
           })
         }
       }
       return savedFilters;
     },
-    [availableSavedSceneFilters, availableSavedMarkerFilters, currentFilterId]
+    [availableSavedSceneFilters, availableSavedMarkerFilters]
   );
 
   return {
     mediaItemFiltersLoading: loadingDataRequiredBeforeLoadingCurrentFilter || mediaItemFiltersLoading,
+    /** Whether the saved filters available in Stash are still loading */
+    availableSavedFiltersLoading: loadingAvailableSavedSceneFilters || loadingAvailableSavedMarkerFilters,
     mediaItemFiltersError,
     currentMediaItemFilter: currentSearchableFilter,
     lastLoadedCurrentMediaItemFilter,
-    clearCurrentMediaItemFilter: () => useGlobalFilterState.setState({ currentSavedFilter: undefined }),
-    setCurrentMediaItemFilterById,
+    activeChannel,
+    setActiveChannel,
     availableSavedFilters
   }
 }

@@ -5,6 +5,8 @@ import { defaultLogLevel } from '../helpers/logging';
 import { stashConfigStorage } from '../helpers/stash-config-storage';
 import { useGlobalState } from "./globalState"
 import { ActionButtonStackConfig } from '../components/action-buttons/ActionButtonStack';
+import { ChannelConfig, StartupChannel } from '../components/channels/channel-config';
+import { generateConfigId } from '../helpers/config-ids';
 import { END_POSITION_OPTIONS, START_POSITION_OPTIONS } from '../constants';
 export type DebuggingInfo = "render-debugging" | "onscreen-info" | "virtualizer-debugging";
 
@@ -16,7 +18,6 @@ type TvConfig = {
   letterboxing: boolean;
   looping: boolean;
   uiVisible: boolean;
-  isRandomised: boolean;
   crtEffect: boolean;
   crtEffectStrength: number;
   scenePreviewOnly: boolean;
@@ -37,7 +38,10 @@ type TvConfig = {
   showGuideOverlay?: boolean;
   leftHandedUi?: boolean;
   actionButtonStackConfig: ActionButtonStackConfig[];
-  currentFilterId?: string;
+  channels: ChannelConfig[];
+  /** Which channel the feed shows when Stash TV loads */
+  startupChannel: StartupChannel;
+  lastViewedChannelId?: string;
   // Device specific state
   forceLandscape: boolean;
   // Developer options
@@ -65,7 +69,6 @@ const defaults = {
   forceLandscape: false,
   looping: false,
   uiVisible: true,
-  isRandomised: false,
   crtEffect: false,
   crtEffectStrength: 1,
   scenePreviewOnly: false,
@@ -107,6 +110,11 @@ const defaults = {
       {id: "13.5", type: "button", buttonType: "resolution", pinned: false},
     ]}
   ],
+  // New users start with one channel showing every scene
+  channels: [
+    {id: "all-scenes", sources: [{type: "all", entityType: "scene", randomise: false}]},
+  ],
+  startupChannel: 'last-viewed',
   playbackRate: 1,
 } satisfies TvConfig;
 
@@ -231,7 +239,7 @@ export const useTvConfig = create<TvConfig & AppAction>()(
       onRehydrateStorage: (state) => {
         return () => useGlobalState.setState({tvConfigLoaded: true})
       },
-      version: 2,
+      version: 3,
       migrate: (persistedState, version) => {
         if (version === 0 && persistedState && typeof persistedState === "object") {
           if ('audioMuted' in persistedState) {
@@ -258,6 +266,21 @@ export const useTvConfig = create<TvConfig & AppAction>()(
               config.type = "button";
             }
           }
+        }
+        if (version < 3 && persistedState && typeof persistedState === "object") {
+          // The single selected filter and global randomise option became a list of channels with a per-source
+          // randomise option
+          const state = persistedState as Record<string, unknown>
+          if (typeof state.currentFilterId === "string" && state.currentFilterId) {
+            const channel: ChannelConfig = {
+              id: generateConfigId(),
+              sources: [{ type: "stash-saved-filter", savedFilterId: state.currentFilterId, randomise: !!state.isRandomised }],
+            }
+            state.channels = [channel]
+            state.lastViewedChannelId = channel.id
+          }
+          delete state.currentFilterId
+          delete state.isRandomised
         }
         return persistedState
       }

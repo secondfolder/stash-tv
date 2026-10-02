@@ -16,7 +16,7 @@ import { act, fireEvent, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { MockStashServer } from "mock-stash";
 import { setupIntegrationTest, bootApp, type BootedApp } from "./helpers/harness";
-import { bootWithTvConfig, currentSlide, pinActionButtons, pinUncheckedActionButton, sceneIdOf } from "./helpers/feed";
+import { bootWithTvConfig, currentSlide, pinActionButtons, pinUncheckedActionButton, sceneIdOf, setChannel } from "./helpers/feed";
 import { actionButtonRoot, displayedIconState, isSidePanelOpen } from "../helpers/actionButtons";
 
 const integration = setupIntegrationTest();
@@ -454,7 +454,7 @@ describe("Create-marker button with defaults", () => {
 describe("Create-marker button", () => {
   it("isn't shown on marker slides", async () => {
     // Fixture filter "3" is "All Markers"
-    const app = await bootWithTvConfig((tvConfig) => tvConfig.set("currentFilterId", "3"), "Intro");
+    const app = await bootWithTvConfig((tvConfig) => setChannel(tvConfig, "3"), "Intro");
     await pinActionButtons([{ buttonType: "create-marker", iconId: "add-marker", markerDefaults: null }, "loop"]);
     // Wait for the stack to render the other button so the absence isn't vacuous
     await within(currentSlide(app)).findByRole("button", { name: "Loop scene" });

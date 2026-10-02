@@ -1,0 +1,13 @@
+.ChannelSourceSelect {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  .entity-type {
+    align-self: flex-start;
+
+    .btn:not(.active) {
+      opacity: 0.7;
+    }
+  }
+}

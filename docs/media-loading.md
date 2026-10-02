@@ -48,7 +48,7 @@ The feed is keyed by a hash of the filter's contents plus the page size, not by 
 1. **Initial load:** when the filter (or page size) changes, the first `useMediaItems()` instance to notice resets the feed and fetches page 1
 2. **Pagination:** VideoScroller calls `loadMoreMediaItems()` when the current item is within 5 of the end. The next page starts at `loaded items + skipped markers` (see below), so deleting an item, which shifts every later item back one place on the server, neither skips nor repeats items. When that offset isn't on a page boundary the fetched page overlaps what's loaded, and duplicates are dropped
 3. **End of list:** no more fetches once the offset reaches the server's reported `count`
-4. **Filtering:** applied via GraphQL variables from the selected saved filter
+4. **Filtering:** applied via GraphQL variables from the active channel's source, resolved to a saved filter by `useMediaItemFilters()` (see [channels](channels.md))
 5. **Mutations:** updates (rating, tags, o-count, play count…) go to the Stash API and update the Apollo cache, and the affected slide re-renders via `useLiveMediaItem`
 6. **Deletion:** `removeMediaItem(id)` drops the entry (and releases it) after Stash's delete dialog confirms
 

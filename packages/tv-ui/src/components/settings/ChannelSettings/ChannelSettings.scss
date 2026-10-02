@@ -1,0 +1,44 @@
+.ChannelSettings {
+  .channel {
+    font-size: 1.15rem;
+    padding-block: 0.5em;
+
+    .select-channel {
+      padding: 0;
+      font-size: inherit;
+      color: var(--text-color);
+      text-align: left;
+    }
+
+    .randomised-icon {
+      opacity: 0.6;
+    }
+
+    // An accent bar down the left edge of the row, plus a bold name
+    &.active {
+      position: relative;
+
+      &::before {
+        content: "";
+        position: absolute;
+        top: 0.35em;
+        bottom: 0.35em;
+        // A fixed offset into the list item's padding. --content-padding is in ems so it'd resolve against this row's
+        // larger font size and put the bar outside the list item.
+        left: -0.9rem;
+        width: 4px;
+        border-radius: 2px;
+        background: var(--link-color);
+      }
+
+      .channel-title {
+        font-weight: bold;
+      }
+    }
+
+    &.missing .channel-name {
+      font-style: italic;
+      opacity: 0.7;
+    }
+  }
+}

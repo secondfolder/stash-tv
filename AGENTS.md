@@ -30,6 +30,7 @@ Feature-specific documentation lives under `docs/`. Read the one that covers wha
 | [Video player](docs/video-player.md)     | Touching playback, player DOM, or workarounds for Stash ScenePlayer/Video.js quirks                       |
 | [stash-ui package](docs/stash-ui-package.md) | Integrating or modifying Stash frontend components, understanding wrappers vs patches                  |
 | [State & config](docs/state-and-config.md) | Touching state, adding a config option, or changing how settings persist (Zustand stores, hybrid storage) |
+| [Channels](docs/channels.md)             | Touching the user's channel list, channel sources, the startup channel, or how the feed picks what to show  |
 | [Action buttons](docs/action-buttons.md) | Adding an action button or touching `src/components/action-buttons/` (schemas, config, folders)           |
 | [Release process](docs/release-process.md) | Writing commits, preparing releases, or understanding versioning/deployment flow                          |
 | [Testing](docs/testing.md)              | Writing or modifying any test, running the suites, or touching test infrastructure/polyfills          |
@@ -118,7 +119,7 @@ The project uses a monorepo structure with Yarn workspaces containing three pack
 - **Purpose:** The core React application for Stash TV
 - **Technology:** React 17, TypeScript, Vite, Zustand (state management)
 - **Key Directories:**
-  - `src/components/` - Reusable React components (CrtEffect, DraggableList, VideoScroller, ScenePlayer, tags, controls, etc.)
+  - `src/components/` - Reusable React components (CrtEffect, DraggableList, channels, VideoScroller, ScenePlayer, tags, controls, etc.)
   - `src/hooks/` - Custom React hooks for data fetching, state, and UI behavior
   - `src/store/` - Zustand stores for global and TV configuration state
   - `src/pages/Feed/` - Main feed page implementation
@@ -169,7 +170,7 @@ Three Zustand stores, each exposing the same typed `set` / `get` / `setToDefault
 
 ### Key Hooks (`src/hooks/`)
 
-`useMediaItems()` (the feed's list of item references and pagination) and `useLiveMediaItem()` (a slide's live data from the Apollo cache) — see [media loading](docs/media-loading.md), `useMediaItemFilters()` (saved filter selection), `getApolloClient()` (singleton Apollo client for the Stash API), `useStashTvConfig()`, `useGamepad()`, `useViewportRotate()`, `useBrowserZoomResetOnViewportChange()`
+`useMediaItems()` (the feed's list of item references and pagination) and `useLiveMediaItem()` (a slide's live data from the Apollo cache) — see [media loading](docs/media-loading.md), `useMediaItemFilters()` (resolves the active channel to a filter — see [channels](docs/channels.md)), `getApolloClient()` (singleton Apollo client for the Stash API), `useStashTvConfig()`, `useGamepad()`, `useViewportRotate()`, `useBrowserZoomResetOnViewportChange()`
 
 ### Component Hierarchy
 
@@ -227,7 +228,8 @@ Settings & UI Overlays:
 
 ## Notable Features
 
-- **Feed of scenes/markers via saved Stash filters**, with lazy pagination and accumulation ([media loading](docs/media-loading.md))
+- **Channels**: a user-curated, reorderable list of what the feed shows (every scene/marker or a saved Stash filter), each source with its own randomise option ([channels](docs/channels.md))
+- **Feed of scenes/markers**, with lazy pagination and accumulation ([media loading](docs/media-loading.md))
 - **Video player** built on Stash's ScenePlayer/Video.js — requires many workarounds; see [video player](docs/video-player.md) before touching playback
 - **Custom media modifier functions** — user-defined JS (stored as a string, parsed via `getFunctionFromString()`) applied to the media list before display
 - **Keyboard shortcuts** — ⚠️ any change that adds, removes or rebinds a shortcut must also update the help text in `KeyboardShortcutsInfo.md` (see [keyboard shortcuts](docs/keyboard-shortcuts.md))

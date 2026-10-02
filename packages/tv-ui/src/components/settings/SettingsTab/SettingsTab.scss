@@ -114,70 +114,6 @@
     width: 100%;
   }
 
-  .draggable-list {
-    --item-padding: 0.3em;
-    margin: calc(var(--item-padding) * -1 + 0.3em) 0;
-
-    li {
-      margin: 0 calc(var(--content-padding) * -1);
-      padding: 0 var(--content-padding);
-
-      &:nth-child(odd) {
-        background: rgba(0, 0, 0, 0.15);
-      }
-    }
-
-    .draggable-list-item {
-      display: flex;
-      gap: 0.5rem;
-      justify-content: space-between;
-      align-items: center;
-      padding: var(--item-padding) 0;
-
-      &.folder {
-        flex-direction: column;
-        align-items: stretch;
-
-        .instructions {
-          padding-left: 2.5em; /* .draggable-list-item's drag handle has a bit of space on the left for extra hit box size so we make .instructions slightly bigger so that visually they're the same */
-        }
-        .draggable-list-item {
-          padding-left: 2em;
-        }
-      }
-
-      .drag-handle {
-        display: flex;
-        gap: 0.5em;
-        align-items: center;
-        // We give the drag handle some a little bit extra margin sticking out over the edge of it's container to slightly
-        // increase the hit target and make grabbing the handle a little bit more forgiving.
-        padding-left: 1.5em;
-        margin-left: -1em;
-
-        &.disable {
-          .fa-grip-vertical {
-            visibility: hidden;
-          }
-        }
-      }
-
-      .controls button {
-        font-size: 1.3em;
-        padding: 0.1em;
-      }
-
-      .inline {
-        gap: 0.5em;
-        align-items: center;
-      }
-
-      &.muted {
-        opacity: 0.5;
-      }
-    }
-  }
-
   .accent-icon {
     color: var(--link-color);
   }
@@ -186,18 +122,6 @@
     width: 2em;
     height: 2em;
     padding: 0.1em;
-  }
-
-  .add-config-item {
-    padding-left: 0.2em;
-    text-align: left;
-
-    .info {
-      color: var(--text-color);
-      display: flex;
-      align-items: center;
-      gap: 0.5em;
-    }
   }
 
   button {

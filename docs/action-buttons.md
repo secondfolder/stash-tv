@@ -164,13 +164,13 @@ What each remaining button does, as the tests check it. Buttons not listed here 
 ```
 
 - Defaults live in `defaults.actionButtonStackConfig` in `src/store/tvConfig.ts` — add new buttons here if they should ship enabled.
-- Every button and folder needs a **unique `id`** — used as the React key and to match edits in the settings UI.
+- Every button and folder needs a **unique `id`** — used as the React key and to match edits in the settings UI. New ones get `generateConfigId()` (`src/helpers/config-ids.ts`).
 - Persists through tvConfig's hybrid storage (see [state & config](state-and-config.md)); a legacy migration renames the old `actionButtonsConfig` key.
 
 ## Settings Integration
 
-- The settings tab (`src/components/settings/SettingsTab/`) edits the stack with a `DraggableList`. ⚠️ The editor displays the list **reversed** (bottom-of-stack first) with pinned buttons last, and reverses back on save. Dragging a pinned button above an unpinned one **unpins it** automatically.
-- Adding a button: `createNewActionButtonConfig(type, options)` creates the initial config. If the definition has a `components.settings` form, an `ActionButtonSettingsModal` opens first (Formik + `yupFormikValidate(configSchema)`); otherwise the button is added immediately.
+- The settings tab (`src/components/settings/SettingsTab/`) edits the stack with a `ConfigList`, the settings panel's styled wrapper around `DraggableList`. Rows are `ConfigListItem`s and the add buttons are `AddConfigItemButton`s (`src/components/settings/ConfigList/`). The [channel](channels.md) list uses the same components. ⚠️ The editor displays the list **reversed** (bottom-of-stack first) with pinned buttons last, and reverses back on save. Dragging a pinned button above an unpinned one **unpins it** automatically.
+- Adding a button: `createNewActionButtonConfig(type, options)` creates the initial config. If the definition has a `components.settings` form, an `ActionButtonSettingsModal` opens first. It's built on the shared `ConfigItemModal` (`src/components/settings/ConfigItemModal/`), which owns the Formik form (`yupFormikValidate(schema)`, cast on save) and the Cancel / Add|Save footer; otherwise the button is added immediately.
 - Editing a button's options re-opens the same modal with its saved config (the pen button, "Edit button settings", only appears for definitions with a `settings` component). Saving replaces the button where it is, at the top level or inside a folder. The modal reads "Add …"/"Add" when adding and "Edit …"/"Save" when editing; `SettingsTab` tells it which by whether the button is already in the stack (new configs already have an id, so the id can't tell).
 - Buttons can be moved into/out of folders and pinned/unpinned via inline controls; folders can be created empty and deleted.
 - Special-cased buttons: the `settings` button can't be deleted or put in a folder, and `ui-visibility` can't be put in a folder (both must stay reachable). Only top-level items can be pinned.

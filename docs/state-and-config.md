@@ -8,7 +8,7 @@
 
 | Store | Persistence | Purpose |
 |---|---|---|
-| `tvConfig.ts` | Hybrid (Stash plugin config + localStorage) | User preferences & plugin settings: volume, subtitles, playback rate, CRT effect, UI layout, page size, media filters, dev options |
+| `tvConfig.ts` | Hybrid (Stash plugin config + localStorage) | User preferences & plugin settings: volume, subtitles, playback rate, CRT effect, UI layout, page size, channels, dev options |
 | `globalState.ts` | None (transient) | UI toggles: settings panel, scene info, fullscreen, `tvConfigLoaded` flag |
 | `mediaItemState.tsx` | None (one store per slide, via context) | Per-slide UI state: open action-button folder, the o-count the slide was shown with, the slide's element. ⚠️ `MediaItemStateContextProvider`'s `initialValues` are only read on mount: they're the slide's starting values, and the o-counter button relies on `preIncrementOCounterValue` not following the live count |
 | Accumulator store (in `useMediaItems`) | None | Feed pagination state — see [media loading](media-loading.md) |
@@ -54,6 +54,14 @@ useTvConfig.setState({ volume: 0.5 });
 4. Create a UI control in the settings panel (`src/components/settings/`)
 5. Access via `useTvConfig()` in components
 6. Add tests for the new config option (see [Testing](docs/testing.md))
+
+## Migrations
+
+The persist `version` and `migrate` in `tvConfig.ts` upgrade users' saved config. Bump the version and add a step whenever a key is renamed or reshaped. Each step is covered in `test/unit/store/tvConfig-migration.test.ts`.
+
+- v1: `audioMuted` → `volume`, the `mute` button → `volume`
+- v2: `actionButtonsConfig` → `actionButtonStackConfig`
+- v3: `currentFilterId` + `isRandomised` → `channels` (see [channels](channels.md) § "Migration")
 
 ## Why These Decisions
 

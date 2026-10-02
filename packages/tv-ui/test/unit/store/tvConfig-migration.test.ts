@@ -4,6 +4,7 @@
  * Tests the tvConfig migration logic for:
  * - v0 → v1: audioMuted → volume conversion, mute button type → volume button type
  * - v1 → v2: actionButtonsConfig → actionButtonStackConfig conversion
+ * - v2 → v3: currentFilterId + isRandomised → a single channel
  *
  * These are real user-upgrade paths — when a user upgrades the plugin, their
  * persisted config should be automatically migrated to the current version.
@@ -11,6 +12,7 @@
  * local key (`app-state-local`); the Stash-side backend is mocked empty.
  *
  * @see docs/state-and-config.md § "Hybrid Storage"
+ * @see docs/channels.md § "Migration"
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -166,11 +168,42 @@ describe("tvConfig migration", () => {
     });
   });
 
-  describe("current version (v2) remains unchanged", () => {
-    it("loads v2 state without migrating it", async () => {
-      seedPersistedState(2, {
+  describe("v2 → v3 migration", () => {
+    it("turns the selected filter and randomise option into the last viewed channel", async () => {
+      seedPersistedState(2, { currentFilterId: "7", isRandomised: true });
+
+      const config = await reimportStore();
+
+      expect(config.channels).toEqual([
+        { id: expect.any(String), sources: [{ type: "stash-saved-filter", savedFilterId: "7", randomise: true }] },
+      ]);
+      expect(config.lastViewedChannelId).toBe(config.channels[0].id);
+      expect(config.startupChannel).toBe("last-viewed");
+      expect("currentFilterId" in config).toBe(false);
+      expect("isRandomised" in config).toBe(false);
+    });
+
+    it("gives the default \"All scenes\" channel when no filter was selected", async () => {
+      seedPersistedState(2, { isRandomised: true });
+
+      const config = await reimportStore();
+
+      expect(config.channels).toEqual([
+        { id: "all-scenes", sources: [{ type: "all", entityType: "scene", randomise: false }] },
+      ]);
+      expect(config.lastViewedChannelId).toBeUndefined();
+      expect("isRandomised" in config).toBe(false);
+    });
+  });
+
+  describe("current version (v3) remains unchanged", () => {
+    it("loads v3 state without migrating it", async () => {
+      const channels = [{ id: "c1", sources: [{ type: "all", entityType: "marker", randomise: false }] }];
+      seedPersistedState(3, {
         volume: 0.5,
         autoPlay: false,
+        channels,
+        lastViewedChannelId: "c1",
         actionButtonStackConfig: [
           { id: "test-1", type: "button", buttonType: "volume", pinned: false },
         ],
@@ -180,6 +213,8 @@ describe("tvConfig migration", () => {
 
       expect(config.volume).toBe(0.5);
       expect(config.autoPlay).toBe(false);
+      expect(config.channels).toEqual(channels);
+      expect(config.lastViewedChannelId).toBe("c1");
       expect(buttonsIn(config).some((button) => button.buttonType === "volume")).toBe(true);
     });
   });

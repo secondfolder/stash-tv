@@ -1,18 +1,18 @@
 /**
  * Filter loading integration tests.
  *
- * Tests that the app boots into the saved filter configured via
- * `currentFilterId`, applying its entity filter to the feed (fixture filter
+ * Tests that the app boots into the last viewed channel and applies its source to the feed (fixture filter
  * "2" = "Alpha Scenes" matches only scenes tagged alpha, sorted by title).
  *
  * @see docs/media-loading.md § "Architecture"
+ * @see docs/channels.md § "Sources"
  */
 
 import { describe, expect, it } from "vitest";
-import { act } from "@testing-library/react";
-import { setupIntegrationTest, bootApp } from "./helpers/harness";
+import { setupIntegrationTest } from "./helpers/harness";
+import { bootWithTvConfig, setChannel } from "./helpers/feed";
 
-const integration = setupIntegrationTest();
+setupIntegrationTest();
 
 // Fixture filter "2" ("Alpha Scenes") matches scene-1/4/6 only, sorted by title
 const ALPHA_SCENES = ["Aurora Ascending", "Drift Duration", "Foothill Flight"];
@@ -20,20 +20,9 @@ const ALPHA_SCENES = ["Aurora Ascending", "Drift Duration", "Foothill Flight"];
 const NON_ALPHA_SCENES = ["Blueprint Boulevard", "Grotto Glow"];
 
 describe("Filter loading integration", () => {
-  it("boots into the filter configured as currentFilterId", async () => {
-    // First boot with the default filter, then switch the configured filter
-    const first = await bootApp();
-    const { useTvConfig } = await import("../../src/store/tvConfig");
-    const { set: setTvConfig } = useTvConfig.getState();
-
-    await act(async () => {
-      setTvConfig("currentFilterId", "2");
-    });
-    await first.unmount();
-
-    // Fresh boot: the app should load and apply the "Alpha Scenes" filter
-    const second = await bootApp("Drift Duration");
-    const content = second.rendered.container.textContent ?? "";
+  it("boots into the saved filter of the last viewed channel", async () => {
+    const app = await bootWithTvConfig((tvConfig) => setChannel(tvConfig, "2"), "Drift Duration");
+    const content = app.rendered.container.textContent ?? "";
 
     for (const title of ALPHA_SCENES) {
       expect(content).toContain(title);
@@ -42,6 +31,25 @@ describe("Filter loading integration", () => {
       expect(content).not.toContain(title);
     }
 
-    await second.unmount();
+    await app.unmount();
+  });
+
+  it("boots into every marker for an \"All markers\" channel", async () => {
+    // "Intro" is a fixture marker title, never a scene title
+    const app = await bootWithTvConfig(
+      (tvConfig) => setChannel(tvConfig, { type: "all", entityType: "marker", randomise: false }),
+      "Intro"
+    );
+
+    await app.unmount();
+  });
+
+  it("explains that a channel's filter is missing when it's been deleted from Stash", async () => {
+    const app = await bootWithTvConfig(
+      (tvConfig) => setChannel(tvConfig, "deleted-filter"),
+      "no longer exists in Stash"
+    );
+
+    await app.unmount();
   });
 });
