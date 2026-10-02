@@ -1,4 +1,5 @@
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
+import { useEffect } from "react";
 import { useSceneDecrementO, useSceneIncrementO } from "stash-ui/dist/src/core/StashService";
 import { useMediaItemState } from "../store/mediaItemState";
 
@@ -26,9 +27,14 @@ export function useOCounter(scene: GQL.SceneDataFragment) {
     }
   }
   // If we've decremented the oCount below that of preIncrementOCounterValue then update preIncrementOCounterValue
-  // so that the button only needs to be clicked twice before the side panel is shown again.
-  if (typeof scene.o_counter === "number" && scene.o_counter < preIncrementOCounterValue) {
-    setMediaItemState("preIncrementOCounterValue", scene.o_counter)
-  }
+  // so that the button only needs to be clicked twice before the side panel is shown again. In an effect, as it updates
+  // the slide's store, which everything using it re-renders for. Until it runs, the scene simply isn't shown as marked,
+  // its count not being above where it started.
+  const oCount = scene.o_counter;
+  useEffect(() => {
+    if (typeof oCount === "number" && oCount < preIncrementOCounterValue) {
+      setMediaItemState("preIncrementOCounterValue", oCount)
+    }
+  }, [oCount, preIncrementOCounterValue])
   return { count, incremented, increment: () => increment(), decrement }
 }
