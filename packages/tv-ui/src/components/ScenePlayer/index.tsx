@@ -345,10 +345,39 @@ const ScenePlayer = forwardRef<
 
     /* Very annoyingly the wrapped ScenePlayer component will autoplay even if the autoplay prop is set to false, when
     initialTimestamp is greater than 0. To stop this behaviour we set the initialTimestamp to 0 for the wrapped
-    ScenePlayer and handle starting at the initialTimestamp ourselves once the Video.js player has been created.
+    ScenePlayer and handle starting at the initialTimestamp ourselves.
+
+    We wait for the source to start loading before setting it. Video.js holds back a time set before then until the
+    video can play, by which point the browser has already shown the source's first frame. Set at `loadstart`, the
+    browser starts loading from the right point instead. For markers this matters even when initialTimestamp is 0:
+    the videojs-offset plugin makes 0 the start of the marker, but the video itself starts at the beginning of the
+    scene, so it'd briefly play that before jumping to the marker.
+
+    Even then, Chrome loads the video's metadata at 0 and only then seeks to the time we set, and can paint the first
+    frame while it does. So we also hide the video until that seek is done.
     */
+    const initialTimestampRef = useRef(initialTimestamp);
+    initialTimestampRef.current = initialTimestamp;
+    const sourceLoadStartedRef = useRef(false);
+    playerSetupHook((player) => {
+      player.one('loadstart', () => {
+        sourceLoadStartedRef.current = true;
+        if (initialTimestampRef.current === undefined) return;
+        player.currentTime(initialTimestampRef.current);
+
+        const videoElm = player.tech(true).el();
+        if (!(videoElm instanceof HTMLVideoElement) || videoElm.currentTime === 0) return;
+        const seekEvents = ['seeked', 'error', 'emptied'];
+        const showVideo = () => {
+          player.removeClass('seeking-to-initial-timestamp');
+          player.off(seekEvents, showVideo);
+        };
+        player.addClass('seeking-to-initial-timestamp');
+        player.on(seekEvents, showVideo);
+      });
+    })
     function handleInitialTimestamp() {
-        if (!initialTimestamp) return;
+        if (initialTimestamp === undefined || !sourceLoadStartedRef.current) return;
         playerRef.current?.currentTime(initialTimestamp);
     }
     useEffect(handleInitialTimestamp, [initialTimestamp]);

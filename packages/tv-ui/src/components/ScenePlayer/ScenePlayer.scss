@@ -38,6 +38,10 @@
       // causes the video to appear on top of the poster when the video is over halfway off screen;
       opacity: 0;
     }
+    &.seeking-to-initial-timestamp video {
+      // Hides the frame at 0 that Chrome can paint before it seeks to the start time (see handleInitialTimestamp)
+      opacity: 0;
+    }
     .vjs-progress-control {
       &:has(.vjs-marker-dot:hover) .vjs-mouse-display {
         // Workaround for weird bug in videojs or marker plugin where the mouse display dot shifts a little bit to

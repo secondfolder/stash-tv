@@ -31,7 +31,7 @@ All of these live in `ScenePlayer/index.tsx` unless noted. Understand them befor
 | Quirk in Stash's ScenePlayer | Workaround |
 |---|---|
 | Steals focus on mount | `videojs.hook('setup')` stubs `player.focus` to a no-op |
-| Autoplays even when `autoplay=false`, if `initialTimestamp > 0` | Pass `initialTimestamp: 0` to the wrapped component and set `currentTime` ourselves once the player is created |
+| Autoplays even when `autoplay=false`, if `initialTimestamp > 0` | Pass `initialTimestamp: 0` to the wrapped component and set `currentTime` ourselves once the source starts loading (see [Start position](#start-position)) |
 | Starts from `resume_time` even when `initialTimestamp` is 0 | Set `scene.resume_time = Infinity` to short-circuit its logic so `initialTimestamp` wins |
 | Buggy `onComplete` handling periodically removes **all** `ended` handlers | `disableBuggyOnEndHandling()` intercepts `player.on/off` to block its internal stub; our own `onEnded` prop attaches directly and only removes its own listener |
 | Preview URLs aren't recognised as "direct streams" (hardcoded URL check) → seeking issues | Rewrite `/preview` → `/preview/stream` before the wrapped component processes streams, then wrap the player's `sourceSelector` to revert the URL before Video.js uses it |
@@ -52,6 +52,17 @@ Also note:
 - ⚠️ **A new `scene` object re-renders the player but doesn't reload the video.** Slides get live data from the Apollo cache (see [media loading](docs/media-loading.md) § "Live item data"), so the scene object changes whenever anything about it does, including the play position Stash saves every few seconds. Stash's ScenePlayer only reinitialises the source when `scene.id` changes (its source effect bails out on `scene.id === sceneId.current`). Its other `scene`-dependent effects (markers, interactive) do re-run. Don't key the player on scene data: `MediaSlide` keys `ScenePlayer` on the scene ID and `sceneStreams` only, so a remount happens only when the streams really change (e.g. toggling preview-only)
 - ⚠️ **Signed stream URLs change on every refetch.** Stash versions with signed URLs (stashapp/stash#6529) add `cid`/`expires`/`signature` query params that the server regenerates whenever it resolves `sceneStreams`. Stash's save-activity mutation (every 10s of playback, and on pause) evicts all cached `findScenes` results, so the feed query refetches and every scene on that page gets new URLs. The `sceneStreams` part of the key therefore comes from `getSceneStreamsKey()` (`src/helpers/`), which drops those three params. Hashing the raw URLs remounted the player, so playback restarted every 10s. Since the player isn't remounted, it keeps the URL it loaded with, which expires after Stash's signed-URL TTL (24h by default)
 - The browser's native PiP hover icon is disabled (`disablePictureInPicture`) as it interferes with our menu overlay. Our own PiP support works around this — see [Picture-in-picture](#picture-in-picture)
+
+---
+
+## Start position
+
+`ScenePlayer` seeks to its `initialTimestamp` prop itself (see the quirks table for why Stash's own handling can't be used).
+
+- **Marker clips** play the full scene's stream through the `videojs-offset` plugin, configured in `MediaSlide` with the marker's start and end. The plugin only shifts the player's time API: `currentTime(0)` means the marker's start, but it never moves the `<video>` there itself. So a marker's `initialTimestamp` is `0` and it still needs a seek. Skipping the seek because it's `0` played the start of the full scene until the plugin's first `timeupdate` corrected it (issue #1).
+- ⚠️ **The seek is made on the player's first `loadstart`, not when the player is created.** Video.js holds back a time set before the source is loading until `canplay`. By then the browser has decoded, and often shown, the frame at 0. At `loadstart` the time reaches the `<video>` straight away, so the browser loads from that point.
+- ⚠️ **Chrome can still paint the frame at 0.** It loads metadata at 0, then seeks to the time set, and can show that first frame in between (seen with H.264 MP4, not VP8 WebM). So while that first seek runs, the player has a `seeking-to-initial-timestamp` class that hides the `<video>` (`ScenePlayer.scss`). The class is removed on `seeked`, `error` or `emptied`. It's only added when the seek target isn't 0, since otherwise no seek happens and the video would stay hidden.
+- Later changes to `initialTimestamp` (e.g. a random start recomputed once the duration is known) seek straight away, but only after that first `loadstart`. An earlier seek would leave Video.js's deferred `canplay` seek pending, which would undo the start position.
 
 ---
 
