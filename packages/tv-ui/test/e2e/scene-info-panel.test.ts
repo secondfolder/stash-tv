@@ -387,7 +387,8 @@ test.describe('Scene info panel', () => {
     // The whole line, its right-aligned fields included
     await expect(highlighted).toHaveCount(1);
     await expect(highlighted.locator('.field-pill')).toHaveText([/Title/, /Tags/, /Date/]);
-    expect(await highlighted.evaluate((line) => getComputedStyle(line).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+    // Polled, as the highlight fades in (a transition), so just after it's added it can still be transparent
+    await expect.poll(() => highlighted.evaluate((line) => getComputedStyle(line).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
 
     await page.mouse.move(performers.x + 8, (title.y + title.height + performers.y) / 2, { steps: 5 });
     await expect(infoPanel(page).locator('.ghost-line')).toHaveCount(1);
