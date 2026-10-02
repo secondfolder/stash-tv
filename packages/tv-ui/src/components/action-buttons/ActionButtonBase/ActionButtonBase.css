@@ -70,15 +70,6 @@
       --flex-margin: 7px;
       margin-top: var(--flex-margin);
       margin-bottom: var(--flex-margin);
-      --shadow-layer-opacity: 0.2;
-      --shadow-offset: 4px;
-      --shadow-blur: 4px;
-      filter:
-        drop-shadow(calc(var(--shadow-offset) * 1)  calc(var(--shadow-offset) * 1)  var(--shadow-blur) rgba(0, 0, 0, var(--shadow-layer-opacity)))
-        drop-shadow(calc(var(--shadow-offset) * -1) calc(var(--shadow-offset) * -1) var(--shadow-blur) rgba(0, 0, 0, var(--shadow-layer-opacity)))
-        drop-shadow(calc(var(--shadow-offset) * 1)  calc(var(--shadow-offset) * -1) var(--shadow-blur) rgba(0, 0, 0, var(--shadow-layer-opacity)))
-        drop-shadow(calc(var(--shadow-offset) * -1) calc(var(--shadow-offset) * 1)  var(--shadow-blur) rgba(0, 0, 0,
-        var(--shadow-layer-opacity)));
     }
   }
 }
@@ -165,6 +156,37 @@
 }
 
 .ActionButtonIcon {
+  /* Keeps icons legible over any video. The variables can be set on an ancestor to scale the shadow for smaller icons
+  (see folder previews in ActionButtonStack.css), or on the icon itself to adjust its weight. */
+  &.with-shadow {
+    filter:
+      drop-shadow(calc(var(--shadow-offset, 4px) * 1)  calc(var(--shadow-offset, 4px) * 1)  var(--shadow-blur, 4px) rgba(0, 0, 0, var(--shadow-layer-opacity, 0.2)))
+      drop-shadow(calc(var(--shadow-offset, 4px) * -1) calc(var(--shadow-offset, 4px) * -1) var(--shadow-blur, 4px) rgba(0, 0, 0, var(--shadow-layer-opacity, 0.2)))
+      drop-shadow(calc(var(--shadow-offset, 4px) * 1)  calc(var(--shadow-offset, 4px) * -1) var(--shadow-blur, 4px) rgba(0, 0, 0, var(--shadow-layer-opacity, 0.2)))
+      drop-shadow(calc(var(--shadow-offset, 4px) * -1) calc(var(--shadow-offset, 4px) * 1)  var(--shadow-blur, 4px) rgba(0, 0, 0, var(--shadow-layer-opacity, 0.2)));
+
+    /* Compensate for icons with less mass having visually lighter shadows */
+    &.fa-expand {
+      --shadow-layer-opacity: 0.24;
+    }
+
+    &.fa-down-left-and-up-right-to-center {
+      --shadow-layer-opacity: 0.14;
+    }
+
+    &.fa-repeat {
+      --shadow-layer-opacity: 0.19;
+    }
+
+    &.fa-ellipsis-vertical {
+      --shadow-layer-opacity: 0.15;
+    }
+
+    &.icon-fullscreen {
+      --shadow-layer-opacity: 0.3;
+    }
+  }
+
   &.size-standard {
     width: auto;
     height: auto;

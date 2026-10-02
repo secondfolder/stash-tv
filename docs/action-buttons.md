@@ -182,6 +182,7 @@ What each remaining button does, as the tests check it. Buttons not listed here 
 - `actionButtonIcons` maps icon ids to `{ states: {active, inactive}, category }`.
 - `category` (`"general" | "tag" | "marker" | "main"`) controls which icons a button's settings form offers in its `IconSelect` (e.g. quick-tag offers tag + general icons).
 - Buttons with an `iconId` config field (e.g. quick-tag, create-marker) let the user pick their icon. `ActionButtonIcon` resolution order: config's `iconId` from the registry → the definition's `icon` (function component → FontAwesome definition → bootstrap icon → per-state record).
+- `ActionButtonIcon`'s `shadow` prop adds the drop shadow that keeps icons legible over video (`.ActionButtonIcon.with-shadow`). The stack's buttons and folder previews use it, the settings UI doesn't. It reads `--shadow-offset`, `--shadow-blur` and `--shadow-layer-opacity`, with defaults sized for a full-size button. Set them on an ancestor to scale the shadow for smaller icons (folder previews do this), or on the icon itself to adjust one icon's weight (the per-icon opacity tweaks for lighter icons like `fa-repeat`).
 
 ## Adding a New Button (Checklist)
 

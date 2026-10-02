@@ -156,6 +156,7 @@ const Folder = ({
                 iconDefinition={def.icon}
                 state="inactive"
                 config={def}
+                shadow
                 key={config.id}
               />
             )

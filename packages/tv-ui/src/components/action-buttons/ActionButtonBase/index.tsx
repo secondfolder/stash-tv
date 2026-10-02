@@ -95,7 +95,7 @@ const ActionButtonBase = <State extends string>(props: ActionButtonBaseProps<Sta
               onClick={displayOnly ? undefined : getOnClickHandler(sidePanelClick)}
               ref={ref}
             >
-              <ActionButtonIcon iconDefinition={icon} state={state} config={config} />
+              <ActionButtonIcon iconDefinition={icon} state={state} config={config} shadow />
               <span className="sr-only">
                 <ActionButtonTitle title={title} state={state} config={config} />
               </span>
@@ -236,15 +236,18 @@ export function ActionButtonIcon<State extends string>({
   state,
   size = "standard",
   config,
+  shadow = false,
   className: providedClassName,
 }: {
   iconDefinition: ActionButtonBaseProps<State>["icon"],
   state: State,
   size?: "standard" | "small" | "max"
   config?: Record<string, unknown>,
+  /** Adds the drop shadow that keeps icons legible over video */
+  shadow?: boolean,
   className?: string,
 }) {
-  const className = cx("ActionButtonIcon", `size-${size}`, providedClassName)
+  const className = cx("ActionButtonIcon", `size-${size}`, {"with-shadow": shadow}, providedClassName)
 
   let iconSource: ActionButtonIconSource | undefined
 

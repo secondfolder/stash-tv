@@ -52,6 +52,9 @@ overflow-x to visible. So we hide it instead to avoid horizontal scrollbars appe
         gap: 0.2em;
         flex-direction: row-reverse;
         justify-content: center;
+        /* Scale the icon shadow down to suit the smaller icons */
+        --shadow-offset: 1.5px;
+        --shadow-blur: 1.5px;
         > * {
           flex: 0 0 0.8em;
           /*
@@ -108,29 +111,6 @@ overflow-x to visible. So we hide it instead to avoid horizontal scrollbars appe
       /* width >= height */
       &.letterboxing svg {
         transform: rotate(90deg);
-      }
-    }
-
-    svg {
-      /* Compensate for icons with less mass having visually lighter shadows */
-      &.fa-expand {
-        --shadow-layer-opacity: 0.24;
-      }
-
-      &.fa-down-left-and-up-right-to-center {
-        --shadow-layer-opacity: 0.14;
-      }
-
-      &.fa-repeat {
-        --shadow-layer-opacity: 0.19;
-      }
-
-      &.fa-ellipsis-vertical {
-        --shadow-layer-opacity: 0.15;
-      }
-
-      &.icon-fullscreen {
-        --shadow-layer-opacity: 0.3;
       }
     }
   }
