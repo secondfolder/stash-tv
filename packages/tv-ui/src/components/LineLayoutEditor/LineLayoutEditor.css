@@ -1,0 +1,268 @@
+/* The toolbar, the lines and the available items, with the same space between them whether the available items are
+below the lines or beside them */
+.LineLayoutEditor {
+  /* A line that wraps has its later rows indented (a hanging indent), so they don't look like lines of their own. Room
+  for the marker showing that, and a little space between it and the items. */
+  --wrapped-line-indent: 2em;
+  /* The least space between a line's left items and its right-aligned ones, so they don't run together */
+  --line-sides-gap: 2em;
+  --layout-editor-gap: 1.25rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-editor-gap);
+
+  &.dragging {
+    cursor: grabbing;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* With the available items beside the lines rather than below them */
+  &.side-by-side {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(12em, 40%);
+    gap: var(--layout-editor-gap) 1.5em;
+    align-items: start;
+
+    .layout-toolbar {
+      grid-column: 1 / -1;
+    }
+  }
+
+  .layout-lines {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Each side's items in a box wrapping on its own. The space between lines is their margins (room for the ghost line);
+  a row gap would also go around the absolutely positioned markers. */
+  .layout-line {
+    display: flex;
+    /* Each side's rows line up with the other's */
+    align-items: flex-start;
+    column-gap: var(--line-sides-gap);
+    margin: 0.4em 0;
+    /* Like the items' corners */
+    border-radius: 1em;
+    transition: background-color 0.1s ease-out, box-shadow 0.1s ease-out;
+  }
+
+  /* The line an item's dragged onto, or that's hovered over, so it's clear which right-aligned items share it with
+  which left ones. The shadow reaches into the space around the line, as the background alone would end at its items. */
+  .layout-line.target {
+    background-color: rgba(255, 255, 255, 0.07);
+    box-shadow: 0 0 0 0.25em rgba(255, 255, 255, 0.07);
+  }
+
+  @media (hover: hover) {
+    &:not(.dragging) .layout-line:hover {
+      background-color: rgba(255, 255, 255, 0.07);
+      box-shadow: 0 0 0 0.25em rgba(255, 255, 255, 0.07);
+    }
+  }
+
+  .line-side {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 0.4em;
+    row-gap: 0.8em;
+  }
+
+  /* The left side's later rows are indented (see --wrapped-line-indent), with its first item outdented back */
+  .line-side.left {
+    padding-left: var(--wrapped-line-indent);
+
+    &:empty {
+      padding-left: 0;
+    }
+
+    /* Items are no wider than their box, but the first one's outdented into its padding, so it has that much more */
+    > :first-child {
+      margin-left: calc(var(--wrapped-line-indent) * -1);
+      max-width: calc(100% + var(--wrapped-line-indent));
+    }
+  }
+
+  /* Laid out from the line's end, mirroring the left side. Its later rows are indented (from the right), with its
+  first item outdented back. */
+  .line-side.right {
+    margin-left: auto;
+    flex-direction: row-reverse;
+    justify-content: flex-start;
+    padding-right: var(--wrapped-line-indent);
+
+    > :first-child {
+      margin-right: calc(var(--wrapped-line-indent) * -1);
+      max-width: calc(100% + var(--wrapped-line-indent));
+    }
+  }
+
+  /* In the indent of a side of a line's later rows, showing they're the same line wrapped rather than lines of their own */
+  .wrapped-line-marker {
+    position: absolute;
+    left: 0;
+    width: var(--wrapped-line-indent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    pointer-events: none;
+
+    /* In the right-aligned items' indent */
+    &.right {
+      left: auto;
+      right: 0;
+    }
+  }
+
+  /* A hidden copy of a line, to measure how tall it would be with the dragged item on it (see probeLineHeight) */
+  .layout-line.height-probe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    margin: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  /* The dragged item as it would be on a line, unseen, which the height probe copies */
+  .probe-source {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  /* Where a dragged item will go on a line, when showing its ghost there would change the line's height */
+  .insertion-line {
+    position: absolute;
+    width: 3px;
+    margin-left: -1.5px;
+    border-radius: 2px;
+    background: var(--text-muted);
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
+  /* Where a dragged item will go on a new line, between the lines: on the half of them it will be aligned to */
+  .ghost-line {
+    position: absolute;
+    left: 0;
+    right: 50%;
+    height: 3px;
+    margin-top: -1.5px;
+    border-radius: 2px;
+    background: var(--text-muted);
+    opacity: 0.7;
+    pointer-events: none;
+    transition: top 0.1s ease-out, left 0.1s ease-out, right 0.1s ease-out;
+
+    &.right {
+      left: 50%;
+      right: 0;
+    }
+  }
+
+  .layout-empty {
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 0.4em 0;
+  }
+
+  /* Items are Stash's tag badges (.tag-item), so take its look; this only lays them out and handles dragging */
+  .layout-item {
+    display: inline-flex;
+    align-items: center;
+    /* Between the item and its buttons */
+    gap: 0.3em;
+    border-radius: 1em;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0;
+    /* Big enough to grab easily on a touchscreen */
+    font-size: 1rem;
+    padding: 0.3em 0.7em;
+    cursor: grab;
+    /* Dragging an item mustn't scroll the page (in Stash TV, the feed) or select text */
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+
+    /* Where the dragged item will go */
+    &.ghost {
+      /* A filter rather than opacity, which framer-motion sets inline on elements it lays out, overriding this */
+      filter: opacity(0.4);
+    }
+
+    /* The item being dragged, following the pointer */
+    &.dragged {
+      cursor: grabbing;
+      box-shadow: 0 0.4em 1em rgba(0, 0, 0, 0.7);
+    }
+
+    /* Spaced by the item's gap rather than Stash's .tag-item .btn margin and padding, so items without any (the
+    available ones) have even padding too */
+    .item-button {
+      bottom: 0;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      font-size: 0.75em;
+      /* Clearer than Stash's half-faded .tag-item .btn */
+      opacity: 0.8;
+      /* A bigger target than the icon, for touch, without taking more room */
+      position: relative;
+
+      &::after {
+        content: "";
+        position: absolute;
+        inset: -0.6em;
+      }
+    }
+  }
+
+  /* The available items are buttons, which the browser gives a border */
+  button.layout-item {
+    border: none;
+  }
+
+  .drag-overlay {
+    position: absolute;
+    z-index: 2;
+    pointer-events: none;
+    display: flex;
+    /* Lifted and tilted, so over its ghost it doesn't look like the ghost has turned solid */
+    transform: rotate(-3deg) scale(1.05);
+    transform-origin: center;
+  }
+
+  .available-items {
+    padding: 0.75em 1em 1em;
+    border: 1px dashed rgba(255, 255, 255, 0.35);
+    border-radius: 0.5em;
+
+    &.drop-to-remove {
+      border-color: var(--danger, #db3737);
+      background: rgba(219, 55, 55, 0.15);
+    }
+
+    .hint {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      margin-bottom: 0.4em;
+    }
+  }
+
+  .available-item-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4em;
+  }
+}

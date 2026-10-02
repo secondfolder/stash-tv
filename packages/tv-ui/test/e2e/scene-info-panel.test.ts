@@ -8,6 +8,7 @@ import { expectUsableOnScreen } from './helpers/layout';
  *
  * @see docs/scene-info-panel.md § "Customising the panel"
  * @see docs/scene-info-panel.md § "Moving fields"
+ * @see docs/line-layout-editor.md § "Moving items"
  */
 
 /** A layout of the fields the tests use, each on its own line (the default has many more) */
@@ -61,7 +62,7 @@ async function rowRightEdges(items: Locator) {
 
 /** The editor's lines, as the fields on each (each line's items have its index in `data-line`) */
 async function editorLayout(page: Page) {
-  return await infoPanel(page).locator('.editor-lines [data-line]').evaluateAll((items) => {
+  return await infoPanel(page).locator('.layout-lines [data-line]').evaluateAll((items) => {
     const lines: string[][] = [];
     for (const item of items) {
       const line = lines[Number((item as HTMLElement).dataset.line)] ??= [];
@@ -109,8 +110,8 @@ async function recordSlidingFields(page: Page) {
       for (const pill of document.querySelectorAll<HTMLElement>('[data-current-video="true"] .SceneInfo.editing .field-pill')) {
         if (sliding(pill)) record.slid.add(`${pill.dataset.field}${pill.classList.contains('ghost') ? ' (ghost)' : ''}`);
       }
-      for (const section of document.querySelectorAll<HTMLElement>('[data-current-video="true"] .SceneInfo.editing :is(.editor-toolbar, .unused-fields)')) {
-        if (sliding(section)) record.slid.add(section.classList.contains('editor-toolbar') ? 'toolbar' : 'unused fields');
+      for (const section of document.querySelectorAll<HTMLElement>('[data-current-video="true"] .SceneInfo.editing :is(.layout-toolbar, .available-items)')) {
+        if (sliding(section)) record.slid.add(section.classList.contains('layout-toolbar') ? 'toolbar' : 'unused fields');
       }
       const background = document.querySelector<HTMLElement>('[data-current-video="true"] .SceneInfo.editing .panel-background');
       if (background && sliding(background)) record.slid.add('background');
@@ -135,7 +136,7 @@ async function layoutsOverTime(page: Page, milliseconds = 800) {
     const started = performance.now();
     const sample = () => {
       const lines: string[][] = [];
-      for (const item of document.querySelectorAll<HTMLElement>('[data-current-video="true"] .SceneInfo.editing .editor-lines [data-line]')) {
+      for (const item of document.querySelectorAll<HTMLElement>('[data-current-video="true"] .SceneInfo.editing .layout-lines [data-line]')) {
         const line = lines[Number(item.dataset.line)] ??= [];
         if (item.classList.contains('field-pill')) line.push(item.dataset.field ?? '');
       }
@@ -265,7 +266,7 @@ test.describe('Scene info panel', () => {
 
     // Its own line keeps its space, empty, until it's dropped
     await expect.poll(() => editorLayout(page)).toEqual([['studio'], ['title', 'date'], ['performers'], []]);
-    await expect(infoPanel(page).locator('.editor-lines .field-pill.ghost')).toHaveCount(1);
+    await expect(infoPanel(page).locator('.layout-lines .field-pill.ghost')).toHaveCount(1);
     // Nothing is saved until it's dropped
     await page.mouse.up();
     await expect(infoPanel(page).locator('.field-pill.ghost')).toHaveCount(0);
@@ -283,7 +284,7 @@ test.describe('Scene info panel', () => {
 
   test('hides a field dragged down to the unused fields', async ({ page }) => {
     await startEditing(page);
-    const unused = await box(infoPanel(page).locator('.unused-fields'));
+    const unused = await box(infoPanel(page).locator('.available-items'));
 
     await dragTo(page, pill(page, 'performers'), unused.x + unused.width / 2, unused.y + unused.height / 2);
 
@@ -295,7 +296,7 @@ test.describe('Scene info panel', () => {
     await setPanelConfig(request, { sceneInfoLayout: [['studio'], ['title', 'date'], ['performers']] });
     await startEditing(page);
     const fieldsAndSections = [pill(page, 'studio'), pill(page, 'title'), pill(page, 'performers'),
-      infoPanel(page).locator('.editor-toolbar'), infoPanel(page).locator('.unused-fields')];
+      infoPanel(page).locator('.layout-toolbar'), infoPanel(page).locator('.available-items')];
     const before = await Promise.all(fieldsAndSections.map(box));
     const [, titleBefore, performersBefore] = before;
     const date = await box(pill(page, 'date'));
@@ -321,7 +322,7 @@ test.describe('Scene info panel', () => {
   test('right-aligns a field dragged over the right third of the space after a line\'s fields, and saves it', async ({ page, request }) => {
     await setPanelConfig(request, { sceneInfoLayout: [['title'], ['date']] });
     await startEditing(page);
-    const lines = await box(infoPanel(page).locator('.editor-lines'));
+    const lines = await box(infoPanel(page).locator('.layout-lines'));
     const title = await box(pill(page, 'title'));
     const y = title.y + title.height / 2;
     const space = { left: title.x + title.width, right: lines.x + lines.width };
@@ -361,7 +362,7 @@ test.describe('Scene info panel', () => {
     const title = await box(pill(page, 'title'));
     const date = await box(pill(page, 'date'));
     const performers = await box(pill(page, 'performers'));
-    const highlighted = infoPanel(page).locator('.editor-line.target');
+    const highlighted = infoPanel(page).locator('.layout-line.target');
 
     await startDrag(page, pill(page, 'tags'), (title.x + title.width + date.x) / 2, title.y + title.height / 2);
     // The whole line, its right-aligned fields included
@@ -379,7 +380,7 @@ test.describe('Scene info panel', () => {
     await setPanelConfig(request, { sceneInfoLayout: [{ left: ['title'], right: ['date'] }, ['performers']] });
     await startEditing(page);
     const background = (line: Locator) => line.evaluate((element) => getComputedStyle(element).backgroundColor);
-    const lines = infoPanel(page).locator('.editor-line');
+    const lines = infoPanel(page).locator('.layout-line');
     const title = await box(pill(page, 'title'));
     const date = await box(pill(page, 'date'));
 
@@ -399,7 +400,7 @@ test.describe('Scene info panel', () => {
     await setPanelConfig(request, { sceneInfoLayout: [{ left: ['title', 'performers', 'date'], right: ['duration', 'resolution', 'o-count'] }, ['studio']] });
     await page.setViewportSize({ width: 500, height: 800 });
     await startEditing(page);
-    const lineBox = await box(infoPanel(page).locator('.editor-line').first());
+    const lineBox = await box(infoPanel(page).locator('.layout-line').first());
     // A field alone on its line isn't squeezed by the left side's hanging indent
     expect(await pill(page, 'studio').locator('.pill-name').evaluate((name) => name.scrollWidth <= name.clientWidth)).toBe(true);
 
@@ -417,7 +418,7 @@ test.describe('Scene info panel', () => {
     expect(rightMarker.x + rightMarker.width).toBeCloseTo(lineEnd, 0);
     await expect(infoPanel(page).locator('.wrapped-line-marker.left')).toHaveCount(1);
     // Every left-aligned row at least 2em before the right-aligned fields
-    const em = await infoPanel(page).locator('.editor-line').first().evaluate((line) => parseFloat(getComputedStyle(line).fontSize));
+    const em = await infoPanel(page).locator('.layout-line').first().evaluate((line) => parseFloat(getComputedStyle(line).fontSize));
     const rightStart = (await box(infoPanel(page).locator('.line-side.right'))).x;
     for (const right of leftRows) expect(right).toBeLessThanOrEqual(rightStart - 2 * em + 0.5);
 
@@ -477,7 +478,7 @@ test.describe('Scene info panel', () => {
 
     await expect.poll(() => editorLayout(page)).toEqual([['title', 'date', 'duration', 'resolution']]);
     // Now first, so at the line's end
-    const lines = await box(infoPanel(page).locator('.editor-lines'));
+    const lines = await box(infoPanel(page).locator('.layout-lines'));
     await expect.poll(async () => {
       const date = await box(pill(page, 'date'));
       return date.x + date.width;
@@ -502,7 +503,7 @@ test.describe('Scene info panel', () => {
   test('marks a new line with a ghost line across the half of the lines the field will be aligned to', async ({ page, request }) => {
     await setPanelConfig(request, { sceneInfoLayout: [['title', 'date'], ['performers']] });
     await startEditing(page);
-    const lines = await box(infoPanel(page).locator('.editor-lines'));
+    const lines = await box(infoPanel(page).locator('.layout-lines'));
     const title = await box(pill(page, 'title'));
     const performers = await box(pill(page, 'performers'));
     const y = (title.y + title.height + performers.y) / 2;
@@ -576,7 +577,7 @@ test.describe('Scene info panel', () => {
       const record = window as unknown as { maxLines: number };
       record.maxLines = 0;
       const sample = () => {
-        const lines = new Set([...document.querySelectorAll<HTMLElement>('[data-current-video="true"] .SceneInfo.editing .editor-lines [data-line]')].map((item) => item.dataset.line));
+        const lines = new Set([...document.querySelectorAll<HTMLElement>('[data-current-video="true"] .SceneInfo.editing .layout-lines [data-line]')].map((item) => item.dataset.line));
         record.maxLines = Math.max(record.maxLines, lines.size);
         requestAnimationFrame(sample);
       };
@@ -627,7 +628,7 @@ test.describe('Scene info panel', () => {
         const panel = document.querySelector('[data-current-video="true"] .SceneInfo.editing');
         if (!panel) return;
         const panelRect = panel.getBoundingClientRect();
-        for (const pill of panel.querySelectorAll<HTMLElement>('.editor-lines .field-pill')) {
+        for (const pill of panel.querySelectorAll<HTMLElement>('.layout-lines .field-pill')) {
           const rect = pill.getBoundingClientRect();
           const opacity = Number(getComputedStyle(pill).opacity);
           if (rect.top < panelRect.top || rect.bottom > panelRect.bottom || opacity < 0.9) {
@@ -721,7 +722,7 @@ test.describe('Scene info panel', () => {
     await page.setViewportSize({ width: 500, height: 800 });
     await startEditing(page);
     const firstRowStart = (await box(pill(page, 'studio'))).x;
-    const wrappedRowStart = Math.min(...await infoPanel(page).locator('.editor-lines .field-pill').evaluateAll((pills) => {
+    const wrappedRowStart = Math.min(...await infoPanel(page).locator('.layout-lines .field-pill').evaluateAll((pills) => {
       const first = pills[0].getBoundingClientRect();
       return pills
         .filter((pill) => pill.getBoundingClientRect().top > first.bottom && pill.getAttribute('data-line') === '0')
@@ -771,14 +772,14 @@ test.describe('Scene info panel', () => {
   test('shows the unused fields beside the fields on a screen wider than it is tall, and below them otherwise', async ({ page }) => {
     await page.setViewportSize({ width: 1000, height: 600 });
     await startEditing(page);
-    const lines = await box(infoPanel(page).locator('.editor-lines'));
-    let unused = await box(infoPanel(page).locator('.unused-fields'));
+    const lines = await box(infoPanel(page).locator('.layout-lines'));
+    let unused = await box(infoPanel(page).locator('.available-items'));
     expect(unused.x).toBeGreaterThanOrEqual(lines.x + lines.width);
 
     await page.setViewportSize({ width: 600, height: 1000 });
-    await expect.poll(async () => (await box(infoPanel(page).locator('.unused-fields'))).y)
-      .toBeGreaterThanOrEqual((await box(infoPanel(page).locator('.editor-lines'))).y + 10);
-    unused = await box(infoPanel(page).locator('.unused-fields'));
+    await expect.poll(async () => (await box(infoPanel(page).locator('.available-items'))).y)
+      .toBeGreaterThanOrEqual((await box(infoPanel(page).locator('.layout-lines'))).y + 10);
+    unused = await box(infoPanel(page).locator('.available-items'));
     expect(unused.x).toBeLessThan(lines.x + 20);
   });
 
@@ -811,7 +812,7 @@ test.describe('Scene info panel', () => {
     const dragged = await box(pill(page, 'title'));
     // The field straight below it, on the line's next row
     const x = dragged.x + dragged.width / 2;
-    const below = await infoPanel(page).locator('.editor-lines .field-pill').evaluateAll((pills, { x, draggedBottom }) => {
+    const below = await infoPanel(page).locator('.layout-lines .field-pill').evaluateAll((pills, { x, draggedBottom }) => {
       const top = (pill: Element) => pill.getBoundingClientRect().top;
       const nextRowTop = Math.min(...pills.map(top).filter((pillTop) => pillTop > draggedBottom));
       return pills.find((pill) => {
@@ -844,7 +845,7 @@ test.describe('Scene info panel', () => {
     await expect(markers).toHaveCount(1);
     const marker = await box(markers);
     const studio = await box(pill(page, 'studio'));
-    const laterRows = await infoPanel(page).locator('.editor-lines .field-pill[data-line="0"]').evaluateAll((pills, firstRowBottom) => {
+    const laterRows = await infoPanel(page).locator('.layout-lines .field-pill[data-line="0"]').evaluateAll((pills, firstRowBottom) => {
       const rects = pills.map((pill) => pill.getBoundingClientRect()).filter((rect) => rect.top > firstRowBottom);
       return { top: Math.min(...rects.map((rect) => rect.top)), bottom: Math.max(...rects.map((rect) => rect.bottom)), left: Math.min(...rects.map((rect) => rect.left)), rows: new Set(rects.map((rect) => rect.top)).size };
     }, studio.y + studio.height);
@@ -863,7 +864,7 @@ test.describe('Scene info panel', () => {
     // Taller than it's wide throughout, so the unused fields stay below the lines
     await page.setViewportSize({ width: 900, height: 1400 });
     await startEditing(page);
-    const slack = await infoPanel(page).locator('.editor-lines').evaluate((container) => {
+    const slack = await infoPanel(page).locator('.layout-lines').evaluate((container) => {
       const date = container.querySelector<HTMLElement>('.field-pill[data-field="date"]')!;
       return container.getBoundingClientRect().right - date.getBoundingClientRect().right;
     });
@@ -889,7 +890,7 @@ test.describe('Scene info panel', () => {
     await page.setViewportSize({ width: 900, height: 1400 });
     await startEditing(page);
     // Narrow the window until the second line only just fits on one row
-    const slack = await infoPanel(page).locator('.editor-lines').evaluate((container) => {
+    const slack = await infoPanel(page).locator('.layout-lines').evaluate((container) => {
       const pills = [...container.querySelectorAll<HTMLElement>('.field-pill[data-line="1"]')];
       return container.getBoundingClientRect().right - Math.max(...pills.map((pill) => pill.getBoundingClientRect().right));
     });
@@ -922,7 +923,7 @@ test.describe('Scene info panel', () => {
     // The URLs are alone on the unused fields' last row
     await page.setViewportSize({ width: 520, height: 1000 });
     await startEditing(page);
-    const unused = infoPanel(page).locator('.unused-fields');
+    const unused = infoPanel(page).locator('.available-items');
     const urls = await box(pill(page, 'urls'));
     expect(urls.y).toBeGreaterThan((await box(pill(page, 'path'))).y);
     const [unusedBefore, studioBefore] = await Promise.all([box(unused), box(pill(page, 'studio'))]);
@@ -944,14 +945,14 @@ test.describe('Scene info panel', () => {
     await startEditing(page);
     const panelBottom = async () => { const panel = await box(infoPanel(page)); return panel.y + panel.height; };
     const bottomBefore = await panelBottom();
-    const unusedBefore = await box(infoPanel(page).locator('.unused-fields'));
+    const unusedBefore = await box(infoPanel(page).locator('.available-items'));
 
-    const unused = await box(infoPanel(page).locator('.unused-fields'));
+    const unused = await box(infoPanel(page).locator('.available-items'));
     await startDrag(page, pill(page, 'performers'), unused.x + unused.width / 2, unused.y + unused.height - 6);
     await page.waitForTimeout(500);
 
     // The unused fields have grown to take it, and the panel's bottom hasn't moved
-    expect((await box(infoPanel(page).locator('.unused-fields'))).height).toBeGreaterThan(unusedBefore.height);
+    expect((await box(infoPanel(page).locator('.available-items'))).height).toBeGreaterThan(unusedBefore.height);
     expect(await panelBottom()).toBeCloseTo(bottomBefore, 0);
     await page.mouse.up();
     await page.waitForTimeout(500);
@@ -960,12 +961,12 @@ test.describe('Scene info panel', () => {
 
   test('shows the ghost of a field dragged to the unused fields in its usual place among them', async ({ page }) => {
     await startEditing(page);
-    const unused = await box(infoPanel(page).locator('.unused-fields'));
+    const unused = await box(infoPanel(page).locator('.available-items'));
 
     await startDrag(page, pill(page, 'title'), unused.x + unused.width / 2, unused.y + unused.height - 6);
 
     // Fields are listed in their usual order, which has the title before the details
-    const listed = infoPanel(page).locator('.unused-field-list > .field-pill');
+    const listed = infoPanel(page).locator('.available-item-list > .field-pill');
     await expect(listed.first()).toHaveClass(/ghost/);
     await expect(listed.first()).toHaveAttribute('data-field', 'title');
     await page.mouse.up();
@@ -1006,7 +1007,7 @@ test.describe('Scene info panel', () => {
         const targetLine = from === 'another line' ? 1 : 0;
         // Taller than it's wide throughout, so the unused fields stay below the lines
         const height = 1400;
-        const rowsOf = async (line: number) => await infoPanel(page).locator(`.editor-lines .field-pill[data-line="${line}"]:not(.ghost)`)
+        const rowsOf = async (line: number) => await infoPanel(page).locator(`.layout-lines .field-pill[data-line="${line}"]:not(.ghost)`)
           .evaluateAll((pills) => new Set(pills.map((pill) => Math.round(pill.getBoundingClientRect().top))).size);
 
         // Find the narrowest width at which the line takes `rowsBefore` rows (as little room left on its last row as
@@ -1038,7 +1039,7 @@ test.describe('Scene info panel', () => {
             await startDrag(page, pill(page, dragged), field.x + 6, field.y + field.height / 2);
             await page.waitForTimeout(500);
             const settled = await layoutsOverTime(page, 600);
-            const ghostOnLine = await infoPanel(page).locator('.editor-lines .field-pill.ghost').count();
+            const ghostOnLine = await infoPanel(page).locator('.layout-lines .field-pill.ghost').count();
             const insertionLine = await infoPanel(page).locator('.insertion-line').count();
             await page.mouse.up();
             await page.waitForTimeout(400);
@@ -1082,8 +1083,8 @@ test.describe('Scene info panel', () => {
       await startEditing(page);
       await infoPanel(page).getByRole('button', { name: 'Field value' }).click();
       await page.waitForTimeout(500);
-      const lines = infoPanel(page).locator('.editor-lines > .editor-line');
-      const linesBox = await box(infoPanel(page).locator('.editor-lines'));
+      const lines = infoPanel(page).locator('.layout-lines > .layout-line');
+      const linesBox = await box(infoPanel(page).locator('.layout-lines'));
       const fullLine = await box(lines.first());
 
       const details = await box(pill(page, 'details'));
@@ -1095,7 +1096,7 @@ test.describe('Scene info panel', () => {
         for (let fx = 0.05; fx < 1; fx += 0.15) {
           await page.mouse.move(linesBox.x + linesBox.width * fx, fullLine.y + fullLine.height * fy, { steps: 5 });
           await page.waitForTimeout(300);
-          ghostShown ||= await infoPanel(page).locator('.editor-lines .field-pill.ghost').count() > 0;
+          ghostShown ||= await infoPanel(page).locator('.layout-lines .field-pill.ghost').count() > 0;
           const [line, next] = await Promise.all([box(lines.nth(0)), box(lines.nth(1))]);
           if (Math.abs(line.height - fullLine.height) > 1 || Math.abs(next.y - (fullLine.y + fullLine.height)) > 20) {
             moved.push(`at ${fx.toFixed(2)}, ${fy}: line ${fullLine.height}→${line.height}px high`);
@@ -1149,7 +1150,7 @@ test.describe('Scene info panel', () => {
       const sample = () => {
         const panel = document.querySelector('[data-current-video="true"] .SceneInfo.editing');
         const content = panel?.querySelector<HTMLElement>('.panel-content');
-        const toolbar = panel?.querySelector<HTMLElement>('.editor-toolbar');
+        const toolbar = panel?.querySelector<HTMLElement>('.layout-toolbar');
         if (content && toolbar) {
           record.frames++;
           const contentRect = content.getBoundingClientRect();
@@ -1179,7 +1180,7 @@ test.describe('Scene info panel', () => {
     test(`spaces the toolbar, the lines and the unused fields evenly with the unused fields ${orientation} the lines`, async ({ page }) => {
       await page.setViewportSize(orientation === 'below' ? { width: 600, height: 1000 } : { width: 1280, height: 720 });
       await startEditing(page);
-      const [toolbar, lines, unused] = await Promise.all(['.editor-toolbar', '.editor-lines', '.unused-fields']
+      const [toolbar, lines, unused] = await Promise.all(['.layout-toolbar', '.layout-lines', '.available-items']
         .map((selector) => box(infoPanel(page).locator(selector))));
       const gapBelowToolbar = lines.y - (toolbar.y + toolbar.height);
       expect(gapBelowToolbar).toBeGreaterThan(5);
@@ -1351,7 +1352,7 @@ test.describe('Scene info panel fields', () => {
   test('adds a copy of the spacer dragged in from the unused fields, which is space beside fields', async ({ page }) => {
     await startEditing(page);
     const title = await box(pill(page, 'title'));
-    const unusedSpacer = infoPanel(page).locator('.unused-fields .field-pill[data-field="spacer"]');
+    const unusedSpacer = infoPanel(page).locator('.available-items .field-pill[data-field="spacer"]');
     await dragTo(page, unusedSpacer, pastEnd(title), title.y + title.height / 2);
     // Still there to add another
     await expect(unusedSpacer).toHaveCount(1);

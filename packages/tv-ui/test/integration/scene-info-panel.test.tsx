@@ -55,7 +55,7 @@ function shownLines(infoPanel: HTMLElement) {
 /** The editor's lines, as the text of each pill on them (each line's items have its index in `data-line`) */
 function editorLines(infoPanel: HTMLElement) {
   const lines: (string | null)[][] = [];
-  for (const item of infoPanel.querySelectorAll<HTMLElement>(".editor-lines [data-line]")) {
+  for (const item of infoPanel.querySelectorAll<HTMLElement>(".layout-lines [data-line]")) {
     const line = lines[Number(item.dataset.line)] ??= [];
     if (item.classList.contains("field-pill")) line.push(item.textContent);
   }
@@ -483,7 +483,7 @@ describe("scene info panel", () => {
       // Showing values, the added ones show theirs (their size), and the one to add only its name
       click(within(infoPanel).getByRole("button", { name: "Field value" }));
       expect(within(infoPanel).getByRole("button", { name: "Add Spacer" })).toHaveTextContent(/^Spacer$/);
-      expect(infoPanel.querySelectorAll(".editor-lines .spacer-preview")).toHaveLength(2);
+      expect(infoPanel.querySelectorAll(".layout-lines .spacer-preview")).toHaveLength(2);
       save(infoPanel);
       await waitFor(() => expect(spacers(savedLayout())).toHaveLength(2));
       expect(new Set(spacers(savedLayout()).map(spacer => spacer.id))).toHaveProperty("size", 2);

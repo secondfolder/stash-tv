@@ -35,6 +35,7 @@ Feature-specific documentation lives under `docs/`. Read the one that covers wha
 | [Release process](docs/release-process.md) | Writing commits, preparing releases, or understanding versioning/deployment flow                          |
 | [Testing](docs/testing.md)              | Writing or modifying any test, running the suites, or touching test infrastructure/polyfills          |
 | [Scene info panel](docs/scene-info-panel.md) | Touching the scene info panel (`src/components/slide/SceneInfo/`), its fields, or how users customise it |
+| [Line layout editor](docs/line-layout-editor.md) | Touching `src/components/LineLayoutEditor/` (dragging items onto lines, ghosts, insertion lines, right-aligning) or using it for something new |
 | [Keyboard shortcuts](docs/keyboard-shortcuts.md) | Adding, removing or rebinding a keyboard shortcut, or touching the shortcut help text                  |
 
 Adding a new doc means adding its row to this table. A test validates that every doc in `docs/` is listed here and every link points to a real file — a doc without a row is caught rather than going unnoticed.
@@ -193,6 +194,7 @@ Settings & UI Overlays:
 ├── GuideOverlay (help/tutorial)
 ├── EditTagsContents (tag editing interface)
 ├── SceneInfo (scene metadata panel, user-customisable layout)
+│   └── LineLayoutEditor (its edit mode: dragging fields about on lines)
 ```
 
 ### GraphQL Integration

@@ -13,7 +13,6 @@ import {
   entryField,
   entryKey,
   isKnownField,
-  lineSides,
   resolveFieldOptions,
   SceneInfoFieldOptions,
   SceneInfoFieldOptionsConfig,
@@ -21,6 +20,7 @@ import {
   SceneInfoLayoutEntry,
 } from "./scene-info-config";
 import { SceneInfoEditor } from "./SceneInfoEditor";
+import { lineSides } from "../../LineLayoutEditor/line-layout";
 
 export type Props = {
   style?: React.CSSProperties;
