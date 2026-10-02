@@ -187,7 +187,7 @@ App.tsx (main entry point)
         ├── ScenePlayer / MarkerPlayer (video playback)
         ├── OverflowIndicators
         ├── TagsDisplay
-        ├── ActionButtonStack (customizable action buttons)
+        ├── ActionButtonStack (customizable action buttons; their side panels are PopoverPanels)
         └── Controls (playback controls, scrubber, etc.)
 
 Settings & UI Overlays:
