@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { stashConfigStorage } from '../helpers/stash-config-storage';
-import type { SceneInfoEditorPillContent, SceneInfoLayout } from '../components/slide/SceneInfo/scene-info-config';
+import type { SceneInfoEditorPillContent, SceneInfoFieldOptionsConfig, SceneInfoLayout } from '../components/slide/SceneInfo/scene-info-config';
 export type DebuggingInfo = "render-debugging" | "onscreen-info" | "virtualizer-debugging";
 
 export const globalStateStorageKey = 'app-state';
@@ -10,8 +10,11 @@ type GlobalState = {
   showSettings: boolean;
   fullscreen: boolean;
   sceneInfoOpen: boolean;
-  /** The scene info panel's layout being edited, or null when it isn't. Shared so editing survives moving to another slide */
-  sceneInfoDraftLayout: SceneInfoLayout | null;
+  /**
+   * The scene info panel's layout and field options being edited, or null when they aren't. Shared so editing survives
+   * moving to another slide
+   */
+  sceneInfoDraft: { layout: SceneInfoLayout; fieldOptions: SceneInfoFieldOptionsConfig } | null;
   /** What the scene info panel's editor's pills show. Shared, like the draft, so it's kept moving to another slide */
   sceneInfoEditorPillContent: SceneInfoEditorPillContent;
   keyboardShortcutsOpen: boolean;
@@ -29,7 +32,7 @@ const defaults = {
   showSettings: false,
   fullscreen: false,
   sceneInfoOpen: false,
-  sceneInfoDraftLayout: null,
+  sceneInfoDraft: null,
   sceneInfoEditorPillContent: "names",
   keyboardShortcutsOpen: false,
   tvConfigLoaded: false,

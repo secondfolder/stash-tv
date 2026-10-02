@@ -230,11 +230,11 @@ test.describe('Scene info panel', () => {
 
     await expect.poll(() => editorLayout(page)).toEqual([['title'], ['date'], ['performers']]);
     await infoPanel(page).getByRole('button', { name: 'Save' }).click();
-    await expect(infoPanel(page).locator('.field-line')).toHaveText(['Grotto Glow', '2025-02-14', 'Bob Bold']);
+    await expect(infoPanel(page).locator('.field-line')).toHaveText(['Grotto Glow', '14 February 2025', 'Bob Bold']);
 
     await page.reload();
     await currentSlide(page).getByRole('button', { name: 'Show scene info' }).click();
-    await expect(infoPanel(page).locator('.field-line')).toHaveText(['Grotto Glow', '2025-02-14', 'Bob Bold']);
+    await expect(infoPanel(page).locator('.field-line')).toHaveText(['Grotto Glow', '14 February 2025', 'Bob Bold']);
   });
 
   test('adds a field dragged in from the fields it isn\'t showing', async ({ page }) => {
@@ -334,14 +334,14 @@ test.describe('Scene info panel', () => {
     await expect(rightAlignedPill(page, 'date')).toHaveCount(1);
     await infoPanel(page).getByRole('button', { name: 'Save' }).click();
     const line = infoPanel(page).locator('.field-line');
-    await expect(line).toHaveText(['Grotto Glow2025-02-14']);
+    await expect(line).toHaveText(['Grotto Glow14 February 2025']);
     const rightAligned = line.locator('.right-aligned-fields');
-    await expect(rightAligned).toHaveText('2025-02-14');
+    await expect(rightAligned).toHaveText('14 February 2025');
     expect(await rightEdge(rightAligned)).toBeCloseTo(await rightEdge(line), 0);
 
     await page.reload();
     await currentSlide(page).getByRole('button', { name: 'Show scene info' }).click();
-    await expect(infoPanel(page).locator('.field-line .right-aligned-fields')).toHaveText('2025-02-14');
+    await expect(infoPanel(page).locator('.field-line .right-aligned-fields')).toHaveText('14 February 2025');
   });
 
   test('highlights the line a field is dragged onto, but not between lines', async ({ page, request }) => {
@@ -793,7 +793,9 @@ test.describe('Scene info panel', () => {
   test('moves a field between the rows of a line that wraps as if they were lines of their own', async ({ page, request }) => {
     const fields = ['studio', 'title', 'performers', 'date', 'details', 'tags', 'groups', 'code', 'director', 'rating', 'duration'];
     await setTvConfig(request, { sceneInfoLayout: [fields] });
-    await page.setViewportSize({ width: 500, height: 800 });
+    // A width at which the field below doesn't fit back on the first row once the dragged one leaves it, which would
+    // put another field under the pointer (see docs/scene-info-panel.md § "Moving fields")
+    await page.setViewportSize({ width: 460, height: 800 });
     await startEditing(page);
     const dragged = await box(pill(page, 'title'));
     // The field straight below it, on the line's next row
@@ -907,7 +909,7 @@ test.describe('Scene info panel', () => {
 
   test('doesn\'t shrink the unused fields while a field is dragged out of them, so nothing above moves', async ({ page }) => {
     // The URLs are alone on the unused fields' last row
-    await page.setViewportSize({ width: 600, height: 1000 });
+    await page.setViewportSize({ width: 520, height: 1000 });
     await startEditing(page);
     const unused = infoPanel(page).locator('.unused-fields');
     const urls = await box(pill(page, 'urls'));
@@ -927,7 +929,7 @@ test.describe('Scene info panel', () => {
 
   test('grows upwards, not downwards, as the unused fields take a field\'s ghost', async ({ page }) => {
     // A width at which the unused fields' last row has no room for another
-    await page.setViewportSize({ width: 640, height: 1000 });
+    await page.setViewportSize({ width: 750, height: 1000 });
     await startEditing(page);
     const panelBottom = async () => { const panel = await box(infoPanel(page)); return panel.y + panel.height; };
     const bottomBefore = await panelBottom();
@@ -1051,7 +1053,8 @@ test.describe('Scene info panel', () => {
         ['details'],
       ],
     });
-    await page.setViewportSize({ width: 1400, height: 900 });
+    // A width at which there's somewhere on the line the field fits without moving anything (see below)
+    await page.setViewportSize({ width: 1200, height: 900 });
     await page.goto('/');
     const id = await currentSlide(page).getAttribute('data-scene-id');
     const sceneQuery = 'query ($id: ID!) { findScene(id: $id) { details urls } }';
@@ -1174,4 +1177,202 @@ test.describe('Scene info panel', () => {
       else expect(unused.y).toBeCloseTo(lines.y, 0);
     });
   }
+});
+
+/**
+ * The fields' options, where what they do depends on layout.
+ *
+ * @see docs/scene-info-panel.md § "Fields"
+ * @see docs/scene-info-panel.md § "Field options"
+ */
+test.describe('Scene info panel fields', () => {
+  test.use({ viewport: { width: 600, height: 800 } });
+
+  // The first slide's scene, given enough tags to take more than 3 rows
+  const sceneId = 'scene-7';
+  const extraTagIds: string[] = [];
+  test.beforeEach(async ({ request }) => {
+    for (let i = 1; i <= 30; i++) {
+      const data = await graphql(request, 'mutation ($input: TagCreateInput!) { tagCreate(input: $input) { id } }', {
+        input: { name: `Extra tag ${i}` },
+      });
+      extraTagIds.push(data.tagCreate.id);
+    }
+    await graphql(request, 'mutation ($input: SceneUpdateInput!) { sceneUpdate(input: $input) { id } }', {
+      input: { id: sceneId, tag_ids: extraTagIds },
+    });
+    await setTvConfig(request, { sceneInfoLayout: [['title'], ['tags']] });
+  });
+
+  test.afterEach(async ({ request }) => {
+    await graphql(request, 'mutation ($input: SceneUpdateInput!) { sceneUpdate(input: $input) { id } }', {
+      input: { id: sceneId, tag_ids: ['tag-beta'] },
+    });
+    for (const id of extraTagIds.splice(0)) {
+      await graphql(request, 'mutation ($input: TagDestroyInput!) { tagDestroy(input: $input) }', { input: { id } });
+    }
+    await setTvConfig(request, null);
+  });
+
+  /** The tops of the rows of tags that can be seen, top to bottom */
+  async function visibleTagRows(page: Page) {
+    return await infoPanel(page).locator('.field-tags .tag-list').evaluate((list) => {
+      const { bottom } = list.getBoundingClientRect();
+      const tops = [...list.children]
+        .map((tag) => tag.getBoundingClientRect().top)
+        .filter((top) => top < bottom - 1);
+      return [...new Set(tops.map(Math.round))];
+    });
+  }
+
+  /** How many of the tags are shown, and the button showing the rest */
+  async function shownTags(page: Page) {
+    return await infoPanel(page).locator('.field-tags .tag-list').evaluate((list) => {
+      const { bottom } = list.getBoundingClientRect();
+      return [...list.children].filter((tag) => tag.getBoundingClientRect().top < bottom - 1).length;
+    });
+  }
+
+  test('shows 2 whole rows of tags, with a button below them showing how many more there are', async ({ page }) => {
+    await openInfoPanel(page);
+    const tags = infoPanel(page).locator('.field-tags');
+    await expect(tags).toHaveClass(/capped/);
+    expect(await visibleTagRows(page)).toHaveLength(2);
+    // No tag is partly cut off
+    const cutOff = await tags.locator('.tag-list').evaluate((list) => {
+      const { bottom } = list.getBoundingClientRect();
+      return [...list.children].filter((tag) => {
+        const rect = tag.getBoundingClientRect();
+        return rect.top < bottom - 1 && rect.bottom > bottom + 1;
+      }).length;
+    });
+    expect(cutOff).toBe(0);
+
+    const showMore = tags.getByRole('button', { name: /^Show \d+ more$/ });
+    await expect(showMore).toHaveText(`Show ${extraTagIds.length - await shownTags(page)} more`);
+    const [list, button] = await Promise.all([box(tags.locator('.tag-list')), box(showMore)]);
+    expect(button.y).toBeGreaterThanOrEqual(list.y + list.height - 1);
+
+    await showMore.click();
+    await expect(tags).not.toHaveClass(/capped/);
+    expect((await visibleTagRows(page)).length).toBeGreaterThan(2);
+    await expect(showMore).toHaveCount(0);
+  });
+
+  test('shows every tag when only one more than fits would be hidden', async ({ page, request }) => {
+    await openInfoPanel(page);
+    await expect(infoPanel(page).locator('.field-tags')).toHaveClass(/capped/);
+    const fitting = await shownTags(page);
+    await graphql(request, 'mutation ($input: SceneUpdateInput!) { sceneUpdate(input: $input) { id } }', {
+      input: { id: sceneId, tag_ids: extraTagIds.slice(0, fitting + 1) },
+    });
+
+    await openInfoPanel(page);
+    const tags = infoPanel(page).locator('.field-tags');
+    await expect(tags.locator('.tag-item')).toHaveCount(fitting + 1);
+    await expect(tags).not.toHaveClass(/capped/);
+    await expect(tags.getByRole('button')).toHaveCount(0);
+    expect(await visibleTagRows(page)).toHaveLength(3);
+  });
+
+  test('shows every tag when asked to', async ({ page }) => {
+    await startEditing(page);
+    await pill(page, 'tags').getByRole('button', { name: 'Tags options' }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByText('Always show every tag').click();
+    await dialog.getByRole('button', { name: 'Save' }).click();
+    await expect(dialog).toHaveCount(0);
+    await infoPanel(page).getByRole('button', { name: 'Save' }).click();
+
+    const tags = infoPanel(page).locator('.field-tags');
+    await expect(tags).not.toHaveClass(/capped/);
+    expect((await visibleTagRows(page)).length).toBeGreaterThan(2);
+  });
+
+  // 3 is too small a rating for a star (e.g. given as 0.3 out of 10 with the decimal system), so it shows as none
+  for (const rating100 of [null, 3]) {
+    test(`shows nothing beside the stars with a rating of ${rating100}, even hovering one`, async ({ page, request }) => {
+      await setTvConfig(request, { sceneInfoLayout: [['title', 'rating']] });
+      await graphql(request, 'mutation ($input: SceneUpdateInput!) { sceneUpdate(input: $input) { id } }', {
+        input: { id: sceneId, rating100 },
+      });
+      try {
+        await openInfoPanel(page);
+        const rating = infoPanel(page).locator('.field-rating');
+        await expect(rating.locator('.rating-stars')).toBeVisible();
+        await expect(rating.locator('.star-rating-number:visible')).toHaveCount(0);
+        await rating.locator('.rating-stars button').nth(2).hover();
+        await expect(rating.locator('.star-rating-number:visible')).toHaveCount(0);
+      } finally {
+        await graphql(request, 'mutation ($input: SceneUpdateInput!) { sceneUpdate(input: $input) { id } }', {
+          input: { id: sceneId, rating100: null },
+        });
+      }
+    });
+  }
+
+  for (const rightAligned of [false, true]) {
+    test(`shows "Clear" over the current rating's star, ${rightAligned ? 'left' : 'right'} of the stars${rightAligned ? ' (right-aligned)' : ''}`, async ({ page, request }) => {
+      await setTvConfig(request, { sceneInfoLayout: rightAligned ? [{ left: ['title'], right: ['rating'] }] : [['title', 'rating']] });
+      await graphql(request, 'mutation ($input: SceneUpdateInput!) { sceneUpdate(input: $input) { id } }', {
+        input: { id: sceneId, rating100: 60 },
+      });
+      try {
+        await openInfoPanel(page);
+        const rating = infoPanel(page).locator('.field-rating');
+        const stars = rating.locator('.rating-stars button');
+        const shown = rating.locator('.star-rating-number:visible');
+        await expect(shown).toHaveText('3');
+
+        await stars.nth(2).hover();
+        await expect(shown).toHaveText('Clear');
+        const [clear, firstStar, lastStar] = await Promise.all([box(shown), box(stars.first()), box(stars.last())]);
+        if (rightAligned) expect(clear.x + clear.width).toBeLessThanOrEqual(firstStar.x + 1);
+        else expect(clear.x).toBeGreaterThanOrEqual(lastStar.x + lastStar.width - 1);
+      } finally {
+        await graphql(request, 'mutation ($input: SceneUpdateInput!) { sceneUpdate(input: $input) { id } }', {
+          input: { id: sceneId, rating100: null },
+        });
+      }
+    });
+  }
+
+  test('adds a copy of the spacer dragged in from the unused fields, which is space beside fields or between lines', async ({ page }) => {
+    await startEditing(page);
+    const title = await box(pill(page, 'title'));
+    const unusedSpacer = infoPanel(page).locator('.unused-fields .field-pill[data-field="spacer"]');
+    await dragTo(page, unusedSpacer, pastEnd(title), title.y + title.height / 2);
+    // Still there to add another
+    await expect(unusedSpacer).toHaveCount(1);
+    const lines = await editorLayout(page);
+    // The layout's set up as the title's line, then the tags'
+    expect(lines[0]).toEqual(['title', 'spacer']);
+
+    // And another, on a line of its own at the bottom
+    await unusedSpacer.click();
+    await infoPanel(page).getByRole('button', { name: 'Save' }).click();
+
+    const beside = infoPanel(page).locator('.field-line').first().locator('.field-spacer');
+    const between = infoPanel(page).locator('.field-line').last().locator('.field-spacer');
+    const [besideBox, betweenBox] = await Promise.all([box(beside), box(between)]);
+    expect(besideBox.width).toBeGreaterThan(0);
+    expect(betweenBox.width).toBe(0);
+    expect(betweenBox.height).toBeGreaterThan(0);
+  });
+
+  test('opens the o-count\'s controls above it once it\'s been marked', async ({ page, request }) => {
+    await setTvConfig(request, { sceneInfoLayout: [['title'], ['o-count']] });
+    await openInfoPanel(page);
+    const oCount = infoPanel(page).locator('.field-o-count button');
+    await oCount.click();
+    await expect(oCount).toHaveClass(/state-active/);
+    await oCount.click();
+
+    const increase = page.getByRole('button', { name: 'Increase O-count' });
+    await expectUsableOnScreen(increase);
+    expect((await box(increase)).y).toBeLessThan((await box(oCount)).y);
+
+    // Back to how it was
+    await page.getByRole('button', { name: 'Decrease O-count' }).click();
+  });
 });

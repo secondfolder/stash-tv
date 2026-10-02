@@ -51,18 +51,27 @@
     }
   }
 
-  .field {
-    font-size: 0.9rem;
-  }
-
   .field-label {
     color: var(--text-muted);
     margin-right: 0.4em;
   }
 
+  /* An icon standing in for the field's name */
+  .field-icon {
+    display: inline-flex;
+    vertical-align: -0.15em;
+    margin-right: 0.35em;
+    color: var(--text-muted);
+
+    svg {
+      width: 1.1em;
+      height: 1.1em;
+    }
+  }
+
   /* Title */
   h5 {
-    font-size: 1.1rem;
+    margin: 0;
   }
 
   .field-studio {
@@ -78,17 +87,100 @@
 
   .field-details {
     white-space: pre-line;
+
+    /* Cut short at a few lines (the number's set inline), until clicked */
+    &.capped .details-text {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    &.toggleable .details-text {
+      cursor: pointer;
+    }
   }
 
-  /* Spaced by the gap alone, without Stash's margin around each tag */
   .field-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.3em;
     margin: 0.2em 0;
 
+    /* Spaced by the gap alone, without Stash's margin around each tag. Positioned, as its tags' rows are measured from
+    where they're laid out in it. */
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4em;
+      position: relative;
+    }
+
+    /* Outlined in the text's colour rather than Stash's filled badges */
     .tag-item {
       margin: 0;
+      color: var(--text-color);
+      padding: 0.1em 0.4em;
+      background: transparent;
+      /* The text's colour at half opacity */
+      border: 1px color-mix(in srgb, var(--text-color) 50%, transparent) solid;
+    }
+
+    /* Cut short after a few rows (its max-height set inline) */
+    &.capped .tag-list {
+      overflow: hidden;
+    }
+
+    /* Below the rows shown, on a line of its own, at the end it's aligned to */
+    .show-more {
+      display: block;
+      width: fit-content;
+      padding: 0;
+      margin-top: 0.2em;
+      color: var(--text-color);
+    }
+  }
+
+  /* Space beside the fields on its line, the only space between them */
+  .field-spacer > span {
+    display: block;
+  }
+  .spacer-small > span { width: 0.5em; }
+  .spacer-medium > span { width: 1.5em; }
+  .spacer-big > span { width: 3em; }
+
+  /* With no other field on its line showing anything, space between the lines above and below */
+  .field-line:not(:has(.field:not(.field-spacer))) {
+    .field-spacer > span { width: 0; }
+    .spacer-small > span { height: 0.5em; }
+    .spacer-medium > span { height: 1em; }
+    .spacer-big > span { height: 2em; }
+  }
+
+  /* One of several such spacers with nothing between them, which show only the biggest (see collapseSpacers) */
+  .field-line.collapsed-spacer {
+    display: none;
+  }
+
+  /* A spacer's pill, showing values, is named, there being nothing else to see */
+  .spacer-preview {
+    font-style: italic;
+    opacity: 0.6;
+  }
+
+  /* The o-counter icon, followed by the o-count */
+  .o-count-control {
+    .o-counter-button {
+      display: flex;
+      align-items: center;
+      padding: 0;
+      border: 0;
+      background: none;
+      color: inherit;
+    }
+
+    /* On the icon rather than as the button's gap, so it's spaced in the editor's pills too, where it's no button */
+    .o-counter-icon {
+      width: 1.2em;
+      height: 1.2em;
+      margin-right: 0.3em;
+      vertical-align: -0.25em;
     }
   }
 
@@ -111,15 +203,15 @@
   each box is as wide as its fields on one row if both fit, and otherwise both shrink, in proportion to that width. */
   .field-line {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     column-gap: var(--line-sides-gap);
   }
 
+  /* No gap between the fields: the space between them is up to spacers, which a gap would come either side of too */
   .line-fields {
     display: flex;
     flex-wrap: wrap;
-    align-items: baseline;
-    column-gap: 0.75em;
+    align-items: center;
   }
 
   /* Taking the line's spare room to their left, and wrapping onto rows that are right-aligned too, as is what's in
@@ -127,8 +219,12 @@
   .right-aligned-fields, .line-side.right .pill-value {
     text-align: right;
 
-    .field-studio, .field-tags {
+    .field-studio, .field-tags .tag-list {
       justify-content: flex-end;
+    }
+
+    .field-tags .show-more {
+      margin-left: auto;
     }
 
     .field-urls {
@@ -354,7 +450,7 @@
         font-style: italic;
       }
 
-      .field, .field-studio, .field-tags, .field-urls {
+      .field, .field-studio, .field-tags, .field-tags .tag-list, .field-urls {
         display: inline;
       }
 
@@ -371,7 +467,7 @@
 
     /* Spaced by the pill's gap rather than Stash's .tag-item .btn margin and padding, so pills without one (the unused
     fields) have even padding too */
-    .remove-field {
+    .pill-button {
       bottom: 0;
       margin: 0;
       padding: 0;
@@ -388,6 +484,22 @@
         position: absolute;
         inset: -0.6em;
       }
+    }
+
+    .pill-button.field-options {
+      font-size: 0.85em;
+    }
+
+    /* Buttons in a value (e.g. the rating's stars) look as they do in the panel, not like Stash's buttons in a tag
+    badge (.tag-item .btn): faded, with padding that moved the unfilled stars away from the filled ones over them */
+    .pill-value :is(.rating-stars, .rating-number) .btn {
+      bottom: auto;
+      color: inherit;
+      font-size: inherit;
+      line-height: inherit;
+      margin: 0;
+      opacity: 1;
+      padding: 0;
     }
   }
 
@@ -416,8 +528,12 @@
       }
 
       .field-tags {
-        display: flex;
+        display: block;
         margin: 0;
+
+        .tag-list {
+          display: flex;
+        }
       }
 
       .field-urls {
@@ -436,12 +552,10 @@
 
       h5 {
         display: block;
-        font-size: 1.1rem;
-        margin: 0;
       }
     }
 
-    .remove-field {
+    .pill-button {
       color: inherit;
     }
   }
@@ -449,6 +563,25 @@
   /* Unused fields' pills are buttons, which the browser gives a border */
   button.field-pill {
     border: none;
+  }
+
+  /* A spacer is space rather than a field, so it's just its name (and buttons), not a badge or outlined, and with no
+  padding, whether the pills show names or values */
+  .editor .field-pill.spacer-pill,
+  .editor.showing-values .field-pill.spacer-pill {
+    background: none;
+    border: none;
+    padding: 0;
+    box-shadow: none;
+    color: var(--text-muted);
+
+    .pill-button {
+      color: inherit;
+    }
+
+    .spacer-preview {
+      opacity: 1;
+    }
   }
 
   /* The toolbar, the lines and the unused fields, with the same space between them whether the unused fields are below

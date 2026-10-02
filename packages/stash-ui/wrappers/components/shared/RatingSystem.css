@@ -26,3 +26,48 @@
   }
 
 }
+
+.rating-system-stars {
+  display: inline-flex;
+  align-items: center;
+
+  /* Without a rating, nothing beside the stars: not "Clear", nor the rating a hovered star would give */
+  &.not-set .star-rating-number,
+  &:has(.rating-stars .star-rating-number) .clear {
+    display: none;
+  }
+
+  .rating-stars button {
+    /* No margin or gap between the stars, so that moving the pointer between them it's never over a space between
+    them, which would make it flick between showing a new rating, the current one and then a new one again */
+    margin: 0;
+
+    /* Growing faster than the stars as they get bigger: 0.1em at 1rem, 0.2em at 1.5rem (0.4em - 0.3rem, in px 1.6 at
+    16px and 4.8 at 24px), and never less than nothing */
+    > div {
+      padding-left: max(0px, calc(0.4em - 0.3rem));
+      padding-right: max(0px, calc(0.4em - 0.3rem));
+    }
+  }
+
+  .star-rating-number {
+    font-size: unset;
+  }
+
+  &.value-start {
+    .clear, .rating-stars .star-rating-number {
+      order: -1;
+      margin-left: 0;
+    }
+  }
+
+  &.value-end {
+    .clear {
+      order: 1;
+    }
+
+    .star-rating-number {
+      margin-right: 0;
+    }
+  }
+}

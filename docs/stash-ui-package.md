@@ -53,6 +53,10 @@ import ScenePlayerOriginal from "stash-ui/dist/src/components/ScenePlayer/SceneP
 
 (Exception: generated GraphQL types and non-component hooks/utilities are imported from `stash-ui/dist/src/...` — e.g. `stash-ui/dist/src/core/generated-graphql` — as there is nothing to wrap.)
 
+## Wrapper Customisations
+
+- `wrappers/components/shared/RatingSystem` — with stars, shows "Clear" where the rating's shown while the current rating's star is hovered (Stash shows nothing there then), shows nothing beside the stars without a rating they show (none, or one too small for a star at their precision, e.g. given out of 10 then shown as stars; it goes by `convertToRatingFormat`, as the stars do), not even the rating a hovered star would give, and `valueSide` puts the rating (and "Clear") before or after the stars. The space either side of each star grows faster than the stars as they get bigger (0.1em at 1rem, 0.2em at 1.5rem: `0.4em - 0.3rem`). With the decimal system it renders our `RatingNumber` wrapper.
+
 ## Integrating a Stash Component
 
 1. Check if a wrapper already exists in `packages/stash-ui/wrappers/components/`

@@ -57,12 +57,13 @@ export function RateSceneActionButton({
     className={cx(buttonDefinition.id, "hide-on-ui-hide")}
     data-testid="MediaSlide--rateButton"
     sidePanel={
-      <div className={cx("action-button-rating-stars", {'not-set': typeof scene.rating100 !== "number", 'left-handed': leftHandedUi}, ratingSystemOptions.type.toLowerCase())}>
-        <span className="clear star-rating-number">Clear</span>
+      <div className={cx("action-button-rating-stars", {'left-handed': leftHandedUi}, ratingSystemOptions.type.toLowerCase())}>
+        {/* Its rating on the side away from the action buttons, so the stars stay put as it changes */}
         <RatingSystem
           value={scene.rating100}
           onSetRating={setRating}
           clickToRate={false}
+          valueSide={leftHandedUi ? "end" : "start"}
         />
       </div>
     }

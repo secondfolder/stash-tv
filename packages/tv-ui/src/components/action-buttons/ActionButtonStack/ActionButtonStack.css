@@ -213,56 +213,13 @@ overflow-x to visible. So we hide it instead to avoid horizontal scrollbars appe
 .action-button-rating-stars {
   display: flex;
 
-  &.not-set .clear,
-  &:not(.stars) .clear,
-  &:has(.rating-stars .star-rating-number) .clear {
-    display: none;
-  }
-
-  .rating-stars {
-    button {
-      /* We don't want any margin or gap between the stars so that when moving the cursor between the cursor never goes
-      over a space between the buttons which would cause it flick between showing a new rating, the current one and then
-      a new one again. */
-      margin: 0;
-
-      > div {
-        padding-left: 0.2em;
-        padding-right: 0.2em;
-      }
-    }
-  }
-
-  .star-rating-number {
-    font-size: unset;
-  }
-  &:not(.left-handed) .star-rating-number {
-    order: -1;
-    margin-left: 0;
-  }
-
   svg {
     width: 1.5em;
     height: 1lh;
     display: block; /* Remove small space under inline-blocks */
   }
 }
-.action-button-o-counter {
-  display: flex;
-  gap: 0.3em;
-
-  button {
-    background: none;
-    border: none;
-    color: inherit;
-
-    &[disabled] {
-      opacity: 0.4;
-    }
-  }
-}
-.action-button-rating-stars,
-.action-button-o-counter {
+.action-button-rating-stars {
   font-size: 1.2em;
 }
 

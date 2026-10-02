@@ -86,6 +86,8 @@ The presentational shell all buttons render. Props (beyond those above):
 
 Side panel behaviour (implemented in `ActionButtonBase/SidePanel`):
 
+- `SidePanel` is exported for popovers that behave the same away from the action buttons, e.g. the scene info panel's o-count, which opens the o-counter's controls with it. Its `placement` (`top` or `bottom`) overrides the side beside the buttons, and its panel then fades in rather than sliding in from the side (`.vertical`).
+- The o-counter button's logic and controls are shared with the scene info panel's o-count: `useOCounter` (`src/hooks/`) and `OCounterControls` / `oCounterIcons` (`src/components/OCounterControls/`). See [scene info panel](scene-info-panel.md) § "Fields".
 - Only **one side panel can be open app-wide** — coordinated via the module-level `useCurrentOpenPopover` Zustand store; opening one closes any other
 - Closes on outside click or when the button scrolls offscreen (custom popper modifiers). ⚠️ Only a press that also *started* outside counts: on iOS, pressing inside a panel can close the on-screen keyboard, which moves the panel before the finger lifts, so the click lands on the outside-click backdrop.
 - Placement flips with `leftHandedUi`

@@ -1,6 +1,6 @@
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import "./SceneInfo.css"
-import React, { forwardRef, useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import cx from "classnames";
 import { Button } from "react-bootstrap";
@@ -8,7 +8,18 @@ import { Pencil } from "react-bootstrap-icons";
 import { useTvConfig } from "../../../store/tvConfig";
 import { useGlobalState } from "../../../store/globalState";
 import { SceneInfoField } from "./fields";
-import { isKnownField, lineSides, SceneInfoLayout } from "./scene-info-config";
+import {
+  defaultSceneInfoFieldOptions,
+  entryField,
+  entryKey,
+  isKnownField,
+  lineSides,
+  resolveFieldOptions,
+  SceneInfoFieldOptions,
+  SceneInfoFieldOptionsConfig,
+  SceneInfoLayout,
+  SceneInfoLayoutEntry,
+} from "./scene-info-config";
 import { SceneInfoEditor } from "./SceneInfoEditor";
 
 export type Props = {
@@ -20,17 +31,19 @@ export type Props = {
 }
 
 const SceneInfo = forwardRef(({scene, open, className, style, onExternalLinkClick}: Props, ref: React.ForwardedRef<HTMLDivElement>) => {
-    const { sceneInfoLayout, set: setTvConfig, getDefault: getTvConfigDefault } = useTvConfig();
-    // The layout being edited, which is only saved when the user chooses to. It's global state so editing carries on
-    // if the feed moves to another slide (e.g. when a video ends). Every rendered slide's panel shows it, so the next
-    // slide's is already the editor as it scrolls into view.
-    const { sceneInfoDraftLayout: draftLayout, set: setGlobalState } = useGlobalState();
-    const setDraftLayout = (layout: SceneInfoLayout | null) => setGlobalState("sceneInfoDraftLayout", layout);
-    const editing = draftLayout !== null;
+    const { sceneInfoLayout, sceneInfoFieldOptions, set: setTvConfig, getDefault: getTvConfigDefault } = useTvConfig();
+    // The layout and field options being edited, which are only saved when the user chooses to. It's global state so
+    // editing carries on if the feed moves to another slide (e.g. when a video ends). Every rendered slide's panel shows
+    // it, so the next slide's is already the editor as it scrolls into view.
+    const { sceneInfoDraft: draft, set: setGlobalState } = useGlobalState();
+    const setDraft = (newDraft: typeof draft) => setGlobalState("sceneInfoDraft", newDraft);
+    const editing = draft !== null;
+    const fieldOptions = useMemo(() => resolveFieldOptions(sceneInfoFieldOptions), [sceneInfoFieldOptions]);
+    const draftFieldOptions = useMemo(() => draft && resolveFieldOptions(draft.fieldOptions), [draft?.fieldOptions]);
 
     // Closing the panel cancels editing, so it opens showing the scene's info again
     useEffect(() => {
-      if (!open) setGlobalState("sceneInfoDraftLayout", null);
+      if (!open) setGlobalState("sceneInfoDraft", null);
     }, [open]);
 
     return (
@@ -52,40 +65,42 @@ const SceneInfo = forwardRef(({scene, open, className, style, onExternalLinkClic
         {editing ? <motion.div layout className="panel-background" aria-hidden /> : <div className="panel-background" aria-hidden />}
         {/* A motion element (while editing) so the editor's pills, which framer-motion animates, allow for it scrolling */}
         <PanelContent editing={editing}>
-        {draftLayout
+        {draft && draftFieldOptions
           ? <SceneInfoEditor
             scene={scene}
-            layout={draftLayout}
-            onChange={setDraftLayout}
-            onReset={() => setDraftLayout(getTvConfigDefault("sceneInfoLayout"))}
-            isDefault={JSON.stringify(draftLayout) === JSON.stringify(getTvConfigDefault("sceneInfoLayout"))}
+            layout={draft.layout}
+            onChange={layout => setDraft({ ...draft, layout })}
+            fieldOptionsConfig={draft.fieldOptions}
+            onFieldOptionsChange={(field, options) => setDraft({ ...draft, fieldOptions: { ...draft.fieldOptions, [field]: { ...options } } })}
+            onReset={() => setDraft({ layout: getTvConfigDefault("sceneInfoLayout"), fieldOptions: getTvConfigDefault("sceneInfoFieldOptions") })}
+            isDefault={
+              JSON.stringify(draft.layout) === JSON.stringify(getTvConfigDefault("sceneInfoLayout"))
+              && JSON.stringify(draftFieldOptions) === JSON.stringify(defaultSceneInfoFieldOptions)
+            }
             onSave={() => {
-              setTvConfig("sceneInfoLayout", draftLayout);
-              setDraftLayout(null);
+              setTvConfig("sceneInfoLayout", draft.layout);
+              setTvConfig("sceneInfoFieldOptions", draft.fieldOptions);
+              setDraft(null);
             }}
-            onCancel={() => setDraftLayout(null)}
+            onCancel={() => setDraft(null)}
           />
           : <>
             <Button
               variant="link"
               className="edit-toggle"
-              onClick={() => setDraftLayout(sceneInfoLayout)}
+              onClick={() => setDraft({ layout: sceneInfoLayout, fieldOptions: sceneInfoFieldOptions })}
               aria-label="Customise info panel"
               title="Customise info panel"
             >
               <Pencil />
             </Button>
-            {sceneInfoLayout.map((line, lineIndex) => {
-              const { left, right } = lineSides(line);
-              const fields = (fieldIds: string[]) => fieldIds.filter(isKnownField).map(field => (
-                <SceneInfoField key={field} field={field} scene={scene} onExternalLinkClick={onExternalLinkClick} />
-              ));
-              // Each side in a box wrapping on its own
-              return <div className="field-line" key={lineIndex}>
-                <div className="line-fields">{fields(left)}</div>
-                {right.length > 0 && <div className="line-fields right-aligned-fields">{fields(right)}</div>}
-              </div>;
-            })}
+            <FieldLines
+              layout={sceneInfoLayout}
+              scene={scene}
+              fieldOptionsConfig={sceneInfoFieldOptions}
+              fieldOptions={fieldOptions}
+              onExternalLinkClick={onExternalLinkClick}
+            />
           </>
         }
         </PanelContent>
@@ -95,6 +110,79 @@ const SceneInfo = forwardRef(({scene, open, className, style, onExternalLinkClic
 );
 
 export default SceneInfo
+
+const spacerSizes = ["small", "medium", "big"] as const;
+
+/**
+ * Spacers on lines of their own with nothing shown between them (the lines between have no values for the scene) would
+ * add up to a bigger space than any of them: they're collapsed to the biggest of them (the first of the biggest). With
+ * nothing shown before them, or after them, they'd be space at the panel's top or bottom, so they all collapse. Worked
+ * out from what's been rendered, as whether a field shows anything is up to the field.
+ */
+function collapseSpacers(lines: HTMLElement) {
+  let run: { line: Element, size: number }[] = [];
+  let shownBefore = false;
+  /** Collapse the run of spacers so far, but for the biggest of them if `keepOne` */
+  const collapseRun = (keepOne: boolean) => {
+    const biggest = keepOne ? run.reduce((best, spacer) => spacer.size > best.size ? spacer : best, run[0]) : null;
+    for (const { line } of run) line.classList.toggle("collapsed-spacer", line !== biggest?.line);
+    run = [];
+  };
+  for (const line of lines.children) {
+    line.classList.remove("collapsed-spacer");
+    const fields = [...line.querySelectorAll(":scope > .line-fields > .field")];
+    // Shows nothing, so it doesn't come between spacers
+    if (!fields.length) continue;
+    // Only spacers: space between the lines (see SceneInfo.css)
+    if (fields.every(field => field.classList.contains("field-spacer"))) {
+      const size = Math.max(...fields.map(field => spacerSizes.findIndex(size => field.classList.contains(`spacer-${size}`))));
+      run.push({ line, size });
+      continue;
+    }
+    if (run.length) collapseRun(shownBefore);
+    shownBefore = true;
+  }
+  // Nothing shown after them
+  if (run.length) collapseRun(false);
+}
+
+/** The panel's fields, on their lines */
+function FieldLines({ layout, scene, fieldOptionsConfig, fieldOptions, onExternalLinkClick }: {
+  layout: SceneInfoLayout,
+  scene: GQL.SceneDataFragment,
+  fieldOptionsConfig: SceneInfoFieldOptionsConfig,
+  fieldOptions: SceneInfoFieldOptions,
+  onExternalLinkClick?: () => void,
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  // After every render, as any of them can change which fields show anything (e.g. the scene's details being cleared)
+  useLayoutEffect(() => {
+    if (ref.current) collapseSpacers(ref.current);
+  });
+  return <div className="field-lines" ref={ref}>
+    {layout.map((line, lineIndex) => {
+      const { left, right } = lineSides(line);
+      const fields = (entries: SceneInfoLayoutEntry[], rightAligned: boolean) => entries.map(entry => {
+        const field = entryField(entry);
+        if (!isKnownField(field)) return null;
+        return <SceneInfoField
+          key={entryKey(entry)}
+          field={field}
+          scene={scene}
+          // An instance of a repeatable field (e.g. a spacer) has its own
+          fieldOptions={typeof entry === "string" ? fieldOptions : resolveFieldOptions(fieldOptionsConfig, entry)}
+          rightAligned={rightAligned}
+          onExternalLinkClick={onExternalLinkClick}
+        />;
+      });
+      // Each side in a box wrapping on its own
+      return <div className="field-line" key={lineIndex}>
+        <div className="line-fields">{fields(left, false)}</div>
+        {right.length > 0 && <div className="line-fields right-aligned-fields">{fields(right, true)}</div>}
+      </div>;
+    })}
+  </div>;
+}
 
 /**
  * The panel's contents, which scroll if they're taller than the panel can be. While editing, only then do they clip

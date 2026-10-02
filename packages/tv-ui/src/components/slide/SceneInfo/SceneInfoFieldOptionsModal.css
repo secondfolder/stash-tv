@@ -1,0 +1,7 @@
+/* Icons in the choices' buttons (e.g. a label's "Icon"), the size of their text. Some (e.g. the resolution's) are
+otherwise as big as they can be. */
+.SceneInfoFieldOptionsModal .btn svg {
+  width: 1.2em;
+  height: 1.2em;
+  vertical-align: -0.2em;
+}

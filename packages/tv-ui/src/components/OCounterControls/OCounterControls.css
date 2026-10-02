@@ -1,0 +1,15 @@
+.OCounterControls {
+  display: flex;
+  gap: 0.3em;
+  font-size: 1.2em;
+
+  button {
+    background: none;
+    border: none;
+    color: inherit;
+
+    &[disabled] {
+      opacity: 0.4;
+    }
+  }
+}

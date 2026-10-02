@@ -99,6 +99,15 @@
   }
 }
 
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @keyframes fadeOut {
   from {
     opacity: 1;
@@ -117,7 +126,7 @@
   font-size: unset;
   margin: 0.7rem;
 
-  &:not(.left-handed) {
+  &:not(.left-handed, .vertical) {
     translate: calc(var(--safe-inset-right) * -1) 0 !important;
   }
   .left-handed {
@@ -130,12 +139,27 @@
     animation: slideInFromRight 0.1s ease-out forwards;
   }
 
+  /* Opening above or below what opened it, rather than beside the action buttons */
+  &.vertical.show {
+    animation: fadeIn 0.1s ease-out forwards;
+  }
+
   &:not(.show) {
     animation: fadeOut 0.1s ease-out forwards;
   }
 
   > .arrow::after {
     border-left-color: var(--body-bg);
+  }
+
+  &.bs-popover-top > .arrow::after {
+    border-left-color: transparent;
+    border-top-color: var(--body-bg);
+  }
+
+  &.bs-popover-bottom > .arrow::after {
+    border-left-color: transparent;
+    border-bottom-color: var(--body-bg);
   }
 
   > .arrow[data-hide] {

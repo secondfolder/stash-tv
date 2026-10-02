@@ -131,15 +131,22 @@ const ActionButtonBase = <State extends string>(props: ActionButtonBaseProps<Sta
 
 type Children = (props: {onClick: (event: React.MouseEvent<HTMLElement>) => void, ref: React.Ref<any>}) => JSX.Element
 
-const SidePanel = ({
+/**
+ * A popover opened by clicking what `children` renders, closing on a click outside it or once that's scrolled off
+ * screen. Only one is open at a time (`useCurrentOpenPopover`). It opens beside the action buttons, towards the screen's
+ * middle, unless given another `placement`.
+ */
+export const SidePanel = ({
   content,
   children,
   onSidePanelToggle,
   sidePanelClassName,
+  placement,
 }: {
   content: SidePanelContent,
   onSidePanelToggle?: (isOpen: boolean) => void,
   sidePanelClassName?: string,
+  placement?: "top" | "bottom",
   children: Children,
 }): JSX.Element => {
   const currentOpenPopover = useCurrentOpenPopover()
@@ -200,11 +207,11 @@ const SidePanel = ({
   return (
     <OverlayTrigger
       trigger="click"
-      placement={leftHandedUi ? "right" : "left"}
+      placement={placement ?? (leftHandedUi ? "right" : "left")}
       overlay={
         <Popover
           as="dialog"
-          className={cx("action-button-side-panel", sidePanelClassName, { 'left-handed': leftHandedUi })}
+          className={cx("action-button-side-panel", sidePanelClassName, { 'left-handed': leftHandedUi, vertical: placement })}
           id={id}
         >
           <div className="contents" ref={setContentsElement}>

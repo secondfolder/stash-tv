@@ -1,11 +1,14 @@
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { LayoutGroup, motion } from "framer-motion";
 import { unstable_batchedUpdates } from "react-dom";
 import cx from "classnames";
 import { Badge, Button, ButtonGroup } from "react-bootstrap";
 import { ArrowReturnLeft, ArrowReturnRight, XLg } from "react-bootstrap-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faPenToSquare } from "@fortawesome/free-solid-svg-icons";
 import { SceneInfoField } from "./fields";
+import { SceneInfoFieldOptionsModal } from "./SceneInfoFieldOptionsModal";
 import { useWindowSize } from "../../../hooks/useWindowSize";
 import { useGlobalState } from "../../../store/globalState";
 import {
@@ -15,6 +18,16 @@ import {
   getSlotNearGhost,
   getSlotOnArrival,
   getSlotByMidpoints,
+  entryField,
+  entryKey,
+  entryLabel,
+  hasFieldOptions,
+  isRepeatableField,
+  newFieldInstance,
+  replaceEntry,
+  resolveFieldOptions,
+  SceneInfoFieldOptionsConfig,
+  SceneInfoLayoutEntry,
   noValueLabel,
   isKnownField,
   isRightAligned,
@@ -25,6 +38,7 @@ import {
   preferVacatedLine,
   Rect,
   SceneInfoEditorPillContent,
+  SceneInfoFieldOptions,
   SceneInfoLayout,
   sceneInfoFieldLabels,
   sideAt,
@@ -32,7 +46,7 @@ import {
 } from "./scene-info-config";
 
 type Drag = {
-  field: string;
+  field: SceneInfoLayoutEntry;
   /** The React key of the field's pill, which is kept by its ghost so it's the same element, just moved and dimmed */
   key: string;
   /** Where the field was in the layout, or null if it's being dragged in from the unused fields */
@@ -107,10 +121,6 @@ function lineHeight(rect: Rect | undefined) {
   return rect && rect.bottom - rect.top;
 }
 
-function fieldName(field: string) {
-  return isKnownField(field) ? sceneInfoFieldLabels[field] : "Unknown field";
-}
-
 /**
  * A rect mirrored left to right. A line's right-aligned fields are laid out from right to left (the first at the line's
  * end), mirroring its left fields, so mirrored they can be worked with as fields laid out from left to right.
@@ -127,10 +137,17 @@ function contains(rect: Rect, point: { x: number, y: number }) {
  * The panel's fields as pills, laid out on the lines they're shown on. Pills are dragged onto a line beside other
  * fields or onto a new line, and the fields not in the panel are listed below to drag in.
  */
-export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, onSave, onCancel }: {
+export function SceneInfoEditor({
+  scene, layout, onChange, fieldOptionsConfig, onFieldOptionsChange, onReset, isDefault, onSave, onCancel,
+}: {
   scene: GQL.SceneDataFragment;
   layout: SceneInfoLayout;
   onChange: (layout: SceneInfoLayout) => void;
+  /** How the fields that can be shown more than one way are shown, as edited so far */
+  /** The fields' options as edited so far (each repeatable field's instance's under its entry) */
+  fieldOptionsConfig: SceneInfoFieldOptionsConfig;
+  /** Sets a field's options (an instance of a repeatable field's are its own, in the layout, so they're set with `onChange`) */
+  onFieldOptionsChange: (field: string, options: object) => void;
   onReset: () => void;
   /** Whether the layout is the default one, which hides "Reset to default" as in the settings */
   isDefault: boolean;
@@ -146,6 +163,15 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
   // Side by side when the screen's wider than it's tall (useWindowSize allows for forced landscape)
   const { orientation } = useWindowSize();
   const showValues = shownValues === "values";
+  // The field (or repeatable field's instance) whose options dialog is open
+  const [optionsEntry, setOptionsEntry] = useState<SceneInfoLayoutEntry | null>(null);
+  const fieldOptions = useMemo(() => resolveFieldOptions(fieldOptionsConfig), [fieldOptionsConfig]);
+  /** The options of a field, or of a repeatable field's instance, its own */
+  const optionsFor = (entry: SceneInfoLayoutEntry) => (
+    typeof entry === "string" ? fieldOptions : resolveFieldOptions(fieldOptionsConfig, entry)
+  );
+  /** What a field (or an instance of one) is called on its pill, e.g. "Rating" or "Big spacer" */
+  const nameOf = (entry: SceneInfoLayoutEntry) => entryLabel(entry, optionsFor(entry));
   const editorRef = useRef<HTMLDivElement>(null);
   const linesRef = useRef<HTMLDivElement>(null);
   const unusedRef = useRef<HTMLDivElement>(null);
@@ -260,7 +286,7 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
    * as it starts), as the lines without the dragged field don't change during one.
    */
   const probeHeightsRef = useRef(new Map<string, number>());
-  const probeLineHeight = (line: number, place: { right: boolean, sideIndex: number } | null, field: string) => {
+  const probeLineHeight = (line: number, place: { right: boolean, sideIndex: number } | null, field: SceneInfoLayoutEntry) => {
     const container = linesRef.current;
     const lineElement = container?.querySelectorAll<HTMLElement>(":scope > .editor-line")[line];
     if (!container || !lineElement) return 0;
@@ -292,20 +318,29 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
   }
 
   /** A copy of the dragged field's pill as it is on a line (with its ×), for `probeLineHeight` */
-  const copyOfDraggedPill = (field: string) => {
+  const copyOfDraggedPill = (field: SceneInfoLayoutEntry) => {
     const editor = editorRef.current!;
     // The pill following the pointer, or before it's shown (the drag's first move), the field's pill itself
     const source = editor.querySelector<HTMLElement>(".drag-overlay .field-pill")
-      ?? editor.querySelector<HTMLElement>(`.field-pill[data-field="${CSS.escape(field)}"]`);
+      ?? editor.querySelector<HTMLElement>(`.field-pill[data-key="${CSS.escape(entryKey(field))}"]`)
+      // A repeatable field's new instance, dragged from the unused fields
+      ?? editor.querySelector<HTMLElement>(`.field-pill[data-field="${CSS.escape(entryField(field))}"]`);
     // A div, like the pills on the lines: the unused fields' are buttons, which are styled a little differently
     const pill = document.createElement("div");
     if (!source) return pill;
     pill.className = source.className;
     pill.classList.remove("dragged", "ghost");
     pill.append(...[...source.childNodes].map(node => node.cloneNode(true)));
-    // The unused fields have no ×, which they get on a line
+    // The unused fields have no ×, or options button if the field has options, which they get on a line. The two are
+    // the same size.
     const removeButton = editor.querySelector(".editor-lines .field-pill .remove-field");
-    if (!pill.querySelector(".remove-field") && removeButton) pill.append(removeButton.cloneNode(true));
+    if (!pill.querySelector(".remove-field") && removeButton) {
+      if (hasFieldOptions(entryField(field))) {
+        const optionsButton = editor.querySelector(".editor-lines .field-pill .field-options") ?? removeButton;
+        pill.append(optionsButton.cloneNode(true));
+      }
+      pill.append(removeButton.cloneNode(true));
+    }
     return pill;
   }
 
@@ -392,7 +427,7 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
     return place(offset + index, right, fromSide(over));
   }
 
-  const startDrag = (event: React.PointerEvent<HTMLElement>, field: string, key: string, from: LayoutPosition | null) => {
+  const startDrag = (event: React.PointerEvent<HTMLElement>, field: SceneInfoLayoutEntry, key: string, from: LayoutPosition | null) => {
     if (event.button !== 0 || dragRef.current) return;
     const pillRect = event.currentTarget.getBoundingClientRect();
     probeHeightsRef.current.clear();
@@ -517,9 +552,11 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
    * dimmed, so it slides there like any other pill. A separate ghost element sharing its layoutId would be cross-faded
    * with it by framer-motion, flickering solid.
    */
-  const linePill = ({ field, key, line, from, isGhost }: {
+  const linePill = ({ field, key, line, from, isGhost, rightAligned = false }: {
     /** Null for the ghost shown in the unused fields */
-    field: string, key: string, line: number | null, from: LayoutPosition | null, isGhost: boolean,
+    field: SceneInfoLayoutEntry, key: string, line: number | null, from: LayoutPosition | null, isGhost: boolean,
+    /** Whether it's among its line's right-aligned fields */
+    rightAligned?: boolean,
   }) => <Badge
     as={motion.div}
     // Pills slide into their new places as fields move about
@@ -529,17 +566,32 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
     variant="secondary"
     pill
     key={key}
-    className={cx("tag-item", "field-pill", {unknown: !isKnownField(field), ghost: isGhost})}
-    data-field={field}
+    className={cx("tag-item", "field-pill", {
+      unknown: !isKnownField(entryField(field)), ghost: isGhost, "spacer-pill": entryField(field) === "spacer",
+    })}
+    data-field={entryField(field)}
+    data-key={entryKey(field)}
     data-line={line ?? undefined}
     aria-hidden={isGhost || undefined}
     onPointerDown={from ? (event: React.PointerEvent<HTMLElement>) => startDrag(event, field, key, from) : undefined}
   >
-    <PillContent field={field} scene={scene} showValues={showValues} />
+    <PillContent field={field} scene={scene} fieldOptions={optionsFor(field)} showValues={showValues} rightAligned={rightAligned} />
+    {/* As with the ×, pressing it and dragging still drags the pill, and the ghost has one too */}
+    {line !== null && hasFieldOptions(entryField(field)) && <Button
+      className="pill-button field-options"
+      aria-label={`${nameOf(field)} options`}
+      tabIndex={isGhost ? -1 : undefined}
+      onClick={() => {
+        if (justDraggedRef.current || !from) return;
+        setOptionsEntry(field);
+      }}
+    >
+      <FontAwesomeIcon icon={faPenToSquare} />
+    </Button>}
     {/* Pressing the × and dragging still drags the pill. The ghost has one too, so it's the same size as the pill. */}
     {line !== null && <Button
-      className="remove-field"
-      aria-label={`Remove ${fieldName(field)}`}
+      className="pill-button remove-field"
+      aria-label={`Remove ${nameOf(field)}`}
       tabIndex={isGhost ? -1 : undefined}
       onClick={() => {
         if (justDraggedRef.current || !from) return;
@@ -591,19 +643,22 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
       style={isDragging && drag.startingHeights ? { minHeight: drag.startingHeights.lines } : undefined}
     >
       {(() => {
-        // A field can only be in the layout once, apart from fields this version doesn't know, which still need unique keys
+        // A field can only be in the layout once (a repeatable field's instances have keys of their own), apart from
+        // fields this version doesn't know, which still need unique keys
         const seen = new Map<string, number>();
         return shownLayout.map((line, lineIndex) => {
           const { left, right } = lineSides(line);
-          const pill = (field: string, index: number) => {
+          const pill = (field: SceneInfoLayoutEntry, index: number) => {
+            const rightAligned = index >= left.length;
             if (field === ghostField && drag) {
-              return linePill({ field: drag.field, key: drag.key, line: lineIndex, from: null, isGhost: true });
+              return linePill({ field: drag.field, key: drag.key, line: lineIndex, from: null, isGhost: true, rightAligned });
             }
             // Only its position in the saved layout when nothing is being dragged, the only time it's used
             const from = { line: lineIndex, index };
-            const occurrence = seen.get(field) ?? 0;
-            seen.set(field, occurrence + 1);
-            return linePill({ field, key: occurrence ? `${field}-${occurrence}` : field, line: lineIndex, from, isGhost: false });
+            const key = entryKey(field);
+            const occurrence = seen.get(key) ?? 0;
+            seen.set(key, occurrence + 1);
+            return linePill({ field, key: occurrence ? `${key}-${occurrence}` : key, line: lineIndex, from, isGhost: false, rightAligned });
           };
           // The line a field was dragged off, which keeps its space, left empty
           const vacated = !left.length && !right.length;
@@ -643,10 +698,11 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
       ref={unusedRef}
     >
       <p className="hint">
-        {unused.length || isDragging ? "Drag the fields you want to show into the section above" : "Every field is shown. Drag one down here to hide it."}
+        {/* There's always one: the spacer, which can be added any number of times */}
+        Drag the fields you want to show into the section above
       </p>
       <div className="unused-field-list">
-        {unused.map(field => isDragging && field === drag.field
+        {unused.map(field => isDragging && field === entryKey(drag.field)
           ? drag.target?.type === "remove" && linePill({ field: drag.field, key: drag.key, line: null, from: null, isGhost: true })
           : (
           <Badge
@@ -657,17 +713,23 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
             variant="secondary"
             pill
             key={field}
-            className={cx("tag-item", "field-pill")}
+            className={cx("tag-item", "field-pill", {"spacer-pill": field === "spacer"})}
             data-field={field}
-            aria-label={`Add ${fieldName(field)}`}
-            onPointerDown={(event: React.PointerEvent<HTMLElement>) => startDrag(event, field, field, null)}
+            aria-label={`Add ${nameOf(field)}`}
+            onPointerDown={(event: React.PointerEvent<HTMLElement>) => {
+              // A repeatable field stays among the unused fields: what's dragged is a new instance of it, which keeps
+              // its entry as its key from its ghost to its pill once it's dropped
+              const entry = isRepeatableField(field) ? newFieldInstance(field) : field;
+              startDrag(event, entry, entryKey(entry), null);
+            }}
             onClick={() => {
               // Tapping one adds it at the bottom
               if (justDraggedRef.current) return;
-              onChange(placeField(layout, field, null, { type: "new-line", line: layout.length, right: false }));
+              const entry = isRepeatableField(field) ? newFieldInstance(field) : field;
+              onChange(placeField(layout, entry, null, { type: "new-line", line: layout.length, right: false }));
             }}
           >
-            <PillContent field={field} scene={scene} showValues={showValues} />
+            <PillContent field={field} scene={scene} fieldOptions={fieldOptions} showValues={showValues} />
           </Badge>
         ))}
       </div>
@@ -676,20 +738,43 @@ export function SceneInfoEditor({ scene, layout, onChange, onReset, isDefault, o
       className="drag-overlay"
       style={{ left: drag.position.left, top: drag.position.top, width: drag.grab.width }}
     >
-      <Badge as="div" variant="secondary" pill className={cx("tag-item", "field-pill", "dragged")}>
-        <PillContent field={drag.field} scene={scene} showValues={showValues} />
-        {drag.from && <span className="remove-field btn"><XLg /></span>}
+      <Badge as="div" variant="secondary" pill className={cx("tag-item", "field-pill", "dragged", {"spacer-pill": entryField(drag.field) === "spacer"})}>
+        <PillContent field={drag.field} scene={scene} fieldOptions={optionsFor(drag.field)} showValues={showValues} />
+        {drag.from && hasFieldOptions(entryField(drag.field)) && <span className="pill-button field-options btn"><FontAwesomeIcon icon={faPenToSquare} /></span>}
+        {drag.from && <span className="pill-button remove-field btn"><XLg /></span>}
       </Badge>
     </div>}
+    {optionsEntry && (() => {
+      const field = entryField(optionsEntry);
+      if (!hasFieldOptions(field)) return null;
+      return <SceneInfoFieldOptionsModal
+        field={field}
+        options={optionsFor(optionsEntry)[field]}
+        onClose={() => setOptionsEntry(null)}
+        onSave={options => {
+          // An instance's options are its own, in the layout
+          if (typeof optionsEntry === "string") onFieldOptionsChange(field, options);
+          else onChange(replaceEntry(layout, entryKey(optionsEntry), { ...optionsEntry, options: { ...options } }));
+          setOptionsEntry(null);
+        }}
+      />;
+    })()}
   </div></LayoutGroup>
 }
 
-/** A pill's name or, with `showValues`, the field's value for this scene */
-function PillContent({ field, scene, showValues }: { field: string, scene: GQL.SceneDataFragment, showValues: boolean }) {
-  if (!isKnownField(field)) return <span className="pill-name">Unknown field</span>;
-  if (!showValues) return <span className="pill-name">{sceneInfoFieldLabels[field]}</span>;
+/** A pill's name or, with `showValues`, the field's value for this scene. `entry` is the field's entry in the layout. */
+function PillContent({ field: entry, scene, fieldOptions, showValues, rightAligned }: {
+  field: SceneInfoLayoutEntry, scene: GQL.SceneDataFragment, fieldOptions: SceneInfoFieldOptions, showValues: boolean,
+  rightAligned?: boolean,
+}) {
+  const field = entryField(entry);
+  // A repeatable field among the unused fields isn't an instance, so it has no value (e.g. a spacer's size) to show
+  const isUnusedRepeatable = typeof entry === "string" && isRepeatableField(field);
+  if (!isKnownField(field) || !showValues || isUnusedRepeatable) {
+    return <span className="pill-name">{entryLabel(entry, fieldOptions)}</span>;
+  }
   return <span className="pill-value" data-empty-label={noValueLabel(field)}>
     {/* Empty when the scene has no value for the field, which the CSS fills in with the field's name */}
-    <SceneInfoField field={field} scene={scene} />
+    <SceneInfoField field={field} scene={scene} fieldOptions={fieldOptions} rightAligned={rightAligned} preview />
   </span>;
 }
