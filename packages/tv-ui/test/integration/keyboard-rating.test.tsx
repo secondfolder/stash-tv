@@ -9,7 +9,7 @@
  * @see docs/keyboard-shortcuts.md § "Rating shortcuts"
  */
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { setupIntegrationTest, bootApp, type BootedApp } from "./helpers/harness";
@@ -35,6 +35,8 @@ beforeEach(() => {
   );
 });
 afterEach(async () => {
+  // Before anything below waits on a timer
+  vi.useRealTimers();
   for (const [id, rating] of initialRatings) {
     const scene = integration.server.store.scenes.get(id);
     if (scene) scene.rating100 = rating;
@@ -44,6 +46,32 @@ afterEach(async () => {
   // unbind keys belonging to the next test's app.
   await new Promise((resolve) => setTimeout(resolve, 1100));
 });
+
+/**
+ * Freezes `setTimeout` so a test decides exactly when Stash's 1s rating window runs out, rather than racing
+ * wall-clock time: under a loaded test run the server round trip alone can outlast the window. Returns a userEvent
+ * instance that advances the frozen clock as it types (the default one waits on a real `setTimeout` between keys,
+ * which would never fire). Call `vi.useRealTimers()` once the sequences are typed.
+ *
+ * ⚠️ While frozen, RTL's `waitFor` still polls (on `setInterval`, which isn't faked) but its timeout never fires, so
+ * a wait that never succeeds shows up as the 20s test timeout. Don't reach for `vi.waitFor` instead: it advances the
+ * frozen clock on every check, so real time spent waiting would eat into the window again.
+ */
+function freezeClock() {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  return userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+}
+
+/** Every rating the app has sent the server for the given scene, in order. */
+function ratingsSent(sceneId: string) {
+  return integration.server
+    .getRequests()
+    .filter((request) => request.operationName === "SceneUpdate")
+    .map((request) => request.variables.input)
+    .filter((input): input is { id: string; rating100: number | null } =>
+      typeof input === "object" && input !== null && "id" in input && input.id === sceneId)
+    .map((input) => input.rating100);
+}
 
 function serverRating(sceneId: string) {
   return integration.server.store.scenes.get(sceneId)?.rating100;
@@ -211,18 +239,19 @@ describe("Keyboard rating shortcuts", () => {
     };
     const app = await bootApp();
     const currentSceneId = sceneIdOf(currentSlide(app));
+    const user = freezeClock();
 
-    const firstSequenceStart = Date.now();
-    await userEvent.keyboard("r45");
-    await waitFor(() => expect(serverRating(currentSceneId)).toBe(45));
+    await user.keyboard("r45");
     // Start the second sequence shortly before the first one's timeout and finish it shortly after
-    await new Promise((resolve) => setTimeout(resolve, Math.max(0, 850 - (Date.now() - firstSequenceStart))));
-    expect(Date.now() - firstSequenceStart).toBeLessThan(950);
-    await userEvent.keyboard("r7");
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    await userEvent.keyboard("2");
+    vi.advanceTimersByTime(850);
+    await user.keyboard("r7");
+    vi.advanceTimersByTime(300);
+    await user.keyboard("2");
+    vi.useRealTimers();
 
-    await waitFor(() => expect(serverRating(currentSceneId)).toBe(72));
+    // The first rating's round trip couldn't be awaited with the clock frozen, so both updates may be in flight at
+    // once and land in either order; what matters is that the second sequence produced one
+    await waitFor(() => expect(ratingsSent(currentSceneId)).toEqual([45, 72]));
 
     await app.unmount();
   });
@@ -236,18 +265,24 @@ describe("Keyboard rating shortcuts", () => {
     };
     const app = await bootApp();
     const firstSceneId = sceneIdOf(currentSlide(app));
+    const firstIndex = currentSlide(app).dataset.index;
+    const user = freezeClock();
 
-    const firstSequenceStart = Date.now();
-    await userEvent.keyboard("r45");
-    await waitFor(() => expect(serverRating(firstSceneId)).toBe(45));
-    await goToNextSlide(app);
+    await user.keyboard("r45");
+    // goToNextSlide, but typed with the clock-advancing userEvent. VideoScroller throttles index changes to one per
+    // 100ms, so let that window pass for a trailing update to land
+    await user.keyboard("{ArrowDown}");
+    vi.advanceTimersByTime(100);
+    await waitFor(() => expect(currentSlide(app).dataset.index).not.toBe(firstIndex));
     const secondSceneId = sceneIdOf(currentSlide(app));
     expect(secondSceneId).not.toBe(firstSceneId);
-    await new Promise((resolve) => setTimeout(resolve, Math.max(0, 850 - (Date.now() - firstSequenceStart))));
-    expect(Date.now() - firstSequenceStart).toBeLessThan(950);
-    await userEvent.keyboard("r7");
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    await userEvent.keyboard("2");
+    // Start the second sequence shortly before the first one's timeout (850ms in, counting the 100ms above) and
+    // finish it shortly after
+    vi.advanceTimersByTime(750);
+    await user.keyboard("r7");
+    vi.advanceTimersByTime(300);
+    await user.keyboard("2");
+    vi.useRealTimers();
 
     await waitFor(() => expect(serverRating(secondSceneId)).toBe(72));
     expect(serverRating(firstSceneId)).toBe(45);
