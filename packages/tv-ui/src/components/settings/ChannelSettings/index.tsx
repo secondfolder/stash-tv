@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Button, Form } from "react-bootstrap";
+import { Badge, Button, Form } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPenToSquare, faShuffle, faTrashCan } from "@fortawesome/free-solid-svg-icons";
 import cx from "classnames";
@@ -8,7 +8,14 @@ import { useMediaItemFilters } from "../../../hooks/useMediaItemFilters";
 import { AddConfigItemButton, ConfigList, ConfigListItem } from "../ConfigList";
 import { ChannelSettingsModal } from "../ChannelSettingsModal";
 import Select from "../Select";
-import { ChannelConfig, createNewChannelConfig, getChannelName, StartupChannel } from "../../channels/channel-config";
+import {
+  ChannelConfig,
+  createNewChannelConfig,
+  getChannelName,
+  isTemporaryChannel,
+  persistedChannels,
+  StartupChannel,
+} from "../../channels/channel-config";
 import "./ChannelSettings.scss";
 
 const startupChannelOptions: { value: StartupChannel, label: string }[] = [
@@ -27,6 +34,8 @@ export function ChannelSettings() {
 
   const [channelDraft, setChannelDraft] = useState<ChannelConfig | null>(null)
   const isInChannelList = (channel: ChannelConfig) => channels.some(otherChannel => otherChannel.id === channel.id)
+  // The temporary channel goes when Stash TV closes, so it doesn't count towards there being one to show
+  const persistedChannelCount = persistedChannels(channels).length
 
   const saveChannelDraft = (channel: ChannelConfig) => {
     if (isInChannelList(channel)) {
@@ -59,9 +68,11 @@ export function ChannelSettings() {
           const source = channel.sources[0]
           const { prefix, name, sourceInfo } = getChannelName(channel, availableSavedFilters, availableSavedFiltersLoading)
           const isActive = channel.id === activeChannel?.id
+          // The temporary channel is always last, so it can't be moved, and its filter can't be edited
+          const temporary = isTemporaryChannel(channel)
           return <ConfigListItem
-            className={cx("channel", {active: isActive, missing: sourceInfo?.missing})}
-            dragHandleProps={items.length > 1 ? dragHandleProps : undefined}
+            className={cx("channel", {active: isActive, missing: sourceInfo?.missing, temporary})}
+            dragHandleProps={items.length > 1 && !temporary ? dragHandleProps : undefined}
             title={<Button
               variant="link"
               className="select-channel"
@@ -72,6 +83,13 @@ export function ChannelSettings() {
                 {prefix && <span className="channel-name-prefix">{prefix}</span>}
                 <span className="channel-name">{name}</span>
               </span>
+              {temporary && <Badge
+                variant="secondary"
+                className="temporary-badge"
+                title="Not saved: it's gone once Stash TV is closed"
+              >
+                Temporary
+              </Badge>}
               {source?.randomise && !sourceInfo?.sortedRandomly && <FontAwesomeIcon
                 className="randomised-icon"
                 icon={faShuffle}
@@ -79,16 +97,16 @@ export function ChannelSettings() {
               />}
             </Button>}
             controls={<>
-              <Button
+              {!temporary && <Button
                 variant="link"
                 className={cx("edit-channel", "muted")}
                 onClick={() => setChannelDraft(channel)}
                 aria-label="Edit channel"
               >
                 <FontAwesomeIcon icon={faPenToSquare} />
-              </Button>
+              </Button>}
               {/* There must always be a channel to show */}
-              {items.length > 1 && <Button
+              {(temporary || persistedChannelCount > 1) && <Button
                 variant="link"
                 className={cx("delete-channel", "muted")}
                 onClick={() => setTvConfig("channels", channels.filter(otherChannel => otherChannel !== channel))}

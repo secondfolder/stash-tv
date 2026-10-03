@@ -10,6 +10,7 @@ import { act, fireEvent, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event";
 import { setupIntegrationTest, bootApp, savedTvConfig, type BootedApp } from "./helpers/harness";
 import { bootWithTvConfig } from "./helpers/feed";
+import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import type { ChannelConfig } from "../../src/components/channels/channel-config";
 
 const integration = setupIntegrationTest();
@@ -324,6 +325,83 @@ describe("Channel settings", () => {
 
     await waitFor(() => expect(listedChannels()).toEqual(["All markers", "Missing filter"]));
     expect(channelItem("Missing filter")).toHaveClass("missing");
+
+    await app.unmount();
+  });
+});
+
+/** @see docs/channels.md § "Temporary channel" */
+describe("Temporary channel", () => {
+  // "Delta" is on "Ember Evening" and "Horizon Hush" only
+  const DELTA_SCENE = "Ember Evening";
+  const deltaChannel: ChannelConfig = {
+    id: "temporary",
+    sources: [{
+      type: "temporary-filter",
+      filter: {
+        mode: GQL.FilterMode.Scenes,
+        name: "Tagged Delta",
+        object_filter: {
+          tags: { modifier: GQL.CriterionModifier.IncludesAll, value: { items: [{ id: "tag-delta", label: "Delta" }], excluded: [], depth: 0 } },
+        },
+      },
+      randomise: false,
+    }],
+  };
+
+  async function addTemporaryChannel() {
+    const config = await tvConfig();
+    await act(async () => config.set("channels", channels => [...channels, deltaChannel]));
+  }
+
+  it("is listed last, marked temporary, and can't be edited or moved", async () => {
+    const app = await bootWithTvConfig((config) => {
+      config.set("channels", [alphaChannel, allMarkersChannel]);
+      config.set("lastViewedChannelId", "alpha");
+    }, ALPHA_SCENE);
+    await addTemporaryChannel();
+    await openChannelSettings();
+
+    await waitFor(() => expect(listedChannels()).toEqual(["Alpha Scenes", "All markers", "Tagged Delta"]));
+    const item = channelItem("Tagged Delta");
+    expect(within(item).getByText("Temporary")).toBeInTheDocument();
+    expect(within(item).queryByRole("button", { name: "Edit channel" })).not.toBeInTheDocument();
+    expect(item.querySelector(".drag-handle")).toHaveClass("disable");
+
+    await app.unmount();
+  });
+
+  it("shows its filter's media, without becoming the last viewed channel or being saved", async () => {
+    const app = await bootWithTvConfig((config) => {
+      config.set("channels", [alphaChannel]);
+      config.set("lastViewedChannelId", "alpha");
+    }, ALPHA_SCENE);
+    await addTemporaryChannel();
+    await openChannelSettings();
+
+    click(within(channelItem("Tagged Delta")).getByRole("button", { name: /Tagged Delta/ }));
+
+    await feedShows(app, DELTA_SCENE);
+    await feedDoesNotShow(app, ALPHA_SCENE);
+    await waitFor(() => expect(savedTvConfig(integration).channels).toEqual([alphaChannel]));
+    expect(savedTvConfig(integration).lastViewedChannelId).toBe("alpha");
+
+    await app.unmount();
+  });
+
+  it("can be deleted even when it's the only other channel, though the last saved one can't", async () => {
+    const app = await bootWithTvConfig((config) => {
+      config.set("channels", [alphaChannel]);
+      config.set("lastViewedChannelId", "alpha");
+    }, ALPHA_SCENE);
+    await addTemporaryChannel();
+    await openChannelSettings();
+
+    await waitFor(() => expect(listedChannels()).toEqual(["Alpha Scenes", "Tagged Delta"]));
+    expect(within(channelItem("Alpha Scenes")).queryByRole("button", { name: "Delete channel" })).not.toBeInTheDocument();
+    click(within(channelItem("Tagged Delta")).getByRole("button", { name: "Delete channel" }));
+
+    await waitFor(() => expect(listedChannels()).toEqual(["Alpha Scenes"]));
 
     await app.unmount();
   });

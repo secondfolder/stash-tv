@@ -233,7 +233,7 @@ Settings & UI Overlays:
 
 ## Notable Features
 
-- **Channels**: a user-curated, reorderable list of what the feed shows (every scene/marker or a saved Stash filter), each source with its own randomise option ([channels](docs/channels.md))
+- **Channels**: a user-curated, reorderable list of what the feed shows (every scene/marker or a saved Stash filter), each source with its own randomise option, plus a temporary channel that is never saved ([channels](docs/channels.md))
 - **Feed of scenes/markers**, with lazy pagination and accumulation ([media loading](docs/media-loading.md))
 - **Video player** built on Stash's ScenePlayer/Video.js — requires many workarounds; see [video player](docs/video-player.md) before touching playback
 - **Custom media modifier functions** — user-defined JS (stored as a string, parsed via `getFunctionFromString()`) applied to the media list before display

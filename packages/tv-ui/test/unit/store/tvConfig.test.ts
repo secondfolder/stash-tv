@@ -2,6 +2,8 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 import { act, waitFor } from "@testing-library/react";
 import { useTvConfig } from "../../../src/store/tvConfig";
 import { resetStores, setTvConfigLoaded } from "../helpers/stores";
+import * as GQL from "stash-ui/dist/src/core/generated-graphql";
+import type { ChannelConfig } from "../../../src/components/channels/channel-config";
 
 /**
  * Unit tests for the tvConfig Zustand store.
@@ -17,7 +19,7 @@ import { resetStores, setTvConfigLoaded } from "../helpers/stores";
 // Mock the Apollo client to prevent connection attempts. A single hoisted
 // mutate mock lets tests assert what was written to the Stash backend.
 const { apolloMutate } = vi.hoisted(() => ({
-  apolloMutate: vi.fn(() => Promise.resolve({ data: {} })),
+  apolloMutate: vi.fn((_options: { variables: { input: Record<string, string> } }) => Promise.resolve({ data: {} })),
 }));
 
 vi.mock("../../../src/hooks/getApolloClient", () => ({
@@ -124,6 +126,50 @@ describe("tvConfig store", () => {
       });
       const localParsed = JSON.parse(localStorage.getItem("app-state-local") ?? "null");
       expect(localParsed?.state.volume).toBeUndefined();
+    });
+  });
+
+  /** @see docs/channels.md § "Temporary channel" */
+  describe("temporary channel", () => {
+    const savedChannel: ChannelConfig = {
+      id: "saved",
+      sources: [{ type: "all", entityType: "scene", randomise: false }],
+    };
+    const temporaryChannel = (name: string): ChannelConfig => ({
+      id: "temporary",
+      sources: [{ type: "temporary-filter", filter: { mode: GQL.FilterMode.Scenes, name }, randomise: false }],
+    });
+
+    it("keeps only the newest temporary channel, last in the list", () => {
+      const { set, get } = useTvConfig.getState();
+
+      act(() => {
+        set("channels", [temporaryChannel("Old"), savedChannel, temporaryChannel("New")]);
+      });
+
+      expect(get("channels")).toEqual([savedChannel, temporaryChannel("New")]);
+    });
+
+    it("moves the temporary channel back to the end when the channels are reordered", () => {
+      const { set, get } = useTvConfig.getState();
+
+      act(() => {
+        set("channels", [temporaryChannel("Tagged"), savedChannel]);
+      });
+
+      expect(get("channels")).toEqual([savedChannel, temporaryChannel("Tagged")]);
+    });
+
+    it("doesn't persist the temporary channel", async () => {
+      const { set } = useTvConfig.getState();
+
+      act(() => {
+        set("channels", [savedChannel, temporaryChannel("Tagged")]);
+      });
+
+      await waitFor(() => expect(apolloMutate).toHaveBeenCalled());
+      const persisted = apolloMutate.mock.calls.map(([{ variables: { input } }]) => JSON.parse(input["app-state"]).state.channels);
+      expect(persisted.at(-1)).toEqual([savedChannel]);
     });
   });
 

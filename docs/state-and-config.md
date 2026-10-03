@@ -44,6 +44,8 @@ useTvConfig.setState({ volume: 0.5 });
 - **Stash plugin config** (via `stashConfigStorage`, stored in the Stash database) — everything by default. Syncs user preferences across devices.
 - **Browser localStorage** (suffixed `-local`) — keys listed in `localStorageKeys`, currently just `forceLandscape`. Device-specific settings that shouldn't sync across devices.
 
+⚠️ The temporary channel in `channels` isn't persisted at all: tvConfig's `partialize` leaves it out of what's stored (see [channels](channels.md) § "Temporary channel").
+
 ⚠️ **Not all config keys persist to the same backend.** Check `localStorageKeys` before assuming where a key lives. Changing which backend an existing key uses can affect users' saved settings — ask first.
 
 ## Adding a New Configuration Option

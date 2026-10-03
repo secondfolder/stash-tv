@@ -9,7 +9,17 @@ import { create } from "zustand";
 import { useConditionalMemo } from "./useMemoConditional";
 import { ConfigurationContext } from "stash-ui/dist/src/hooks/Config";
 import { useFindSavedFilters } from "stash-ui/dist/src/core/StashService";
-import { ChannelConfig, entityTypeToFilterMode, getSourceTargetKey, makeEmptySavedFilter, StartupChannel } from "../components/channels/channel-config";
+import {
+  ChannelConfig,
+  entityTypeToFilterMode,
+  getSourceTargetKey,
+  isTemporaryChannel,
+  makeEmptySavedFilter,
+  StartupChannel,
+  TEMPORARY_CHANNEL_ID,
+  TemporaryFilter,
+  withTemporaryChannel,
+} from "../components/channels/channel-config";
 
 /** In Stash a filter has a different format when it's saved vs when it's used in a search. The stash codebase doesn't
  * seem to do a great job of naming these different formats to make that clear. When a filter is saved it usually just
@@ -209,6 +219,13 @@ export function useMediaItemFilters() {
           filter: '', // See the comment above about the `filter` prop
         }
       }
+      if (activeSource.type === "temporary-filter") {
+        return {
+          ...activeSource.filter,
+          id: "",
+          filter: '', // See the comment above about the `filter` prop
+        }
+      }
       activeSource satisfies never
       throw new Error(`Unsupported channel source: ${JSON.stringify(activeSource)}`)
     }
@@ -229,7 +246,17 @@ export function useMediaItemFilters() {
   /** Switch the feed to the given channel */
   function setActiveChannel(channelId: string) {
     useGlobalFilterState.setState({ activeChannelId: channelId });
-    setTvConfig("lastViewedChannelId", channelId)
+    // The temporary channel won't be there next time, so the last channel chosen before it is shown instead
+    const channel = useTvConfig.getState().channels.find(channel => channel.id === channelId)
+    if (channel && !isTemporaryChannel(channel)) {
+      setTvConfig("lastViewedChannelId", channelId)
+    }
+  }
+
+  /** Switch the feed to a temporary channel showing the given filter, replacing the temporary channel if there's one */
+  function showTemporaryFilter(filter: TemporaryFilter) {
+    setTvConfig("channels", channels => withTemporaryChannel(channels, filter))
+    setActiveChannel(TEMPORARY_CHANNEL_ID)
   }
 
   async function fetchSavedFilterFromStash(apolloClient: ApolloClient<NormalizedCacheObject>, filterId: string): Promise<GQL.SavedFilterDataFragment | null> {
@@ -340,6 +367,7 @@ export function useMediaItemFilters() {
     lastLoadedCurrentMediaItemFilter,
     activeChannel,
     setActiveChannel,
+    showTemporaryFilter,
     availableSavedFilters
   }
 }

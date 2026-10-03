@@ -30,7 +30,19 @@ export type AllMediaSource = SharedSourceFields & {
   entityType: ChannelSourceEntityType
 }
 
-export type ChannelSource = StashSavedFilterSource | AllMediaSource
+/**
+ * A filter held in the channel itself rather than saved in Stash, e.g. made by "View in feed" in a tag's popover. It's
+ * in the same shape as a Stash saved filter. A channel with this source is temporary: there's at most one, it's always
+ * last, and it's never persisted (see `normalizeChannels` and `persistedChannels`).
+ */
+export type TemporaryFilterSource = SharedSourceFields & {
+  type: "temporary-filter"
+  filter: TemporaryFilter
+}
+
+export type TemporaryFilter = Pick<GQL.SavedFilter, "mode" | "name" | "find_filter" | "object_filter">
+
+export type ChannelSource = StashSavedFilterSource | AllMediaSource | TemporaryFilterSource
 
 export type ChannelConfig = {
   /** Stable generated id. Not derived from a source since the same filter can be in more than one channel. */
@@ -40,6 +52,47 @@ export type ChannelConfig = {
 }
 
 export type StartupChannel = "last-viewed" | "first"
+
+/** The id of the temporary channel. There's only ever one, so its id never needs to tell it apart from another. */
+export const TEMPORARY_CHANNEL_ID = "temporary"
+
+/** Whether the channel is temporary: it shows a temporary filter, and isn't persisted */
+export function isTemporaryChannel(channel: ChannelConfig) {
+  return channel.sources.some(source => source.type === "temporary-filter")
+}
+
+/** The channels that are persisted: all but the temporary one */
+export function persistedChannels(channels: ChannelConfig[]) {
+  return channels.filter(channel => !isTemporaryChannel(channel))
+}
+
+/**
+ * The channels with the temporary one (if any) last, and only one of them: the last in the list, as the newest one is
+ * added at the end.
+ */
+export function normalizeChannels(channels: ChannelConfig[]) {
+  const temporaryChannel = channels.findLast(isTemporaryChannel)
+  const persisted = persistedChannels(channels)
+  return temporaryChannel ? [...persisted, temporaryChannel] : persisted
+}
+
+/** The channels with the temporary channel showing the given filter, replacing any temporary channel there was */
+export function withTemporaryChannel(channels: ChannelConfig[], filter: TemporaryFilter): ChannelConfig[] {
+  return [
+    ...persistedChannels(channels),
+    { id: TEMPORARY_CHANNEL_ID, sources: [{ type: "temporary-filter", filter, randomise: false }] },
+  ]
+}
+
+/** The temporary channel's filter, if there's a temporary channel */
+export function getTemporaryFilter(channels: ChannelConfig[]): TemporaryFilter | undefined {
+  for (const channel of channels) {
+    for (const source of channel.sources) {
+      if (source.type === "temporary-filter") return source.filter
+    }
+  }
+  return undefined
+}
 
 const sourceSchema = yup.object({
   type: yup.string().oneOf(["stash-saved-filter", "all"]).required(),
@@ -72,6 +125,12 @@ export function entityTypeToFilterMode(entityType: ChannelSourceEntityType) {
   return entityType === "scene" ? GQL.FilterMode.Scenes : GQL.FilterMode.SceneMarkers
 }
 
+export function filterModeToEntityType(mode: GQL.FilterMode): ChannelSourceEntityType | undefined {
+  if (mode === GQL.FilterMode.Scenes) return "scene"
+  if (mode === GQL.FilterMode.SceneMarkers) return "marker"
+  return undefined
+}
+
 /**
  * A saved filter that matches everything of the given mode. The `filter` prop is deprecated in favour of find_filter
  * and object_filter so an empty string is safe.
@@ -93,12 +152,14 @@ export function getAllMediaSourceName(entityType: ChannelSourceEntityType) {
 export type ChannelSourceTarget =
   | Omit<StashSavedFilterSource, keyof SharedSourceFields>
   | Omit<AllMediaSource, keyof SharedSourceFields>
+  | Omit<TemporaryFilterSource, keyof SharedSourceFields>
 
 /** A key that changes when a source would load different media, but not when only its settings (e.g. randomise) do */
 export function getSourceTargetKey(source: ChannelSourceTarget | undefined) {
   if (!source) return "none"
   if (source.type === "stash-saved-filter") return `stash-saved-filter:${source.savedFilterId}`
   if (source.type === "all") return `all:${source.entityType}`
+  if (source.type === "temporary-filter") return `temporary-filter:${JSON.stringify(source.filter)}`
   source satisfies never
   return "unknown"
 }
@@ -133,6 +194,14 @@ export function getChannelSourceInfo(
       sortedRandomly: !!savedFilter.find_filter?.sort?.startsWith("random_"),
     }
   }
+  if (source.type === "temporary-filter") {
+    return {
+      name: source.filter.name,
+      entityType: filterModeToEntityType(source.filter.mode),
+      missing: false,
+      sortedRandomly: !!source.filter.find_filter?.sort?.startsWith("random"),
+    }
+  }
   source satisfies never
   return { name: "Unknown source", missing: true, sortedRandomly: false }
 }
@@ -144,8 +213,8 @@ const savedFilterNamePrefixes: Record<ChannelSourceEntityType, string> = {
 }
 
 /**
- * How to label a channel: its source's name, with a prefix saying the type of a saved filter (an "All …" source's name
- * already says it).
+ * How to label a channel: its source's name, with a prefix saying the type of a saved or temporary filter (an "All …"
+ * source's name already says it).
  */
 export function getChannelName(
   channel: ChannelConfig,
@@ -156,7 +225,7 @@ export function getChannelName(
   const source = channel.sources[0]
   if (!source) return { prefix: "", name: "Empty channel", sourceInfo: undefined }
   const sourceInfo = getChannelSourceInfo(source, availableSavedFilters, availableSavedFiltersLoading)
-  const prefix = source.type === "stash-saved-filter" && sourceInfo.entityType
+  const prefix = source.type !== "all" && sourceInfo.entityType
     ? savedFilterNamePrefixes[sourceInfo.entityType]
     : ""
   return { prefix, name: sourceInfo.name, sourceInfo }

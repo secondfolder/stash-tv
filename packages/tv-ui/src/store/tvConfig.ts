@@ -5,7 +5,7 @@ import { defaultLogLevel } from '../helpers/logging';
 import { stashConfigStorage } from '../helpers/stash-config-storage';
 import { useGlobalState } from "./globalState"
 import { ActionButtonStackConfig } from '../components/action-buttons/ActionButtonStack';
-import { ChannelConfig, StartupChannel } from '../components/channels/channel-config';
+import { ChannelConfig, normalizeChannels, persistedChannels, StartupChannel } from '../components/channels/channel-config';
 import { generateConfigId } from '../helpers/config-ids';
 import { END_POSITION_OPTIONS, START_POSITION_OPTIONS } from '../constants';
 import { defaultSceneInfoLayout } from '../components/slide/SceneInfo/default-layout';
@@ -44,6 +44,7 @@ type TvConfig = {
   sceneInfoLayout: SceneInfoLayout;
   /** How the scene info panel shows the fields that can be shown more than one way, where they've been set */
   sceneInfoFieldOptions: SceneInfoFieldOptionsConfig;
+  /** Includes the temporary channel, if there is one, which is always last and never persisted (see docs/channels.md) */
   channels: ChannelConfig[];
   /** Which channel the feed shows when Stash TV loads */
   startupChannel: StartupChannel;
@@ -202,7 +203,11 @@ export const useTvConfig = create<TvConfig & AppAction>()(
           return;
         }
         set((state) => {
-          const resolvedValue = typeof value === "function" ? value(state[propName]) : value
+          let resolvedValue = typeof value === "function" ? value(state[propName]) : value
+          // There's at most one temporary channel, and it's always last
+          if (propName === 'channels') {
+            resolvedValue = normalizeChannels(resolvedValue as TvConfig['channels']) as TvConfig[PropName]
+          }
           // For enableRenderDebugging we also save the enableRenderDebugging option separately in localStorage
           // so so that it can be read by renderDebugger.ts at the very start of the app before we've received the store
           // state from stash.
@@ -245,6 +250,8 @@ export const useTvConfig = create<TvConfig & AppAction>()(
     {
       name: tvConfigStorageKey,
       storage: createJSONStorage(() => createHybridStorage()),
+      // The temporary channel only lasts until Stash TV is closed
+      partialize: (state) => ({ ...state, channels: persistedChannels(state.channels) }),
       onRehydrateStorage: (state) => {
         return () => useGlobalState.setState({tvConfigLoaded: true})
       },

@@ -14,6 +14,12 @@
       opacity: 0.6;
     }
 
+    .temporary-badge {
+      margin-left: 0.5em;
+      font-size: 0.65em;
+      vertical-align: middle;
+    }
+
     // An accent bar down the left edge of the row, plus a bold name
     &.active {
       position: relative;
