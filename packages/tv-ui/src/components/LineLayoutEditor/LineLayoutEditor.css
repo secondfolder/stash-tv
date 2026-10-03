@@ -220,7 +220,11 @@ below the lines or beside them */
   button */
   .item-controls {
     position: absolute;
-    inset: 0;
+    /* Over the item, and at least wide enough for its buttons: over an item narrower than that (one with no least
+    width, e.g. a spacer's line in Stash TV's scene info editor) they overflow it either side, over its neighbours,
+    rather than the item making room for them */
+    --overflow: min(0px, 50% - var(--item-control-width) * 1.5);
+    inset: 0 var(--overflow);
     display: grid;
     grid-template-columns: var(--item-control-width) minmax(0, 1fr) var(--item-control-width);
     border-radius: inherit;
@@ -230,6 +234,33 @@ below the lines or beside them */
     font-size: 1rem;
     opacity: 0;
     transition: opacity 0.12s ease-out;
+    /* Hidden, they mustn't take the pointer from the item's neighbours they overflow onto */
+    pointer-events: none;
+  }
+
+  /* Overflowing a line's first item, they overflow away from the line's edge (for the left side, its start; for the
+  right-aligned side, its end), rather than past it. The corners over the item's edge are barely rounded, so they
+  still cover all of what's at that edge. */
+  .line-side.left > :first-child > .item-controls {
+    --overflow: min(0px, 100% - var(--item-control-width) * 3);
+    left: 0;
+    right: var(--overflow);
+  }
+  .line-side.right > :first-child > .item-controls {
+    --overflow: min(0px, 100% - var(--item-control-width) * 3);
+    left: var(--overflow);
+    right: 0;
+  }
+
+  /* Over its neighbours, which its controls may overflow onto */
+  .layout-item:is(.revealed, :has(:focus-visible)) {
+    z-index: 1;
+  }
+
+  @media (hover: hover) {
+    &:not(.dragging) .layout-item:hover {
+      z-index: 1;
+    }
   }
 
   .layout-item.revealed > .item-controls,
@@ -241,6 +272,7 @@ below the lines or beside them */
   @media (hover: hover) {
     &:not(.dragging) .layout-item:hover > .item-controls {
       opacity: 1;
+      pointer-events: auto;
     }
   }
 

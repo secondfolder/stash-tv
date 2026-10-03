@@ -20,10 +20,14 @@ const instanceLabel = ({ size }: OptionsOf<typeof schema>) => `${sizeLabels[size
 
 /**
  * Space between fields: beside them on a line, or, alone on its line (with the line's other fields showing nothing),
- * above and below (see SceneInfo.css). In the editor's pills it's named, as there's nothing else to see.
+ * above and below (see SceneInfo.css). In the editor's pills it's a line as long as the space, along the way it adds it.
  */
 function SpacerField({ options, preview }: SceneInfoFieldProps<OptionsOf<typeof schema>>) {
-  if (preview) return <Field field={fieldDefinition} className="spacer-preview">{instanceLabel(options)}</Field>;
+  if (preview) {
+    return <Field field={fieldDefinition} className={`spacer-preview spacer-${options.size}`}>
+      <span className="spacer-line" role="img" aria-label={instanceLabel(options)} />
+    </Field>;
+  }
   return <Field field={fieldDefinition} className={`spacer-${options.size}`}><span aria-hidden /></Field>;
 }
 

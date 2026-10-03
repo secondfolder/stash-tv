@@ -37,6 +37,8 @@ type Drag<T> = {
    * may not be the item, see `take`)
    */
   pressedKey: string;
+  /** Whether the pointer was hovering over the editor before it pressed, so the item's controls were showing */
+  hovered: boolean;
   /** Whether one of the item's buttons was pressed, rather than the item itself */
   pressedButton: boolean;
   /** Where the item was in the layout, or null if it's being dragged in from the available items */
@@ -203,6 +205,9 @@ export function LineLayoutEditor<T>({
   const [settle, setSettle] = useState<Settle<T> | null>(null);
   // The item whose controls are shown over it after it was tapped, on a device that can't hover over it
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
+  // The last pointer seen moving over the editor without pressing, i.e. hovering: a mouse, or a pen that hovers (e.g. a
+  // drawing tablet's), but never a touch
+  const hoveringPointerRef = useRef<number | null>(null);
 
   // While an item is dragged, targets are positions in the layout without it. The line it's dragged off keeps its place
   // (and its space, see fromLineHeight) until it's dropped, even if it's left empty, so the lines after it don't move
@@ -436,12 +441,15 @@ export function LineLayoutEditor<T>({
     probeHeightsRef.current.clear();
     setSettle(null);
     // A touch on an item whose controls aren't showing reveals them, rather than pressing the hidden button under it.
-    // Decided here rather than by CSS (only hovering showing them), as a device with a touchscreen can also hover.
-    const controlsShown = event.pointerType === "mouse" || pressedKey === revealedKey;
+    // Decided here rather than by CSS (only hovering showing them), as a device with a touchscreen can also hover. Not
+    // by the pointer's type either: a pen can hover (e.g. a drawing tablet's) or not.
+    const hovered = event.pointerType === "mouse" || event.pointerId === hoveringPointerRef.current;
+    const controlsShown = hovered || pressedKey === revealedKey;
     setDrag({
       item,
       key,
       pressedKey,
+      hovered,
       pressedButton: controlsShown && event.target instanceof Element && !!event.target.closest("button"),
       from,
       pointerId: event.pointerId,
@@ -506,8 +514,8 @@ export function LineLayoutEditor<T>({
           const next = current.target && placeItem(baseLayout, current.item, null, current.target);
           if (next) onChange(next);
           settleDropped(current, !!next && JSON.stringify(next) !== JSON.stringify(layout));
-        } else if (event.pointerType !== "mouse" && !current.pressedButton) {
-          // Tapped with a touch, which can't hover over it, so its controls show only once it's tapped
+        } else if (!current.hovered && !current.pressedButton) {
+          // Tapped with a pointer that wasn't hovering over it (e.g. a touch), so its controls show only once it's tapped
           ignoreClick();
           setRevealedKey(revealed => revealed === current.pressedKey ? null : current.pressedKey);
         }
@@ -674,6 +682,9 @@ export function LineLayoutEditor<T>({
   return <LayoutGroup id={layoutGroupId}><div
     className={cx("LineLayoutEditor", className, { dragging: isDragging, "side-by-side": availableBeside })}
     ref={editorRef}
+    onPointerMove={event => {
+      if (event.buttons === 0) hoveringPointerRef.current = event.pointerId;
+    }}
     {...rootAttributes}
   >
     {/* Slides, like the items, when the editor grows or shrinks */}
@@ -707,9 +718,15 @@ export function LineLayoutEditor<T>({
           };
           // The line an item was dragged off, which keeps its space, left empty
           const vacated = !left.length && !right.length;
+          // The line the item let go is sliding into, for an item that looks different depending on its line
+          const settleTarget = !!settle && [...left, ...right].some(entry => entry !== ghostItem && getKey(entry) === settle.key);
           return <div
             key={lineIndex}
-            className={cx("layout-line", { "vacated-line": vacated, target: lineIndex === targetLine })}
+            className={cx("layout-line", {
+              "vacated-line": vacated, target: lineIndex === targetLine, "settle-target": settleTarget,
+              // The line the item's being dragged off, for an item that looks as it did there while it has nowhere to go
+              "from-line": isDragging && lineIndex === drag.from?.line,
+            })}
             data-line={lineIndex}
             style={lineIndex === drag?.from?.line && fromLineHeight !== undefined ? { minHeight: fromLineHeight } : undefined}
           >
@@ -779,6 +796,8 @@ export function LineLayoutEditor<T>({
     </motion.div>
     {isDragging && <div
       className="drag-overlay"
+      // Where it will go (e.g. a new line, alone), for an item that looks different there
+      data-drop={drag.target?.type}
       style={{ left: drag.position.left, top: drag.position.top, width: drag.grab.width }}
     >
       <Badge as="div" variant="secondary" pill className={cx("tag-item", "layout-item", "dragged", itemProps?.(drag.item).className)}>

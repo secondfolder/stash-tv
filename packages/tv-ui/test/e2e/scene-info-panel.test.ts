@@ -1332,15 +1332,24 @@ test.describe('Scene info panel', () => {
   /** @see docs/scene-info-panel.md § "Switching to and from editing" */
   test('fades the unused fields in with the editor as editing starts, not faded twice over', async ({ page }) => {
     await openInfoPanel(page);
-    // Every frame of the morph: the unused fields' own opacity, apart from the editor's they're in
+    // Every frame of the morph: the unused fields' own opacity, apart from the editor's they're in, and whether the
+    // panel's translucent background's copy is over them, dimming them until the morph ended
     await page.evaluate(() => {
-      const record = window as unknown as { ownOpacities: number[] };
+      const record = window as unknown as { ownOpacities: number[], coveredBy: Set<string> };
       record.ownOpacities = [];
+      record.coveredBy = new Set();
       const sample = () => {
         const panel = document.querySelector('[data-current-video="true"] .SceneInfo');
-        if (panel?.querySelector('.morph-layer')) {
+        const layer = panel?.querySelector('.morph-layer');
+        if (panel && layer) {
           for (const pill of panel.querySelectorAll('.available-items .field-pill')) {
             record.ownOpacities.push(Number(getComputedStyle(pill).opacity));
+          }
+          const unused = panel.querySelector('.available-items')!.getBoundingClientRect();
+          for (const copy of layer.querySelectorAll<HTMLElement>('[data-morph-frame]')) {
+            const rect = copy.getBoundingClientRect();
+            const overlaps = rect.left < unused.right && rect.right > unused.left && rect.top < unused.bottom && rect.bottom > unused.top;
+            if (overlaps) record.coveredBy.add(copy.className);
           }
         }
         requestAnimationFrame(sample);
@@ -1350,9 +1359,13 @@ test.describe('Scene info panel', () => {
 
     await clickEdit(page);
 
-    const ownOpacities = await page.evaluate(() => (window as unknown as { ownOpacities: number[] }).ownOpacities);
+    const { ownOpacities, coveredBy } = await page.evaluate(() => {
+      const { ownOpacities, coveredBy } = window as unknown as { ownOpacities: number[], coveredBy: Set<string> };
+      return { ownOpacities, coveredBy: [...coveredBy] };
+    });
     expect(ownOpacities.length).toBeGreaterThan(10);
     expect(ownOpacities.every((opacity) => opacity === 1)).toBe(true);
+    expect(coveredBy).toEqual([]);
   });
 
   /** @see docs/scene-info-panel.md § "Switching to and from editing" */
@@ -1521,6 +1534,35 @@ test.describe('Scene info panel editor on a touchscreen', () => {
     // Now it's shown, tapping it removes the field
     await page.touchscreen.tap(title.x + 8, title.y + title.height / 2);
     await expect.poll(() => editorLayout(page)).toEqual([['studio'], ['performers'], ['date']]);
+  });
+});
+
+/**
+ * A pen that hovers (e.g. a drawing tablet's) shows a field's controls as a mouse does, so a press on one presses it,
+ * rather than revealing them as a tap does. Playwright has no pen, so it's driven through the DevTools protocol.
+ *
+ * @see docs/line-layout-editor.md § "Using it"
+ */
+test.describe('Scene info panel editor with a pen', () => {
+  test.afterEach(async ({ request }) => {
+    await setTvConfig(request, null);
+  });
+
+  test('opens a field\'s options with the first press of a pen hovering over its options button', async ({ page, request }) => {
+    await setPanelConfig(request, {});
+    await startEditing(page);
+    const options = pill(page, 'performers').getByRole('button', { name: 'Performers options' });
+    await pill(page, 'performers').hover();
+    const { x, y, width, height } = await box(options);
+    const point = { x: x + width / 2, y: y + height / 2, pointerType: 'pen' as const };
+    // Off it, so the pen hovers onto it
+    await page.mouse.move(0, 0);
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point, x: point.x - 10 });
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point });
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', ...point, button: 'left', buttons: 1, clickCount: 1 });
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...point, button: 'left', buttons: 0, clickCount: 1 });
+    await expect(page.getByRole('dialog')).toBeVisible();
   });
 });
 
@@ -1710,6 +1752,62 @@ test.describe('Scene info panel fields', () => {
     // With nothing shown after it
     await expect(infoPanel(page).locator('.field-line').last()).toHaveClass(/collapsed-spacer/);
     await expect(infoPanel(page).locator('.field-line').last()).toBeHidden();
+  });
+
+  test('shows a spacer\'s pill, showing values, as a line as long as its space, whose controls overlap its neighbours', async ({ page, request }) => {
+    const spacer = (id: string, size: string) => ({ field: 'spacer', id, options: { size } });
+    await setPanelConfig(request, { sceneInfoLayout: [['title', spacer('1', 'small'), 'date'], [spacer('2', 'big')], ['performers']] });
+    await startEditing(page);
+    await infoPanel(page).getByRole('button', { name: 'Field value' }).click();
+    await morphDone(page);
+
+    const [besideFields, ownLine] = await infoPanel(page).locator('.layout-lines .spacer-pill').all();
+    const em = await besideFields.evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
+    // Beside fields it's space along the line (small: 0.5em), and alone on its line space between lines (big: 2em)
+    expect((await box(besideFields)).width).toBeCloseTo(0.5 * em, 0);
+    expect((await box(ownLine)).height).toBeCloseTo(2 * em, 0);
+
+    // Hovering over it shows its controls over the fields beside it, which stay where they are
+    const date = await box(pill(page, 'date'));
+    await besideFields.hover();
+    const remove = infoPanel(page).getByRole('button', { name: 'Remove Small spacer' });
+    // Its icon: the controls' rounded corners aren't part of the button (see expectUsableOnScreen)
+    await expectUsableOnScreen(remove.locator('svg'));
+    expect((await box(remove.locator('xpath=ancestor::*[contains(@class, "item-controls")]'))).width).toBeGreaterThan((await box(besideFields)).width);
+    expect(await box(pill(page, 'date'))).toEqual(date);
+
+    // Other pills are outlined only while hovered over
+    const borderColor = (locator: Locator) => locator.evaluate((element) => getComputedStyle(element).borderTopColor);
+    await expect.poll(() => borderColor(pill(page, 'performers'))).toBe('rgba(0, 0, 0, 0)');
+    await pill(page, 'performers').hover();
+    await expect.poll(() => borderColor(pill(page, 'performers'))).not.toBe('rgba(0, 0, 0, 0)');
+  });
+
+  test('shows a spacer alone on its line, dragged, as it will be where it\'s dropped, or as it was with nowhere to go', async ({ page, request }) => {
+    const spacer = { field: 'spacer', id: '1', options: { size: 'big' } };
+    await setPanelConfig(request, { sceneInfoLayout: [['title', 'date'], [spacer], ['performers']] });
+    await startEditing(page);
+    await infoPanel(page).getByRole('button', { name: 'Field value' }).click();
+    await morphDone(page);
+    const dragged = infoPanel(page).locator('.drag-overlay:not(.settling) .spacer-line');
+    const isUpright = async () => {
+      const { width, height } = await box(dragged);
+      return height > width;
+    };
+
+    const spacerPill = await box(infoPanel(page).locator('.layout-lines .spacer-pill'));
+    const date = await box(pill(page, 'date'));
+    // Over its own line, up and down
+    await startDrag(page, infoPanel(page).locator('.layout-lines .spacer-pill'), spacerPill.x + 30, spacerPill.y + spacerPill.height / 2);
+    expect(await isUpright()).toBe(true);
+    // Beside the date, along the line
+    await page.mouse.move(date.x + date.width - 2, date.y + date.height / 2, { steps: 10 });
+    expect(await isUpright()).toBe(false);
+    // Nowhere to go (above the editor), as on the line it's going back to
+    await page.mouse.move(date.x, 5, { steps: 10 });
+    await expect(infoPanel(page).locator('.drag-overlay:not(.settling)')).not.toHaveAttribute('data-drop');
+    expect(await isUpright()).toBe(true);
+    await page.mouse.up();
   });
 
   test('opens the o-count\'s controls above it once it\'s been marked', async ({ page, request }) => {

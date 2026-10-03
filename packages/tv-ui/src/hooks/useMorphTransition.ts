@@ -124,7 +124,7 @@ function snapshot(root: HTMLElement, scope: string): MorphSnapshot {
  * - A unit before and after slides in a straight line from where it was to where it is, resized evenly, centre to
  *   centre, so its text shrinks or grows rather than being squashed, while its new look fades in over its old one,
  *   which then fades out underneath (so it's never see-through partway). The frame (`morphFrameAttribute`) is
- *   stretched to fit instead, and clips the rest.
+ *   stretched to fit instead, under the rest (not in the layer over it), and clips the rest.
  * - One that doesn't show anything (e.g. a spacer) before or after has no look to morph, so fades out or in in place.
  * - One only before fades out, and one only after fades in (later, once what's around it has mostly arrived), unless
  *   it's inside another unit, which it fades with: fading on their own as well, new things inside new things were
@@ -139,13 +139,21 @@ function play(root: HTMLElement, before: MorphSnapshot, duration: number, scope:
     return was && (isFrame(key) || (was.hasContent && now.get(key)!.hasContent));
   }));
 
-  const layer = document.createElement("div");
-  layer.className = "morph-layer";
-  layer.setAttribute("aria-hidden", "true");
-  Object.assign(layer.style, { position: "absolute", inset: "0", pointerEvents: "none", zIndex: "10" });
+  const createLayer = (className: string) => {
+    const layer = document.createElement("div");
+    layer.className = className;
+    layer.setAttribute("aria-hidden", "true");
+    Object.assign(layer.style, { position: "absolute", inset: "0", pointerEvents: "none" });
+    return layer;
+  };
+  const layer = createLayer("morph-layer");
+  layer.style.zIndex = "10";
+  // The frame's copy, under the rest of the root rather than over it: in the layer over it, what fades in for real
+  // (e.g. the editor's toolbar) was shown through the frame, so dimmed by it if it's translucent, until it went
+  const frameLayer = createLayer("morph-frame-layer");
   const animations: Animation[] = [];
   const timing = { duration, easing, fill: "both" } as const;
-  const show = (unit: Box, copy: { outer: HTMLElement; inner: HTMLElement }) => {
+  const show = (unit: Box, copy: { outer: HTMLElement; inner: HTMLElement }, into = layer) => {
     hideMorphing(copy.inner, morphing);
     Object.assign(copy.inner.style, {
       position: "absolute",
@@ -160,7 +168,7 @@ function play(root: HTMLElement, before: MorphSnapshot, duration: number, scope:
       transformOrigin: "50% 50%",
       pointerEvents: "none",
     });
-    layer.append(copy.outer);
+    into.append(copy.outer);
     return copy.inner;
   };
   /** The transform taking a copy laid out at `from` to `to`: stretched to fit if `stretch`, or else evenly, centred */
@@ -191,7 +199,7 @@ function play(root: HTMLElement, before: MorphSnapshot, duration: number, scope:
     animations.push(unit.box.animate([{ opacity: 0 }, { opacity: 0 }], timing));
     const arrivingCopy = copyInContext(unit.box, root);
     if (isFrame(key)) {
-      animations.push(show(unit, arrivingCopy).animate([{ transform: fromTo(unit, was, true) }, { transform: "none" }], timing));
+      animations.push(show(unit, arrivingCopy, frameLayer).animate([{ transform: fromTo(unit, was, true) }, { transform: "none" }], timing));
       // Relative to the root's box (now), which a bigger frame before reaches beyond
       const inset = (box: Box) => `inset(${box.top - root.offsetTop}px ${root.offsetLeft + root.offsetWidth - box.left - box.width}px ${root.offsetTop + root.offsetHeight - box.top - box.height}px ${box.left - root.offsetLeft}px)`;
       animations.push(root.animate([{ clipPath: inset(was) }, { clipPath: inset(unit) }], timing));
@@ -213,9 +221,12 @@ function play(root: HTMLElement, before: MorphSnapshot, duration: number, scope:
   }
 
   root.append(layer);
+  // First, so it's under the rest of what's positioned in the root
+  root.prepend(frameLayer);
   const stop = () => {
     for (const animation of animations) animation.cancel();
     layer.remove();
+    frameLayer.remove();
   };
   // Once they've all finished, in the same frame, so the real elements show as their copies go. (Cancelled, they reject.)
   Promise.all(animations.map(animation => animation.finished)).then(stop, () => {});

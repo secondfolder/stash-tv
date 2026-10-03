@@ -170,10 +170,39 @@
     display: none;
   }
 
-  /* A spacer's pill, showing values, is named, there being nothing else to see */
-  .spacer-preview {
-    font-style: italic;
-    opacity: 0.6;
+  /* A spacer's pill, showing values, is a line as long as the space it adds (sized by the rules above), along the way
+  it adds it, with a tick at each end so its length reads. Fainter than a field with no value's "No …", being only a line. */
+  .spacer-preview > .spacer-line {
+    --spacer-line-width: 1px;
+    box-sizing: border-box;
+    height: 0.6em;
+    border: 0 solid currentColor;
+    border-inline-width: var(--spacer-line-width);
+    background: linear-gradient(currentColor, currentColor) center / 100% var(--spacer-line-width) no-repeat;
+    opacity: 0.3;
+  }
+
+  /* Up and down, alone on its line (with nothing else on it showing anything), as in the panel. Dragged, it's as it
+  will be where it's dropped: on a new line, or a line with nothing shown on it; with nowhere to go (outside the
+  editor, or being removed), as it was on the line it was dragged off, which it goes back to if let go there; and let
+  go, as it will be on the line it's sliding into. */
+  .layout-line:not(:has(.field:not(.field-spacer))),
+  .scene-info-editor .drag-overlay[data-drop="new-line"],
+  .scene-info-editor:has(.layout-line.target):not(:has(.layout-line.target .field:not(.field-spacer))) .drag-overlay[data-drop="same-line"],
+  .scene-info-editor:has(.layout-line.from-line):not(:has(.layout-line.from-line .field:not(.field-spacer))) .drag-overlay:is([data-drop="remove"], :not([data-drop])),
+  .scene-info-editor:has(.layout-line.settle-target):not(:has(.layout-line.settle-target .field:not(.field-spacer))) .drag-overlay.settling {
+    .spacer-preview > .spacer-line {
+      width: 0.6em;
+      border-inline-width: 0;
+      border-block-width: var(--spacer-line-width);
+      background-size: var(--spacer-line-width) 100%;
+    }
+    .spacer-small > .spacer-line { height: 0.5em; }
+    .spacer-medium > .spacer-line { height: 1em; }
+    .spacer-big > .spacer-line { height: 2em; }
+
+    /* Its pill is wider than its line, as nothing beside it on its line moves for that, and it's easier to hover over */
+    .spacer-pill:has(.spacer-line) { padding: 0 1.5em; }
   }
 
   /* The o-counter icon, followed by the o-count */
@@ -311,11 +340,12 @@
     }
   }
 
-  /* Showing values, each pill is its field as the panel shows it, outlined rather than a badge (so none of the badge's
-  text styles) */
+  /* Showing values, each pill is its field as the panel shows it, rather than a badge (so none of the badge's text
+  styles), outlined only while it's hovered over (or its controls are otherwise shown, or it's dragged) */
   .scene-info-editor.showing-values .field-pill {
     background: none;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid transparent;
+    transition: border-color 0.12s ease-out;
     color: inherit;
     font-size: inherit;
     font-weight: inherit;
@@ -323,6 +353,16 @@
     text-align: left;
     white-space: normal;
     padding: 0.3em 0.7em;
+
+    &:is(.revealed, .dragged, :has(:focus-visible)) {
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+  }
+
+  @media (hover: hover) {
+    .scene-info-editor.showing-values:not(.dragging) .field-pill:hover {
+      border-color: rgba(255, 255, 255, 0.2);
+    }
   }
 
   /* A spacer is space rather than a field, so it's just its name (and buttons), not a badge or outlined, and with no
@@ -334,15 +374,35 @@
     padding: 0;
     box-shadow: none;
     color: var(--text-muted);
+  }
 
-    .spacer-preview {
-      opacity: 1;
+  /* Showing values, it's just its line (see .spacer-preview), in the text's colour, so it takes up no more room than
+  the space does in the panel: no least width or height for its controls, which overflow it, over its neighbours (see
+  LineLayoutEditor.css) */
+  .scene-info-editor.showing-values .field-pill.spacer-pill:has(.spacer-line) {
+    min-width: 0;
+    color: inherit;
+
+    > .item-controls {
+      top: min(0px, 50% - 0.875em);
+      bottom: min(0px, 50% - 0.875em);
     }
 
-    /* Its value is just its name, which mustn't wrap where a line's sides shrink to fit (a long value's text does) */
-    .pill-value {
-      white-space: nowrap;
+    /* Easier to hover over than the line alone, without being any bigger */
+    &::before {
+      content: "";
+      position: absolute;
+      inset: -0.5em -0.2em;
     }
+  }
+
+  /* Overflowing away from its line's edge, its controls are moved a little past the edge, so their rounded corners
+  there still cover the end of its line */
+  .scene-info-editor.showing-values .line-side.left > .spacer-pill:first-child > .item-controls {
+    transform: translateX(-0.6em);
+  }
+  .scene-info-editor.showing-values .line-side.right > .spacer-pill:first-child > .item-controls {
+    transform: translateX(0.6em);
   }
 }
 
