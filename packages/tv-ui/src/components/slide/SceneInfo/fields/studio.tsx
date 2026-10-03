@@ -3,7 +3,8 @@ import React, { useEffect, useState } from "react";
 import { getLogger } from "@logtape/logtape";
 import { ChevronLeft } from "react-bootstrap-icons";
 import { queryFindStudio } from "stash-ui/dist/src/core/StashService";
-import { defineField, Field, getStashUrl, SceneInfoFieldProps } from "./shared";
+import { defineField, Field, SceneInfoFieldProps } from "./shared";
+import { getStashUrl } from "../../../../helpers/getStashOrigin";
 
 const logger = getLogger(["stash-tv", "SceneInfo"]);
 

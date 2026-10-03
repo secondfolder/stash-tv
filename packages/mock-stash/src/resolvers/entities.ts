@@ -70,8 +70,9 @@ export const entityResolvers = {
       tag.parent_ids.map((id) => ctx.store.tags.get(id)).filter((t) => t != null),
     children: (tag: TagRecord, _args: unknown, ctx: MockContext) =>
       tag.child_ids.map((id) => ctx.store.tags.get(id)).filter((t) => t != null),
-    image_path: (tag: { id: string }, _args: unknown, ctx: MockContext) =>
-      `${ctx.baseUrl}/tag/${tag.id}/image`,
+    // As Stash's, marked as its default image when the tag has none of its own
+    image_path: (tag: TagRecord, _args: unknown, ctx: MockContext) =>
+      `${ctx.baseUrl}/tag/${tag.id}/image${tag.has_image ? "" : "?default=true"}`,
     favorite: () => false,
     ignore_auto_tag: () => false,
     scene_count: (tag: { id: string }, _args: unknown, ctx: MockContext) =>

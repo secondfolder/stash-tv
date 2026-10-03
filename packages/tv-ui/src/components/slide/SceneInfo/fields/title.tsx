@@ -2,7 +2,8 @@ import React from "react";
 import escapeStringRegexp from "escape-string-regexp";
 import { objectTitle } from "stash-ui/dist/src/core/files";
 import { proxyPrefix } from "../../../../constants";
-import { defineField, Field, getStashUrl, SceneInfoFieldProps } from "./shared";
+import { defineField, Field, SceneInfoFieldProps } from "./shared";
+import { getStashUrl } from "../../../../helpers/getStashOrigin";
 
 /** The title, linking to the scene in Stash */
 function TitleField({ scene, onExternalLinkClick }: SceneInfoFieldProps) {

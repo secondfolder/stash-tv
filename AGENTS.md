@@ -36,6 +36,7 @@ Feature-specific documentation lives under `docs/`. Read the one that covers wha
 | [Testing](docs/testing.md)              | Writing or modifying any test, running the suites, or touching test infrastructure/polyfills          |
 | [Scene info panel](docs/scene-info-panel.md) | Touching the scene info panel (`src/components/slide/SceneInfo/`), its fields, or how users customise it |
 | [Line layout editor](docs/line-layout-editor.md) | Touching `src/components/LineLayoutEditor/` (dragging items onto lines, ghosts, insertion lines, right-aligning) or using it for something new |
+| [Entity popovers](docs/entity-popovers.md) | Touching `src/components/entity-popovers/` (a tag's popover in the info panel, and its card and buttons) or adding a popover for another kind of entity |
 | [Keyboard shortcuts](docs/keyboard-shortcuts.md) | Adding, removing or rebinding a keyboard shortcut, or touching the shortcut help text                  |
 
 Adding a new doc means adding its row to this table. A test validates that every doc in `docs/` is listed here and every link points to a real file — a doc without a row is caught rather than going unnoticed.
@@ -194,7 +195,8 @@ Settings & UI Overlays:
 ├── GuideOverlay (help/tutorial)
 ├── EditTagsContents (tag editing interface)
 ├── SceneInfo (scene metadata panel, user-customisable layout)
-│   └── LineLayoutEditor (its edit mode: dragging fields about on lines)
+│   ├── LineLayoutEditor (its edit mode: dragging fields about on lines)
+│   └── TagPopover (a tag's card and buttons, built on EntityPopover)
 ```
 
 ### GraphQL Integration

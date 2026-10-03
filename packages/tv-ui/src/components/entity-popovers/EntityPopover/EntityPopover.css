@@ -1,0 +1,61 @@
+.popover.EntityPopover {
+  max-width: min(20rem, calc(100vw - 2rem));
+  display: flex;
+  flex-direction: column;
+
+  /* Scrolls as a whole (the card and its buttons) when the popover is limited to the space available (see
+     setMaxSizeModifier), and only up and down */
+  > .entity-popover-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    /* Don't pass scrolling on to the feed behind the popover, which would move to another video */
+    overscroll-behavior: contain;
+    text-align: left;
+  }
+
+  .entity-popover-card {
+    flex-shrink: 0;
+  }
+
+  /* Its buttons are on the side nearest what opened it: at the bottom when it's above it, at the top when below */
+  &.bs-popover-bottom > .entity-popover-content {
+    flex-direction: column-reverse;
+  }
+
+  .entity-popover-actions {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .entity-popover-action {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+  }
+
+
+  /**
+   * Taken from packages/stash-ui/stash/ui/v2.5/src/components/Scenes/styles.scss
+   * and used by various Stash entity card components.
+   */
+  .card-popovers {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+
+    .btn {
+      padding-bottom: 3px;
+      padding-top: 3px;
+    }
+
+    .fa-icon {
+      margin-right: 7px;
+    }
+  }
+}

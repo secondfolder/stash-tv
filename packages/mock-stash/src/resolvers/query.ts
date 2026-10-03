@@ -57,6 +57,15 @@ export const queryResolvers = {
       };
     },
 
+    findTag: (_src: unknown, args: { id: string }, ctx: MockContext) =>
+      ctx.store.tags.get(args.id) ?? null,
+
+    findPerformer: (_src: unknown, args: { id: string }, ctx: MockContext) =>
+      ctx.store.performers.get(args.id) ?? null,
+
+    findStudio: (_src: unknown, args: { id?: string | null }, ctx: MockContext) =>
+      args.id ? ctx.store.studios.get(args.id) ?? null : null,
+
     findTags: (
       _src: unknown,
       args: { ids?: string[] | null; filter?: { q?: string | null; per_page?: number | null; page?: number | null } | null },

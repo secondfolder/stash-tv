@@ -50,12 +50,6 @@ export function defineField<const Id extends string, Schema extends OptionsSchem
   return definition;
 }
 
-export const getStashUrl = (path: string) => {
-  if (!import.meta.env.STASH_ADDRESS) return path;
-  const url = new URL(path, import.meta.env.STASH_ADDRESS);
-  return url.toString();
-}
-
 /**
  * The key of the field's entry in the layout, given to fields shown in the panel (not in the editor's pills), so
  * switching to and from the editor morphs each into its pill and back (see useMorphTransition)

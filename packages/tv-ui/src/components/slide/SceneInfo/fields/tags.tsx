@@ -3,8 +3,10 @@ import { useResizeObserver } from "../../../../hooks/useResizeObserver";
 import cx from "classnames";
 import { Button } from "react-bootstrap";
 import { Tag } from "../../../tags/tag";
+import { TagPopover } from "../../../entity-popovers/TagPopover";
 import { OptionsOf, toggle } from "../field-options";
-import { defineField, Field, getStashUrl, SceneInfoFieldProps } from "./shared";
+import { defineField, Field, SceneInfoFieldProps } from "./shared";
+import { getStashUrl } from "../../../../helpers/getStashOrigin";
 
 const schema = {
   /** Whether every tag is always shown, rather than cut short until "Show N more" is clicked */
@@ -39,7 +41,7 @@ function measureRows(list: HTMLElement): TagRow[] {
 /** Where the tags are cut short: the bottom of the last row shown, and how many tags are after it */
 type TagCut = { bottom: number; hidden: number };
 
-function TagsField({ scene, options, preview }: SceneInfoFieldProps<OptionsOf<typeof schema>>) {
+function TagsField({ scene, options, preview, onExternalLinkClick }: SceneInfoFieldProps<OptionsOf<typeof schema>>) {
   const [expanded, setExpanded] = useState(false);
   // Where they're cut short, if there are enough tags after the rows shown to be worth hiding
   const [cut, setCut] = useState<TagCut | null>(null);
@@ -61,11 +63,15 @@ function TagsField({ scene, options, preview }: SceneInfoFieldProps<OptionsOf<ty
   return <Field field={fieldDefinition} className={cx({ capped })}>
     {/* Cut short after the last row shown, every row shown in full */}
     <div ref={listRef} className="tag-list" style={capped ? { maxHeight: cut.bottom } : undefined}>
-      {scene.tags.map(tag => (
-        <a key={tag.id} href={getStashUrl(`/tags/${tag.id}`)} target="_blank">
-          <Tag tag={tag} />
-        </a>
-      ))}
+      {scene.tags.map(tag => preview
+        ? <Tag key={tag.id} tag={tag} />
+        // Opens the tag's popover, or with a modifier key (or middle click), the tag in Stash
+        : <TagPopover key={tag.id} tag={tag} onOpenInStash={onExternalLinkClick}>
+          {triggerProps => <a href={getStashUrl(`/tags/${tag.id}`)} target="_blank" {...triggerProps}>
+            <Tag tag={tag} />
+          </a>}
+        </TagPopover>
+      )}
     </div>
     {capped && (preview
       ? <span className="show-more btn btn-link btn-sm">{showMore}</span>

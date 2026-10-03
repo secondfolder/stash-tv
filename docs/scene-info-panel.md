@@ -38,6 +38,7 @@ Studio (with its parent studios), title (linking to the scene in Stash, and paus
 - Values that don't explain themselves (a number, a code) show the field's name first (`Field`'s `showLabel`) or an icon standing in for it (`Field`'s `icon`).
 - A line's fields, and the line's two sides, are centred vertically on it (`align-items: center`), so values of different heights (a title, stars, icons) line up.
 - What's in a right-aligned field is right-aligned too (`text-align: right`, and the end of the row for the fields that are flexboxes, like tags), in the panel and in the editor's pills showing values.
+- Clicking or hovering over a tag opens its popover (`TagPopover`, see [entity popovers](entity-popovers.md)): its card (its title linking to the tag in Stash), and buttons to show its scenes in the feed. A modified click (e.g. ctrl/cmd) still opens it in Stash, as each tag is a link to it. Not in the editor's pills.
 - Tags are spaced by their list's `gap` alone: Stash's margin around each `.tag-item` is removed. They're outlined in the text's colour, on no background, rather than Stash's filled badges.
 - Fields render only while they're in the layout, so a hidden field's work (e.g. fetching the studio's parent studios) doesn't happen.
 

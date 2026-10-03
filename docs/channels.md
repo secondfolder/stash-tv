@@ -54,13 +54,23 @@ The **active channel** is the one the feed is showing. It's transient state (`ac
 
 ## Temporary channel
 
-A channel showing a filter that isn't saved anywhere, for showing something for now without adding to the user's list (e.g. "View in feed" on a tag). Its source is a `temporary-filter`.
+A channel showing a filter that isn't saved anywhere, for showing something for now without adding to the user's list (e.g. "Show scenes with this tag" in a tag's popover, see [entity popovers](entity-popovers.md)). Its source is a `temporary-filter`.
 
 - **There's only ever one, and it's always last.** `useTvConfig`'s `set("channels", …)` runs every new list through `normalizeChannels()`, which keeps only the last temporary channel (the newest, as it's added at the end) and moves it to the end. So nothing else (adding a channel, reordering) has to take care to keep it there.
 - **It's never persisted.** tvConfig's `partialize` drops it (`persistedChannels()`) before the config is stored, so it's gone once Stash TV is closed, and never syncs to another device. It lives in the same `channels` list as the others otherwise, so everything listing channels (the Settings tab, the `change-channel` button) shows it with no special handling.
 - **It never becomes the last viewed channel.** `setActiveChannel()` doesn't record it in `lastViewedChannelId`, so on the next load the last channel the user chose before it is shown.
 - `showTemporaryFilter(filter)` (from `useMediaItemFilters()`) replaces the temporary channel, if there is one, with one showing the given filter, and switches the feed to it. Its id is always `TEMPORARY_CHANNEL_ID`, so replacing it while it's showing keeps it the active channel and just reloads the feed (its target key, `getSourceTargetKey()`, includes the whole filter).
 - Its name is the filter's `name`, with the `Scenes: ` / `Markers: ` prefix of a saved filter.
+
+### Filtering by an entity
+
+`src/components/channels/temporary-filter.ts` makes the temporary channel's filters from entities (a tag, so far):
+
+- `makeEntityFilter(entityType, entity)`: every scene with it. It's in the shape Stash saves filters in, its criterion in Stash's UI shape (`{ value: { items: [{ id, label }], excluded, depth }, modifier }`), which is what `ListFilterModel.configureFromSavedFilter` reads. A tag's depth is 0: just that tag, not its sub-tags.
+- `addEntityToFilter` adds another of that kind, the criterion requiring all of them (`INCLUDES_ALL`). `canAddEntityToFilter` says whether that's possible: the filter must already filter by that kind of entity, requiring all of them (a single one with `INCLUDES` is the same), and not already this one.
+- `removeEntityFromFilter` takes one out, dropping the criterion once there's none left. `canRemoveEntityFromFilter` allows it only if the filter would still filter by something.
+- A filter's name is what it requires, joined with " & " (e.g. "Alpha & Beta"), so the channel is listed as "Scenes: Alpha & Beta".
+- Each kind of entity's criterion is in `entityCriteria`: adding a kind of entity to filter by is adding it there.
 
 ## Startup channel
 

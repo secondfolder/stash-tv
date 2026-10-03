@@ -2,7 +2,8 @@ import React from "react";
 import { Person, PersonFill } from "react-bootstrap-icons";
 import { sortPerformers } from "../../../../helpers";
 import { labelOption, OptionsOf } from "../field-options";
-import { defineField, Field, getStashUrl, joinAsSentence, labelProps, SceneInfoFieldProps } from "./shared";
+import { defineField, Field, joinAsSentence, labelProps, SceneInfoFieldProps } from "./shared";
+import { getStashUrl } from "../../../../helpers/getStashOrigin";
 
 const schema = {
   label: labelOption({ name: "Performers", icons: { active: PersonFill, inactive: Person }, allowNone: true, default: "icon" }),

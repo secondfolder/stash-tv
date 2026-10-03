@@ -78,6 +78,8 @@ export interface TagRecord {
   aliases: string[];
   parent_ids: string[];
   child_ids: string[];
+  /** Whether it has an image of its own, rather than Stash's default one */
+  has_image?: boolean;
   created_at: string;
   updated_at: string;
 }

@@ -88,6 +88,23 @@ export function getStartupChannel(
   return channels[0]
 }
 
+/** Switch the feed to the given channel */
+export function setActiveChannel(channelId: string) {
+  useGlobalFilterState.setState({ activeChannelId: channelId });
+  // The temporary channel won't be there next time, so the last channel chosen before it is shown instead
+  const { channels, set: setTvConfig } = useTvConfig.getState()
+  const channel = channels.find(channel => channel.id === channelId)
+  if (channel && !isTemporaryChannel(channel)) {
+    setTvConfig("lastViewedChannelId", channelId)
+  }
+}
+
+/** Switch the feed to a temporary channel showing the given filter, replacing the temporary channel if there's one */
+export function showTemporaryFilter(filter: TemporaryFilter) {
+  useTvConfig.getState().set("channels", channels => withTemporaryChannel(channels, filter))
+  setActiveChannel(TEMPORARY_CHANNEL_ID)
+}
+
 export function useMediaItemFilters() {
   const {
     activeChannelId,
@@ -126,7 +143,6 @@ export function useMediaItemFilters() {
     channels,
     startupChannel,
     lastViewedChannelId,
-    set: setTvConfig,
   } = useTvConfig();
   const { orientation } = useWindowSize()
 
@@ -242,22 +258,6 @@ export function useMediaItemFilters() {
 
     return () => { cancelled = true }
   }, [isResponsibleForLoading, loadingDataRequiredBeforeLoadingCurrentFilter, activeChannelId, activeSourceTargetKey, stashDefaultScenesFilter]);
-
-  /** Switch the feed to the given channel */
-  function setActiveChannel(channelId: string) {
-    useGlobalFilterState.setState({ activeChannelId: channelId });
-    // The temporary channel won't be there next time, so the last channel chosen before it is shown instead
-    const channel = useTvConfig.getState().channels.find(channel => channel.id === channelId)
-    if (channel && !isTemporaryChannel(channel)) {
-      setTvConfig("lastViewedChannelId", channelId)
-    }
-  }
-
-  /** Switch the feed to a temporary channel showing the given filter, replacing the temporary channel if there's one */
-  function showTemporaryFilter(filter: TemporaryFilter) {
-    setTvConfig("channels", channels => withTemporaryChannel(channels, filter))
-    setActiveChannel(TEMPORARY_CHANNEL_ID)
-  }
 
   async function fetchSavedFilterFromStash(apolloClient: ApolloClient<NormalizedCacheObject>, filterId: string): Promise<GQL.SavedFilterDataFragment | null> {
     const { data } = await apolloClient.query<GQL.FindSavedFilterQuery, GQL.FindSavedFilterQueryVariables>({

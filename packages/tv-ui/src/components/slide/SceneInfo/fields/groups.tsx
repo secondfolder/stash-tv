@@ -1,5 +1,6 @@
 import React from "react";
-import { defineField, Field, getStashUrl, joinAsSentence, SceneInfoFieldProps } from "./shared";
+import { defineField, Field, joinAsSentence, SceneInfoFieldProps } from "./shared";
+import { getStashUrl } from "../../../../helpers/getStashOrigin";
 
 function GroupsField({ scene }: SceneInfoFieldProps) {
   if (!scene.groups.length) return null;
