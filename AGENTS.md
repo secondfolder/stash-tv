@@ -173,7 +173,7 @@ Three Zustand stores, each exposing the same typed `set` / `get` / `setToDefault
 
 ### Key Hooks (`src/hooks/`)
 
-`useMediaItems()` (the feed's list of item references and pagination) and `useLiveMediaItem()` (a slide's live data from the Apollo cache) — see [media loading](docs/media-loading.md), `useMediaItemFilters()` (resolves the active channel to a filter — see [channels](docs/channels.md)), `getApolloClient()` (singleton Apollo client for the Stash API), `useStashTvConfig()`, `useGamepad()`, `useViewportRotate()`, `useBrowserZoomResetOnViewportChange()`, `useResizeObserver()` (re-measure when elements resize: use it rather than hand-rolling a `ResizeObserver` effect), `useMorphTransition()` (animate a change to what's shown, each `data-morph-key` element sliding and morphing into its counterpart: used for the scene info panel's editor)
+`useMediaItems()` (the feed's list of item references and pagination) and `useLiveMediaItem()` (a slide's live data from the Apollo cache) — see [media loading](docs/media-loading.md), `useMediaItemFilters()` (resolves the active channel to a filter — see [channels](docs/channels.md)), `getApolloClient()` (singleton Apollo client for the Stash API), `useStashTvConfig()`, `useGamepad()`, `useViewportRotate()`, `useBrowserZoomResetOnViewportChange()`, `useResizeObserver()` (re-measure when elements resize: use it rather than hand-rolling a `ResizeObserver` effect), `useSeeking()` (seek a slide's video at a speed until stopped, with feedback: shared by gestures and the arrow keys, see [video player](docs/video-player.md) § "Gestures"), `useMorphTransition()` (animate a change to what's shown, each `data-morph-key` element sliding and morphing into its counterpart: used for the scene info panel's editor)
 
 ### Component Hierarchy
 
@@ -238,7 +238,7 @@ Settings & UI Overlays:
 - **Channels**: a user-curated, reorderable list of what the feed shows (every scene/marker or a saved Stash filter), each source with its own randomise option, plus a temporary channel that is never saved ([channels](docs/channels.md))
 - **Feed of scenes/markers**, with lazy pagination and accumulation ([media loading](docs/media-loading.md))
 - **Video player** built on Stash's ScenePlayer/Video.js — requires many workarounds; see [video player](docs/video-player.md) before touching playback
-- **Gestures** — tap, hold and drag on the video to play/pause, skip and seek (`useGestureControls()` in `MediaSlide`, sharing its seeking with the arrow keys); see [video player](docs/video-player.md) § "Gestures"
+- **Gestures** — tap, hold and drag on the video to play/pause, skip and seek (`useGestureControls()`, sharing `useSeeking()` with the arrow keys' `useKeyboardSeeking()`); see [video player](docs/video-player.md) § "Gestures"
 - **Custom media modifier functions** — user-defined JS (stored as a string, parsed via `getFunctionFromString()`) applied to the media list before display
 - **Keyboard shortcuts** — ⚠️ any change that adds, removes or rebinds a shortcut must also update the help text in `KeyboardShortcutsInfo.md` (see [keyboard shortcuts](docs/keyboard-shortcuts.md))
 - **Gamepad/controller support** (`useGamepad()`), **CRT TV effect** (CSS/shader-based, configurable strength), **forced landscape rotation** (`useViewportRotate()`)

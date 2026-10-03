@@ -26,16 +26,16 @@ import "./video-js-plugins/styled-big-play-button.css";
 import { type ScrollToIndexOptions } from "../../VideoScroller";
 import { ActionButtonStack } from "../../action-buttons/ActionButtonStack";
 import SceneInfo from "../SceneInfo";
-import { getLogger, type Logger } from "@logtape/logtape";
+import { getLogger } from "@logtape/logtape";
 import {Options as AbLoopPluginOptions} from "videojs-abloop";
 import ClipTimestamp from "../ClipTimestamp";
-import { SharedGestureState, useGesture } from "@use-gesture/react";
-import { useFeedback } from "../../FeedbackOverlay";
-import { clamp, roundTo, roundToNearest } from "../../../helpers";
-import UAParser from "ua-parser-js";
+import { roundTo } from "../../../helpers";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPause, faPlay, faForward, faBackward, faGamepad } from "@fortawesome/free-solid-svg-icons";
+import { faGamepad } from "@fortawesome/free-solid-svg-icons";
 import { useGamepadStatus } from "../../../hooks/useGamepadStatus";
+import { useSeeking } from "../../../hooks/useSeeking";
+import { useGestureControls } from "../../../hooks/useGestureControls";
+import { useKeyboardSeeking } from "../../../hooks/useKeyboardSeeking";
 import { TOGGLE_VIDEO_EVENT, PAUSE_VIDEO_EVENT } from "../../../events";
 import { ConfigurationContext } from "stash-ui/dist/src/hooks/Config";
 import { useFirstMountState } from "react-use";
@@ -180,7 +180,7 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
 
     player.on("ratechange", () => {
       // The speed of a gesture's or arrow key's seek is only temporary, not the user's chosen playback rate
-      if (isSeeking()) return;
+      if (seeking.isSeeking()) return;
       logger.info(`Video.js player ratechange event - player playback rate is ${player.playbackRate()}`);
       setTvConfig("playbackRate", player.playbackRate());
     });
@@ -219,7 +219,6 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
     logger.debug(`Going to ${direction} item from index ${props.index} {*}`, {totalPlayedLength, noAnimateDurationThreshold, isCurrentVideo});
 
     const shouldSkipAnimation = totalPlayedLength < noAnimateDurationThreshold
-    seek(null)
     props.changeItemHandler(
       (currentIndex) => Math.max(currentIndex + (direction === 'next' ? 1 : -1), 0),
       { ...(shouldSkipAnimation ? { behavior: 'instant' } : {}) }
@@ -256,7 +255,7 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
       videojsPlayerRef.current?.one('loadstart', () => {
         videojsPlayerRef.current?.play();
       });
-      seek(null)
+      seeking.seek(null)
     }
     videojsPlayerRef.current?.on('ended', handleEnded);
     return () => { videojsPlayerRef.current?.off('ended', handleEnded) };
@@ -454,120 +453,32 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
     videojsPlayerRef.current?.play()
   }, [getSkipTime, props.index, goToItem, effectiveLooping]);
 
-  const {textSelectionWorkaroundElm, seek, isSeeking, toDiscreteSeekSpeed} = useGestureControls({
+  const seeking = useSeeking({
     isCurrentVideo,
     videoRef,
-    videojsPlayerRef,
-    seekForwards,
-    seekBackwards,
-    logger,
+    playerRef: videojsPlayerRef,
     looping: effectiveLooping,
     initialTimestamp,
     endTimestamp,
+    logger,
   })
-
-  useEffect(() => {
-    if (!isCurrentVideo) return;
-    let keyHoldTimer: NodeJS.Timeout | null = null;
-    let seekSpeed: number | null = null;
-    const seekBackwardsKey = forceLandscape ? "ArrowDown" : "ArrowLeft";
-    const seekForwardsKey = forceLandscape ? "ArrowUp" : "ArrowRight";
-    const seekSpeedUpKey = forceLandscape ? "ArrowLeft" : "ArrowUp";
-    const seekSlowDownKey = forceLandscape ? "ArrowRight" : "ArrowDown";
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        e.target instanceof HTMLInputElement
-        || e.target instanceof HTMLTextAreaElement
-        || (e.target instanceof HTMLElement && e.target.getAttribute("role") === "slider")
-      ) return;
-      if (e.key === seekBackwardsKey || e.key === seekForwardsKey) {
-        if (keyHoldTimer) {
-          clearInterval(keyHoldTimer)
-          keyHoldTimer = null
-        }
-      }
-      if (e.key === seekBackwardsKey) {
-        if (!e.repeat) {
-          keyHoldTimer = setTimeout(() => {
-            keyHoldTimer = null
-            seekSpeed = -2
-            seek(seekSpeed)
-          }, 300)
-        }
-        e.preventDefault()
-        e.stopPropagation() // Stops video.js handling the event
-      } else if (e.key === seekForwardsKey) {
-        if (!e.repeat) {
-          keyHoldTimer = setTimeout(() => {
-            keyHoldTimer = null
-            seekSpeed = 2
-            seek(seekSpeed)
-          }, 300)
-        };
-        e.preventDefault()
-        e.stopPropagation() // Stops video.js handling the event
-      } else if (e.key === seekSpeedUpKey && seekSpeed !== null) {
-        if (e.repeat) {
-          seekSpeed += 1
-        } else {
-          seekSpeed = toDiscreteSeekSpeed(seekSpeed).faster
-        }
-        seek(seekSpeed)
-        e.preventDefault()
-        e.stopPropagation() // Stops video.js handling the event
-      } else if (e.key === seekSlowDownKey && seekSpeed !== null) {
-        if (e.repeat) {
-          seekSpeed -= 1
-        } else {
-          seekSpeed = toDiscreteSeekSpeed(seekSpeed).slower
-        }
-        seek(seekSpeed)
-        e.preventDefault()
-        e.stopPropagation() // Stops video.js handling the event
-      } else if (e.key === " " || e.key === "Spacebar") {
-        // Needed because video.js doesn't seem to play via the space bar when playing for the first time
-        videojsPlayerRef.current?.paused() ? videojsPlayerRef.current?.play() : videojsPlayerRef.current?.pause();
-        e.preventDefault()
-        e.stopPropagation() // Stops video.js handling the event
-      }
-    }
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (
-        e.target instanceof HTMLInputElement
-        || e.target instanceof HTMLTextAreaElement
-        || (e.target instanceof HTMLElement && e.target.getAttribute("role") === "slider")
-      ) return;
-      if (!keyHoldTimer && (e.key === seekBackwardsKey || e.key === seekForwardsKey)) {
-        seekSpeed = null
-        seek(seekSpeed)
-        e.preventDefault()
-        e.stopPropagation() // Stops video.js handling the event
-      } else if (e.key === seekBackwardsKey) {
-        if (keyHoldTimer) {
-          clearInterval(keyHoldTimer)
-          keyHoldTimer = null
-        }
-        seekBackwards()
-        e.preventDefault()
-        e.stopPropagation() // Stops video.js handling the event
-      } else if (e.key === seekForwardsKey) {
-        if (keyHoldTimer) {
-          clearInterval(keyHoldTimer)
-          keyHoldTimer = null
-        }
-        seekForwards()
-        e.preventDefault()
-        e.stopPropagation() // Stops video.js handling the event
-      }
-    }
-    // We use capture so we can stop it propagating to the video player which treats arrow keys as seek commands
-    window.addEventListener("keydown", handleKeyDown, { capture: true });
-    window.addEventListener("keyup", handleKeyUp, { capture: true });
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown, { capture: true });
-      window.removeEventListener("keyup", handleKeyUp, { capture: true });
-    };
-  }, [forceLandscape, isCurrentVideo, seekBackwards, seekForwards, props.index]);
+  const { gestureTargetElement } = useGestureControls({
+    isCurrentVideo,
+    videoRef,
+    playerRef: videojsPlayerRef,
+    seeking,
+    seekForwards,
+    seekBackwards,
+    logger,
+  })
+  useKeyboardSeeking({
+    isCurrentVideo,
+    forceLandscape,
+    playerRef: videojsPlayerRef,
+    seeking,
+    seekForwards,
+    seekBackwards,
+  })
 
   useEffect(() => {
     if (!isCurrentVideo) return;
@@ -924,7 +835,7 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
             videoJsControlBarElm
           )}
           {videojsPlayerRef.current?.el() && createPortal(
-            textSelectionWorkaroundElm,
+            gestureTargetElement,
             videojsPlayerRef.current?.el()
           )}
           {effectiveLooping && initialTimestamp !== undefined && videoJsProgressControlElm && createPortal(
@@ -984,584 +895,6 @@ const MediaSlide: React.FC<MediaSlideProps> = ({ mediaItemRef, ...otherProps }) 
 };
 
 export default React.memo(MediaSlide);
-
-function useGestureControls(
-  { isCurrentVideo, videoRef, videojsPlayerRef, seekForwards, seekBackwards, logger, looping, initialTimestamp, endTimestamp }: {
-    isCurrentVideo: boolean,
-    videoRef: React.RefObject<HTMLVideoElement | null>,
-    videojsPlayerRef: React.RefObject<VideoJsPlayer | null>,
-    seekForwards: () => void,
-    seekBackwards: () => void,
-    logger: Logger,
-    looping: boolean,
-    initialTimestamp: number | undefined,
-    endTimestamp: number | undefined,
-  }
-) {
-  logger = logger.getChild("useGestureControls");
-
-  const { setFeedback } = useFeedback();
-
-  const waitForClickTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
-  const gestureStateRef = useRef<{
-    clickArea: "left" | "middle" | "right",
-    elementWidth: number,
-  } | null>(null);
-  const seekStateRef = useRef<({
-    type: "playback-rate",
-  } | {
-    type: "time-skip",
-    seekTimeout: NodeJS.Timeout | null,
-    desiredTimeDelta: number,
-  }) & {
-    discretePlaybackRate: number,
-    initialPausedState: boolean,
-    initialPlaybackRate: number,
-    thumbnailTimeUpdateHandler: (() => void) | null,
-  } | null>(null);
-
-  function showThumbnail() {
-    const vttThumbnails = videojsPlayerRef.current?.vttThumbnails()
-    if (!vttThumbnails) return;
-    videojsPlayerRef.current?.userActive(true)
-    // @ts-expect-error -- This is a private function but we have no other way to show the thumbnail
-    vttThumbnails.showThumbnailHolder();
-    const duration = videojsPlayerRef.current?.duration();
-    const currentTime = videojsPlayerRef.current?.currentTime();
-    const progressBarWidth = videojsPlayerRef.current?.getChild('ControlBar')?.getChild('ProgressControl')?.el().clientWidth
-    if (!videojsPlayerRef.current || !duration || currentTime === undefined || !progressBarWidth) return;
-    // @ts-expect-error -- This is a private function but we have no other way to update the thumbnail position
-    vttThumbnails.updateThumbnailStyle(
-      currentTime / duration,
-      progressBarWidth
-    );
-  }
-
-  function hideThumbnail() {
-    const vttThumbnails = videojsPlayerRef.current?.vttThumbnails()
-    if (!vttThumbnails) return;
-    // @ts-expect-error -- This is a private function but we have no other way to hide the thumbnail
-    vttThumbnails.hideThumbnailHolder();
-  }
-
-  function setupThumbnailUpdate() {
-    if (!seekStateRef.current) return;
-    seekStateRef.current.thumbnailTimeUpdateHandler = showThumbnail
-    videojsPlayerRef.current?.on('timeupdate', showThumbnail);
-    videojsPlayerRef.current?.on('seeking', showThumbnail);
-    videojsPlayerRef.current?.on('progress', showThumbnail);
-    videojsPlayerRef.current?.on('durationchange', showThumbnail);
-  }
-
-  function teardownThumbnailUpdate() {
-    if (!seekStateRef.current?.thumbnailTimeUpdateHandler) return;
-    videojsPlayerRef.current?.off('timeupdate', seekStateRef.current.thumbnailTimeUpdateHandler);
-    videojsPlayerRef.current?.off('seeking', seekStateRef.current.thumbnailTimeUpdateHandler);
-    videojsPlayerRef.current?.off('progress', seekStateRef.current.thumbnailTimeUpdateHandler);
-    videojsPlayerRef.current?.off('durationchange', seekStateRef.current.thumbnailTimeUpdateHandler);
-    seekStateRef.current.thumbnailTimeUpdateHandler = null;
-    hideThumbnail();
-  }
-
-  // iOS has an annoying behaviour where text selection can't seem to be disabled on a video.js video element using
-  // "user-select: none". We can disable it on a standard div however so as a workaround we create one in front of the
-  // video and use that for gesture detection instead.
-  let textSelectionWorkaroundElmRef: React.RefObject<HTMLDivElement> | null = null;
-  let textSelectionWorkaroundElm: React.ReactNode = null
-  if (UAParser().os.name?.includes("iOS")) {
-    textSelectionWorkaroundElmRef = useRef<HTMLDivElement>(null);
-    textSelectionWorkaroundElm = (
-      <div
-        ref={textSelectionWorkaroundElmRef}
-        className="text-selection-on-gesture-workaround"
-      />
-    )
-  }
-
-  const gestureElmRef = textSelectionWorkaroundElmRef ?? videoRef;
-
-  const blockOutsidePausedChange = useRef<((event: Event) => void) | null>(null);
-  const lockedPausedState = useRef<boolean | null>(null);
-
-  // We want to temporarily pause during a drag without affecting the user's desired play/pause state, so we suppress
-  // any attempt to change it until the drag ends
-  function pause(pause: boolean, {hold}: {hold?: boolean} = {}) {
-    const pauseLogger = logger.getChild("pause");
-    if (!videoRef.current) return;
-    if (hold) {
-      lockedPausedState.current = pause
-    }
-    if (hold && !blockOutsidePausedChange.current) {
-      const handler = (event: Event) => {
-        if (videoRef.current && videoRef.current.paused !== lockedPausedState.current) {
-          pauseLogger.debug("Pause change blocked")
-          if (lockedPausedState.current) {
-            videoRef.current.pause()
-          } else {
-            videoRef.current.play()
-          }
-        }
-        event.stopPropagation();
-      }
-      videoRef.current?.addEventListener("pause", handler, { capture: true });
-      blockOutsidePausedChange.current = handler
-    }
-    if (videoRef.current.paused !== pause) {
-      if (pause) {
-        pauseLogger.debug(`Pausing media`)
-        videoRef.current.pause()
-      } else {
-        pauseLogger.debug(`Playing media`)
-        videoRef.current.play()
-      }
-    }
-    if (!hold && blockOutsidePausedChange.current) {
-      pauseLogger.debug("Removing pause block")
-      videoRef.current?.removeEventListener("pause", blockOutsidePausedChange.current, { capture: true });
-      blockOutsidePausedChange.current = null
-      // Ensure videojs restore's the play/pause state correctly
-      if (pause) {
-        // @ts-expect-error -- Private function but can't think of a better way to do this
-        videojsPlayerRef.current?.handleTechPause_()
-      } else {
-        // @ts-expect-error -- Private function but can't think of a better way to do this
-        videojsPlayerRef.current?.handleTechPlay_()
-      }
-    }
-  }
-
-  function getClickArea(event: PointerEvent | MouseEvent | TouchEvent): {area: "left" | "middle" | "right", elementWidth: number} {
-    if (!(event.target instanceof HTMLElement)) {
-      throw new Error("No event target");
-    }
-    let x
-    if (event instanceof PointerEvent || event instanceof MouseEvent) {
-      x = event.offsetX;
-    } else if (event instanceof TouchEvent) {
-      const touch = event.touches[0];
-      const rect = event.target.getBoundingClientRect();
-      x = touch.pageX - (rect.left + window.scrollX);
-    } else {
-      event satisfies never
-      throw new Error("Unknown event type");
-    }
-    const elementWidth = event.target.clientWidth;
-    if ((x / elementWidth) < (1 / 3)) {
-      return {area: "left", elementWidth};
-    } else if ((x / elementWidth) > (2 / 3)) {
-      return {area: "right", elementWidth};
-    } else {
-      return {area: "middle", elementWidth};
-    }
-  }
-
-  function handleDrag({offsetX}: {offsetX: number}) {
-    if (!gestureElmRef.current) {
-      logger.warn("No gesture element ref");
-      return;
-    }
-    if (!gestureStateRef.current) {
-      logger.warn("Not setup correctly");
-      return;
-    }
-
-    if (!videojsPlayerRef.current?.scrubbing()) {
-      videojsPlayerRef.current?.scrubbing(true);
-    }
-
-    const {clickArea, elementWidth} = gestureStateRef.current;
-    let initialRate
-    switch (clickArea) {
-      case "left":
-        // Rewind if clicking on the left third
-        initialRate = -1.5
-        break;
-      case "right":
-        // Fast-forward if clicking on the right third
-        initialRate = 1.5
-        break;
-      case "middle":
-        // No initial rate if dragging from the middle
-        initialRate = 0;
-    }
-    // Limit to max of 1 third of the videos length
-    const playbackRateDragAdjustment = clamp(
-      (videojsPlayerRef.current?.duration() ?? 0) / -3,
-      ((offsetX / elementWidth) * 10) ** 6 * (offsetX > 0 ? 1 : -1),
-      (videojsPlayerRef.current?.duration() ?? 0) / 3
-    )
-    const playbackRate = initialRate + playbackRateDragAdjustment
-    seek(playbackRate);
-  }
-
-  function toDiscreteSeekSpeed(seekSpeed: number): {discrete: number, faster: number, slower: number} {
-    const absSpeed = Math.abs(seekSpeed);
-    const sign = seekSpeed >= 0 ? 1 : -1;
-
-    let discrete: number;
-    let faster: number;
-    let slower: number;
-
-    // Above 120 or below -120
-    if (absSpeed > 120) {
-      discrete = roundToNearest(seekSpeed, 60)
-      faster = discrete + 60
-      slower = discrete - 60
-    // Between 120 to 60 or between -60 to -120
-    } else if (absSpeed > 60) {
-      discrete = roundToNearest(seekSpeed, 30)
-      faster = discrete < 120 ? discrete + 30 : 240
-      slower = discrete > -120 ? discrete - 30 : -240
-    // Between 60 to 15 or between -15 to -60
-    } else if (absSpeed > 15) {
-      discrete = roundToNearest(seekSpeed, 15)
-      faster = discrete < 60 ? discrete + 15 : 120
-      slower = discrete > -60 ? discrete - 15 : -120
-    // Between 15 to 5 or between -5 to -15
-    } else if (absSpeed > 5) {
-      discrete = roundToNearest(seekSpeed, 5)
-      faster = discrete < 15 ? discrete + 5 : 30
-      slower = discrete > -15 ? discrete - 5 : -30
-    // Between 5 to 2 or between -1 to -5
-    } else if (seekSpeed > 2 || seekSpeed < -1) {
-      discrete = roundTo(seekSpeed, 0)
-      faster = discrete < 5 ? discrete + 1 : 10
-      slower = discrete > -5 ? discrete - 1 : -10
-    // Between -1 to 2
-    } else {
-      discrete = roundTo(seekSpeed, 1)
-      faster = discrete < 2 ? discrete + 0.1 : 3
-      slower = discrete > -1 ? discrete - 0.1 : -2
-    }
-
-    return { discrete, faster, slower };
-  }
-
-  // Where seeking forwards stops on a looping video: its end timestamp, or for items without one (markers, previews)
-  // the end of the video
-  const getLoopEnd = () => endTimestamp ?? (videojsPlayerRef.current?.duration() || Infinity);
-
-  function seek(playbackRate: number | null) {
-    console.log("Seek called with rate:", playbackRate);
-    if (playbackRate === null) {
-      cleanupSeek()
-      return;
-    }
-    const discretePlaybackRate = toDiscreteSeekSpeed(playbackRate).discrete;
-    let seekState = seekStateRef.current;
-    if (seekState?.discretePlaybackRate === discretePlaybackRate) {
-      // No change
-      return;
-    }
-
-    const initialPausedState = seekState?.initialPausedState ?? videojsPlayerRef.current?.paused()
-    const initialPlaybackRate = seekState?.initialPlaybackRate ?? videojsPlayerRef.current?.playbackRate()
-    if (initialPausedState === undefined || initialPlaybackRate === undefined) {
-      logger.warn("Failed to get video state");
-      return;
-    }
-    if (!seekState) {
-      logger.debug(`Initial paused state: ${initialPausedState}, initial playback rate: ${initialPlaybackRate}`)
-    }
-
-    const maxRate = 5
-    if (seekState) {
-      seekState.discretePlaybackRate = discretePlaybackRate
-    }
-    if (discretePlaybackRate >= 0.1 && discretePlaybackRate < maxRate) {
-      if (seekState?.type !== "playback-rate") {
-        if (seekState) {
-          logger.info(`Switching to playback rate-based approach`)
-        }
-
-        seekState = {
-          type: "playback-rate",
-          discretePlaybackRate: discretePlaybackRate,
-          initialPausedState,
-          initialPlaybackRate,
-          thumbnailTimeUpdateHandler: null
-        }
-        seekStateRef.current = seekState
-      }
-
-      if (discretePlaybackRate) {
-        setFeedback(
-          `${discretePlaybackRate}x`,
-          {hold: true, icon: <FontAwesomeIcon icon={faPlay} />}
-        );
-      } else {
-        setFeedback(null);
-      }
-      if (discretePlaybackRate) {
-        videojsPlayerRef.current?.playbackRate(discretePlaybackRate);
-        pause(false, {hold: true});
-      } else {
-        pause(true, {hold: true});
-      }
-    } else {
-      if (seekState?.type !== "time-skip") {
-        if (seekState) {
-          logger.info(`Switching to seek-based approach`)
-        }
-        seekState = {
-          type: "time-skip",
-          discretePlaybackRate: discretePlaybackRate,
-          seekTimeout: null,
-          desiredTimeDelta: 0,
-          initialPausedState,
-          initialPlaybackRate,
-          thumbnailTimeUpdateHandler: null,
-        }
-        seekStateRef.current = seekState
-      }
-
-      pause(true, {hold: true});
-      if (videojsPlayerRef.current && videojsPlayerRef.current.playbackRate() !== 1) {
-        videojsPlayerRef.current?.playbackRate(1);
-      }
-
-      const currentTime = videojsPlayerRef.current?.currentTime()
-      if (currentTime !== undefined) {
-        const hitTimeBounds = (discretePlaybackRate < 0 && (currentTime <= (initialTimestamp || 0)))
-        || (discretePlaybackRate > 0 && (currentTime >= getLoopEnd()))
-        // If we are looping and have hit the bounds then we set the feedback in the tick function instead
-        if (!looping || !hitTimeBounds ) {
-          if (discretePlaybackRate) {
-            const minutes = Math.floor(Math.abs(discretePlaybackRate) / 60);
-            const seconds = Math.abs(discretePlaybackRate) % 60;
-            setFeedback(
-              [minutes && `${minutes}m`, seconds && `${seconds}s`].filter(Boolean).join(" "),
-              {
-                hold: true,
-                icon: <FontAwesomeIcon icon={discretePlaybackRate > 0 ? faForward : faBackward} />
-              }
-            );
-          } else {
-            setFeedback(<></>, {hold: true, icon: <FontAwesomeIcon icon={faPause} />});
-          }
-        }
-      }
-
-      const updateFrequency = 100 // In ms
-      if (!seekState.seekTimeout) {
-        const tick = () => {
-          const seekState = seekStateRef.current;
-          if (!seekState || seekState.type !== "time-skip") {
-            return
-          }
-          let desiredTimeDelta = seekState.desiredTimeDelta
-          // If the video hasn't managed to update the current time yet we accumulate the changes to currentTime until either the
-          // video is ready and we can apply them until we reach a max threshold so as to avoid us surprising the user
-          // by jumping too far ahead after having frozen for a bit.
-          const maxAccumulatedTimeDelta = Math.abs(seekState.discretePlaybackRate) * 2;
-          if (Math.abs(desiredTimeDelta) < maxAccumulatedTimeDelta) {
-            desiredTimeDelta += seekState.discretePlaybackRate * (updateFrequency / 1000);
-          }
-          const currentTime = videojsPlayerRef.current?.currentTime()
-          if (currentTime !== undefined) {
-            const newTime = currentTime + desiredTimeDelta
-            const duration = videojsPlayerRef.current?.duration() || Infinity
-            if (looping && newTime < currentTime && (newTime <= (initialTimestamp || 0))) {
-              setFeedback(
-                "Start of loop reached",
-                {hold: true}
-              );
-              videojsPlayerRef.current?.currentTime(initialTimestamp || 0)
-            } else if (looping && newTime > currentTime && (newTime >= getLoopEnd())) {
-              setFeedback(
-                "End of loop reached",
-                {hold: true}
-              );
-              // Stop just short of the very end of the video, where a looping video goes back to its start
-              videojsPlayerRef.current?.currentTime(Math.min(getLoopEnd(), duration - 0.1))
-            } else if (!looping && newTime > currentTime && newTime >= duration) {
-              // Skipping to the end moves on to the next item like playing to it does. The video is paused while
-              // skipping so it never fires its own ended event.
-              logger.debug("End of video reached while skipping forwards")
-              videojsPlayerRef.current?.trigger('ended');
-              return
-            } else if (desiredTimeDelta) {
-              videojsPlayerRef.current?.currentTime(newTime)
-              seekState.desiredTimeDelta = 0;
-            } else {
-              seekState.desiredTimeDelta = desiredTimeDelta;
-            }
-          }
-          seekState.seekTimeout = setTimeout(tick, updateFrequency);
-        }
-        seekState.seekTimeout = setTimeout(tick, updateFrequency);
-      }
-    }
-
-    const shouldShowThumbnail = discretePlaybackRate > 5 || discretePlaybackRate < -2;
-    if (shouldShowThumbnail && !seekState.thumbnailTimeUpdateHandler) {
-      setupThumbnailUpdate()
-    } else if (!shouldShowThumbnail && seekState.thumbnailTimeUpdateHandler) {
-      teardownThumbnailUpdate()
-    }
-  };
-  useGesture({
-    onPointerDown: (state) => {
-      logger.debug("⬇️ Pointer down")
-
-      const {area, elementWidth} = getClickArea(state.event)
-      if (gestureStateRef.current !== null) {
-        logger.warn("Gesture state not cleaned up properly before new gesture");
-      }
-      gestureStateRef.current = {
-        clickArea: area,
-        elementWidth,
-      };
-
-      waitForClickTimeoutRef.current = setTimeout(() => {
-        logger.debug("Holding down{*}", state)
-        handleDrag({offsetX: 0})
-        waitForClickTimeoutRef.current = undefined
-      }, 250);
-    },
-    // Video.js disables click events from firing on touch devices so we listen to pointerup to detect a click instead
-    onPointerUp: useCallback((state: SharedGestureState & { event: PointerEvent }) => {
-      logger.debug("⬆️ Pointer up")
-      // Ignore clicks if it's been long enough that we're treating it as a drag
-      if (!waitForClickTimeoutRef.current) return;
-
-      clearTimeout(waitForClickTimeoutRef.current);
-      waitForClickTimeoutRef.current = undefined;
-      logger.debug("Pointer up - treating as click")
-
-      if (!gestureStateRef.current) {
-        logger.warn("Not setup correctly");
-        return
-      }
-
-      const { clickArea } = gestureStateRef.current
-
-      switch (clickArea) {
-        case "left":
-          seekBackwards()
-          break;
-        case "middle":
-          if (videojsPlayerRef.current?.paused()) {
-            videojsPlayerRef.current?.play()
-          } else {
-            videojsPlayerRef.current?.pause()
-          }
-          break;
-        case "right":
-          seekForwards()
-          break;
-      }
-      gestureStateRef.current = null
-    }, [seekBackwards, seekForwards]),
-    onDrag: (state) => {
-      // Ignore drags if we're not sure if it's a click yet
-      if (waitForClickTimeoutRef.current) return;
-
-      if (!gestureStateRef.current) {
-        logger.warn("Not setup correctly");
-        return
-      }
-
-      // Not sure why by a few values including last don't seem to be set if the first call is also the last call
-      const last = state.last ?? true;
-      const first = state.first ?? true;
-
-      if (first) logger.debug("Drag started")
-
-      const {offset: [offsetX]} = state;
-      if (!last) {
-        handleDrag({offsetX})
-      } else {
-        handleDragEnd()
-      }
-    },
-    onPointerOut: (state: SharedGestureState & { event: PointerEvent }) => {
-      if (state.event.target !== gestureElmRef.current) return;
-      logger.debug("↗️ Pointer out")
-      handleDragEnd();
-    }
-  }, {
-    target: gestureElmRef,
-    drag: {
-      from: [0, 0], // Reset offset to 0 on each gesture start
-      filterTaps: true,
-      preventScroll: true,
-      pointer: {
-        keys: false // The drag event can be trigger by a keyboard but that doesn't make sense for our use case
-        // since we care about the area of the video that user clicks on.
-      }
-    }
-  })
-  // A workaround for https://github.com/pmndrs/use-gesture/issues/593
-  // Removed on unmount so listeners don't pile up as slides are virtualised in and out
-  useEffect(() => {
-    const handleClick = (event: MouseEvent) => {
-      Object.defineProperty(event, 'detail', { value: 0, writable: true });
-    };
-    window.addEventListener("click", handleClick, { capture: true });
-    return () => window.removeEventListener("click", handleClick, { capture: true });
-  }, [])
-
-  useEffect(() => {
-    const handler = () => {
-      // Cancel any gesture if we're scrolling
-      clearTimeout(waitForClickTimeoutRef.current);
-      waitForClickTimeoutRef.current = undefined;
-    }
-    window.addEventListener("scroll", handler, { capture: true });
-    return () => {
-      window.removeEventListener("scroll", handler, { capture: true });
-    };
-  }, []);
-
-
-  function handleDragEnd() {
-    if (!gestureStateRef.current) {
-      return
-    }
-    logger.info("Drag ended")
-    gestureStateRef.current = null
-    seek(null);
-  }
-
-  /** Undo everything seeking changed, leaving the video paused if `paused` is given or as it was before if not. */
-  function cleanupSeek({paused}: {paused?: boolean} = {}) {
-    logger.info("Cleaning up seek")
-
-    if (!seekStateRef.current) {
-      logger.warn("Seeking already cleaned up");
-      return;
-    }
-    teardownThumbnailUpdate()
-    const { initialPausedState, initialPlaybackRate } = seekStateRef.current
-    seekStateRef.current = null
-
-    videojsPlayerRef.current?.playbackRate(initialPlaybackRate);
-    videojsPlayerRef.current?.scrubbing(false);
-    setFeedback(null, {fade: false});
-
-
-    pause(paused ?? initialPausedState);
-    logger.debug(`Restored playback rate to ${initialPlaybackRate} and set paused state to ${paused ?? initialPausedState}`)
-  }
-
-  // A gesture belongs to the slide it started on, so it ends if that slide stops being the current one while it's
-  // still held. Its video is left paused, as videos that aren't current don't play.
-  useEffect(() => {
-    if (isCurrentVideo) return;
-    clearTimeout(waitForClickTimeoutRef.current);
-    waitForClickTimeoutRef.current = undefined;
-    gestureStateRef.current = null;
-    if (seekStateRef.current) cleanupSeek({paused: true});
-  }, [isCurrentVideo]);
-
-  return {
-    textSelectionWorkaroundElm,
-    seek,
-    isSeeking: () => seekStateRef.current !== null,
-    toDiscreteSeekSpeed
-  }
-}
 
 declare global {
   interface Window {

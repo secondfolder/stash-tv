@@ -202,6 +202,18 @@ for (const start of startingSlides) {
         expect(released.playbackRate).toBe(1);
       });
 
+      test('a drag made before the hold registers counts towards its speed', async ({ page }) => {
+        const start = await areaPoint(page, 'right');
+        await pointer.down(start);
+        await speedDrag(pointer, start, await videoWidth(page))(1.5);
+
+        await expectFeedback(page, '3x', 'play');
+        expect((await videoState(currentSlide(page))).playbackRate).toBe(3);
+
+        await pointer.up();
+        await expectFeedbackGone(page);
+      });
+
       test('the speed is limited by how long the video is', async ({ page }) => {
         const start = await areaPoint(page, 'right');
         const dragBy = speedDrag(pointer, start, await videoWidth(page));

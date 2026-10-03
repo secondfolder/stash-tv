@@ -42,6 +42,41 @@ test.describe('Seeking with the keyboard', () => {
     expect((await videoState(currentSlide(page))).currentTime - before).toBeGreaterThan(3.5);
   });
 
+  test('tapping ← skips backwards without any feedback', async ({ page }) => {
+    await seekCurrentVideo(page, 9);
+
+    expect(await feedbackShownDuring(page, () => page.keyboard.press('ArrowLeft'))).toEqual([]);
+
+    expect((await videoState(currentSlide(page))).currentTime).toBeLessThan(6);
+  });
+
+  test('Space pauses and plays the video', async ({ page }) => {
+    await page.keyboard.press(' ');
+    await expect.poll(async () => (await videoState(currentSlide(page))).paused).toBe(true);
+
+    await page.keyboard.press(' ');
+    await expect.poll(async () => (await videoState(currentSlide(page))).paused).toBe(false);
+  });
+
+  test("ignores the keys while they're typed into a text field", async ({ page }) => {
+    await page.evaluate(() => {
+      const input = document.createElement('input');
+      document.body.append(input);
+      input.focus();
+    });
+    const before = (await videoState(currentSlide(page))).currentTime;
+
+    const feedback = await feedbackShownDuring(page, async () => {
+      await page.keyboard.press('ArrowRight');
+      await page.keyboard.press(' ');
+    });
+
+    expect(feedback).toEqual([]);
+    const after = await videoState(currentSlide(page));
+    expect(after.paused).toBe(false);
+    expect(after.currentTime - before).toBeLessThan(1.5);
+  });
+
   test('holding → plays at 2x until released, without skipping', async ({ page }) => {
     await page.keyboard.down('ArrowRight');
     await expectFeedback(page, '2x', 'play');
@@ -53,6 +88,21 @@ test.describe('Seeking with the keyboard', () => {
     const released = await videoState(currentSlide(page));
     expect(released).toMatchObject({ paused: false, playbackRate: 1 });
     expect(released.currentTime - beforeRelease).toBeLessThan(1.5);
+  });
+
+  test('holding → with the key repeating keeps playing at 2x', async ({ page }) => {
+    await page.keyboard.down('ArrowRight');
+    await expectFeedback(page, '2x', 'play');
+
+    // Playwright marks a keydown of a key that's already down as a repeat
+    expect(await feedbackShownDuring(page, async () => {
+      await page.keyboard.down('ArrowRight');
+      await page.keyboard.down('ArrowRight');
+    })).toEqual([]);
+    await expectFeedback(page, '2x', 'play');
+
+    await page.keyboard.up('ArrowRight');
+    await expectFeedbackGone(page);
   });
 
   test('holding ← rewinds at 2s a second until released', async ({ page }) => {
@@ -161,6 +211,32 @@ test.describe('Seeking with the keyboard on a preview', () => {
     expect(await currentSlide(page).locator('.vjs-vtt-thumbnail-display').count()).toBe(0);
 
     await page.keyboard.up('ArrowLeft');
+    await expectFeedbackGone(page);
+  });
+});
+
+test.describe('Seeking with the keyboard in forced landscape', () => {
+  test.use({ viewport: { width: 400, height: 700 } });
+
+  test('turns the arrow keys with the screen: ↑ and ↓ seek, ← and → change the speed', async ({ page, request }) => {
+    // forceLandscape is a device setting, kept in localStorage rather than Stash's config
+    await page.addInitScript(() => {
+      localStorage.setItem('app-state-local', JSON.stringify({ state: { forceLandscape: true }, version: 2 }));
+    });
+    await bootFeed(page, request);
+
+    await page.keyboard.down('ArrowUp');
+    await expectFeedback(page, '2x', 'play');
+    await page.keyboard.press('ArrowLeft');
+    await expectFeedback(page, '3x', 'play');
+    await page.keyboard.press('ArrowRight');
+    await expectFeedback(page, '2x', 'play');
+    await page.keyboard.up('ArrowUp');
+    await expectFeedbackGone(page);
+
+    await page.keyboard.down('ArrowDown');
+    await expectFeedback(page, '2s', 'backward');
+    await page.keyboard.up('ArrowDown');
     await expectFeedbackGone(page);
   });
 });
