@@ -59,3 +59,15 @@
     }
   }
 }
+
+/* Cards blend into the popover, as in Stash's own popovers */
+.EntityPopover .entity-popover-card .grid-card {
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Stash shows the favourite button of an entity that isn't one only while its card's hovered over, which a touch screen
+   can't do */
+.EntityPopover .entity-popover-card .grid-card button.btn.favorite-button.not-favorite {
+  opacity: 1;
+}

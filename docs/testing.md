@@ -77,13 +77,15 @@ Feed-level helpers live in `test/integration/helpers/feed.ts`:
 - `fireLoadStart(app)`: fire `loadstart` on the current slide's video (see the gotcha below)
 - `failCurrentSource(app)`: make the current slide's video fail to play its source, as a browser does when it can't decode it
 
+Entity popover helpers (`test/integration/helpers/entity-popovers.ts`): `bootShowingFields([...])` boots with the info panel open showing the title, date and those fields; `openEntityPopover(app, name)` clicks an entity's name in it and returns its popover; `showTemporaryEntityFilter`, `temporaryChannelFilter`, and `feedShows` / `feedDoesNotShow` (by scene title).
+
 Harness helpers for tests that change state outliving a test:
 - `restoreServerMediaAfterEach(integration)`: snapshot the server's scenes and markers before each test and restore them after
 - `savedTvConfig(integration)`: the tvConfig the app has saved to the server (see the gotcha below)
 
 Action button helpers shared by both tiers live in `test/helpers/actionButtons.tsx`: `sidePanel()` / `isSidePanelOpen()` / `closeSidePanelByClickingOutside()`, `actionButtonRoot(button)`, and `displayedIconState(actionButton, icon)`, which reads a button's state from its icon (the only sign of it for buttons whose title doesn't change). ⚠️ That file imports app code only inside its functions, and integration tests must do the same: see the `StashService` gotcha below.
 
-Tests that change the mock server's scenes or markers (rating, o-count, deleting) must restore them in `afterEach` (`restoreServerMediaAfterEach`): the server store outlives each test. Fixture scenes have no captions; set `captions` on a scene record to give it some. Fixture tags have no images of their own: like Stash, mock-stash marks their `image_path` as its stand-in (`default=true`) unless the tag record has `has_image`.
+Tests that change the mock server's scenes or markers (rating, o-count, deleting) must restore them in `afterEach` (`restoreServerMediaAfterEach`): the server store outlives each test. Fixture scenes have no captions; set `captions` on a scene record to give it some. Fixture tags and performers have no images of their own: like Stash, mock-stash marks their `image_path` as its stand-in (`default=true`) unless the record has `has_image`.
 
 ## Standards (binding for all tests)
 

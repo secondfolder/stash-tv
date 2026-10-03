@@ -37,6 +37,15 @@ describe("temporary filters", () => {
     });
   });
 
+  it("filters by a performer as Stash reads it: scenes with them", () => {
+    const filter = makeEntityFilter("performer", { id: "performer-alice", name: "Alice Amaze" });
+
+    expect(filter.name).toBe("Alice Amaze");
+    expect(sceneFilterOf(filter)).toEqual({
+      performers: { value: ["performer-alice"], excludes: [], modifier: GQL.CriterionModifier.IncludesAll },
+    });
+  });
+
   it("adds an entity so the filter requires all of them, named after them all", () => {
     const filter = addEntityToFilter(makeEntityFilter("tag", alpha), "tag", beta);
 

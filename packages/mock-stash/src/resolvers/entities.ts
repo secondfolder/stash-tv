@@ -1,5 +1,5 @@
 import type { MockContext } from "../context";
-import type { MarkerRecord, SceneRecord, StudioRecord, TagRecord } from "../types";
+import type { MarkerRecord, SceneRecord, StudioRecord, TagRecord, PerformerRecord } from "../types";
 
 /**
  * Field resolvers for entity types whose values are computed (URLs, counts, relations).
@@ -101,8 +101,9 @@ export const entityResolvers = {
     favorite: () => false,
     ignore_auto_tag: () => false,
     urls: () => [],
-    image_path: (performer: { id: string }, _args: unknown, ctx: MockContext) =>
-      `${ctx.baseUrl}/performer/${performer.id}/image`,
+    // As Stash's, marked as its default image when the performer has none of their own
+    image_path: (performer: PerformerRecord, _args: unknown, ctx: MockContext) =>
+      `${ctx.baseUrl}/performer/${performer.id}/image${performer.has_image ? "" : "?default=true"}`,
     o_counter: () => 0,
     scene_count: (performer: { id: string }, _args: unknown, ctx: MockContext) =>
       [...ctx.store.scenes.values()].filter((s) => s.performer_ids.includes(performer.id)).length,

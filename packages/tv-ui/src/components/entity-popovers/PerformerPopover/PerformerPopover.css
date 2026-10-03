@@ -1,0 +1,18 @@
+/* Narrower than in Stash's lists (20rem), as its image is portrait */
+.performer-popover-card .performer-card {
+  margin: 0;
+  width: unset;
+
+  .thumbnail-section {
+    width: 14rem;
+    max-width: 100%;
+    margin: auto;
+    margin-bottom: 1rem;
+  }
+}
+
+.performer-popover-card-placeholder {
+  display: flex;
+  width: 14rem;
+  min-height: 24rem;
+}

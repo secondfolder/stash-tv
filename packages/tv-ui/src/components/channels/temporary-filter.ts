@@ -19,6 +19,7 @@ const toLabeledId = (entity: FilterEntity): ILabeledId => ({ id: entity.id, labe
 /** How each kind of entity is filtered by: the criterion, and whether it's hierarchical (has a depth) */
 const entityCriteria = {
   tag: { criterion: "tags", hierarchical: true },
+  performer: { criterion: "performers", hierarchical: false },
 } as const satisfies Record<string, { criterion: CriterionType; hierarchical: boolean }>
 
 export type FilterEntityType = keyof typeof entityCriteria

@@ -1,8 +1,8 @@
 # Entity Popovers
 
-A popover showing a Stash entity's card (a tag's, for now), its title linking to the entity in Stash, with buttons to show its scenes in the feed. It opens from the entity's name in the scene info panel.
+A popover showing a Stash entity's card (a tag's or a performer's), its title linking to the entity in Stash, with buttons to show its scenes in the feed. It opens from the entity's name in the scene info panel.
 
-**Read this when:** touching `src/components/entity-popovers/`, adding a popover for another kind of entity, or changing what clicking a tag in the scene info panel does.
+**Read this when:** touching `src/components/entity-popovers/`, adding a popover for another kind of entity, or changing what clicking a tag or performer in the scene info panel does.
 
 ---
 
@@ -12,7 +12,9 @@ A popover showing a Stash entity's card (a tag's, for now), its title linking to
 |---|---|
 | `EntityPopover/` | The popover itself, for any entity: opening and closing, placement, the card, and its buttons (`EntityPopoverAction`) |
 | `entity-actions.tsx` | `EntityActions`: the buttons every entity's popover has (see "Actions") |
+| `EntityPopoverCard.tsx` | A card once it's fetched: a loading indicator until then, or the error (smaller than Stash's `ErrorMessage`, which is made for a page) |
 | `TagPopover/` | A tag's popover: `TagPopoverCard` (our version of Stash's `TagPopover.tsx`) and `TagPopover` |
+| `PerformerPopover/` | A performer's popover, with Stash's `PerformerCard` (their age given at the scene's date, as on Stash's scene page) |
 | `helpers.ts` | `hasDefaultImage()` (see "Cards") |
 
 `EntityPopover` takes a `label` (its accessible name, e.g. the tag's name), a `card`, the `actions` (`EntityPopoverAction`s, or a component rendering them), and a render function for what opens it. That function is given props to spread onto that element (`EntityPopoverTriggerProps`: its ref, click and hover handlers, and `aria-expanded`). In the info panel the element is a link to the entity in Stash, so a modified click (ctrl/cmd/shift, or a middle click) still opens Stash in a new tab, as it always has. A plain click opens the popover instead.
@@ -23,7 +25,8 @@ The card and actions are rendered only while the popover is open, so they can fe
 
 1. Wrap the entity's Stash card in `packages/stash-ui/wrappers/components/` (in `WithBrowserRouter`, as its links need a router: see [stash-ui package](stash-ui-package.md) § "Wrapper Customisations").
 2. Add the entity to `entityCriteria` in `src/components/channels/temporary-filter.ts` (the criterion its scenes are filtered by, and whether it's hierarchical).
-3. Add `<Entity>Popover/` here, like `TagPopover/`: its card, and `EntityPopover` with `EntityActions` for it.
+3. Add `<Entity>Popover/` here, like `PerformerPopover/`: its card (fetched, in `EntityPopoverCard`), and `EntityPopover` with `EntityActions` for it.
+4. Use it in the info panel's field, giving it the field's `onExternalLinkClick` as `onOpenInStash`, but not in the editor's pills (`preview`).
 
 ## Opening and closing
 
@@ -40,9 +43,10 @@ It opens above what opened it if it fits there, otherwise below if it fits there
 
 ## Cards
 
-The card is Stash's own (`TagCard`, via its stash-ui wrapper), as Stash's popovers show it. Links in it (its title, its counts…) open the page in Stash in a new tab rather than navigating Stash TV: `EntityPopover` catches clicks on them (`onClickCapture`) and opens `getStashUrl()` of their path. A button inside a link (the card's favourite button is one) is left to do what it does.
+The card is Stash's own (`TagCard`, `PerformerCard`, via their stash-ui wrappers), as Stash's popovers show it, its background and shadow taken off so it blends into the popover. Links in it (its title, its counts…) open the page in Stash in a new tab rather than navigating Stash TV: `EntityPopover` catches clicks on them (`onClickCapture`) and opens `getStashUrl()` of their path. A button inside a link (the card's favourite button is one) is left to do what it does.
 
-- **No stand-in image.** An entity without an image of its own gets one from Stash anyway (its `image_path` has `default=true`, see `hasDefaultImage()`). The card is shown without it (`.no-image` hides the image's link). Its favourite button, shown over the image, stays, beside the name.
+- **No stand-in image, for tags.** A tag without an image of its own gets one from Stash anyway (its `image_path` has `default=true`, see `hasDefaultImage()`). The card is shown without it (`.no-image` hides the image's link). Its favourite button, shown over the image, stays, beside the name. A performer's card keeps Stash's stand-in (a silhouette): their rating, country flag and favourite button are shown over the image, and would pile up on their name without it.
+- A performer's card is narrower than in Stash's lists (14rem rather than 20rem), as its image is portrait and the popover has to fit above or below a name in the panel.
 - The favourite button of an entity that isn't one is always shown, where Stash shows it only while the card's hovered over, which a touch screen can't do.
 
 ## Actions

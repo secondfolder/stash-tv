@@ -9,9 +9,3 @@
     padding-right: 2.5rem;
   }
 }
-
-/* Stash shows the favourite button of a tag that isn't one only while the card's hovered over, which a touch screen
-   can't do */
-.tag-popover-card .tag-card button.btn.favorite-button.not-favorite {
-  opacity: 1;
-}
