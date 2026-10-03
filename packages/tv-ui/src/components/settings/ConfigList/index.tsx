@@ -1,8 +1,7 @@
 import React, { ComponentProps, ReactNode } from "react";
 import { Button } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faAdd } from "@fortawesome/free-solid-svg-icons";
-import { ArrowsMove } from "react-bootstrap-icons";
+import { faAdd, faGripVertical } from "@fortawesome/free-solid-svg-icons";
 import cx from "classnames";
 import DraggableList from "../../DraggableList";
 import "./ConfigList.scss";
@@ -36,7 +35,7 @@ export function ConfigListItem({
       <div className="inline">
         <div className={cx("drag-handle", {disable: !dragHandleProps})} {...dragHandleProps}>
           {/* The same as the line layout editor's drag handle */}
-          <ArrowsMove className="drag-icon" />
+          <FontAwesomeIcon className="drag-icon" icon={faGripVertical} />
           {icon}
         </div>
         {title}

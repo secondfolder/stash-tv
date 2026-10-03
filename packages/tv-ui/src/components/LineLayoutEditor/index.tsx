@@ -4,7 +4,9 @@ import { LayoutGroup, motion } from "framer-motion";
 import { unstable_batchedUpdates } from "react-dom";
 import cx from "classnames";
 import { Badge, Button } from "react-bootstrap";
-import { ArrowReturnLeft, ArrowReturnRight, ArrowsMove, PlusLg, XLg } from "react-bootstrap-icons";
+import { ArrowReturnLeft, ArrowReturnRight, PlusLg, XLg } from "react-bootstrap-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faGripVertical } from "@fortawesome/free-solid-svg-icons";
 import { useResizeObserver } from "../../hooks/useResizeObserver";
 import { layoutOffset, layoutSize } from "../../helpers/layoutOffset";
 import {
@@ -637,7 +639,10 @@ export function LineLayoutEditor<T>({
         {area === "line" ? <XLg /> : <PlusLg />}
       </Button>
     </div>
-    <div className="item-control drag-handle" aria-hidden><ArrowsMove /></div>
+    <div className="item-control drag-handle" aria-hidden>
+      {/* The same as the settings lists' drag handles */}
+      <FontAwesomeIcon icon={faGripVertical} />
+    </div>
     <div className="item-control end">{renderItemActions?.(item, { area, onTap })}</div>
   </div>;
 
