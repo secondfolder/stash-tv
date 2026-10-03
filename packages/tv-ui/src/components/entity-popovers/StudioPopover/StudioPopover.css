@@ -1,0 +1,11 @@
+.studio-popover-card .studio-card {
+  width: 16rem;
+  max-width: 100%;
+  margin: 0;
+}
+
+.studio-popover-card-placeholder {
+  display: flex;
+  width: 16rem;
+  min-height: 12rem;
+}

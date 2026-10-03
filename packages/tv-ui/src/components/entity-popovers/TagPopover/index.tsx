@@ -6,7 +6,6 @@ import { EntityPopover, EntityPopoverTriggerProps } from "../EntityPopover";
 import { EntityActions } from "../entity-actions";
 import { EntityPopoverCard } from "../EntityPopoverCard";
 import { hasDefaultImage } from "../helpers";
-import "./TagPopover.css";
 
 /**
  * A tag's card, as Stash's `TagPopoverCard` shows it, but without its image if it only has Stash's default one (still
@@ -15,7 +14,7 @@ import "./TagPopover.css";
 export function TagPopoverCard({ id }: { id: string }) {
   const { data, loading, error } = useFindTag(id);
   return <EntityPopoverCard className="tag-popover-card" entityLabel="tag" id={id} query={{ data: data?.findTag, loading, error }}>
-    {tag => <div className={cx("tag-popover-card", { "no-image": hasDefaultImage(tag.image_path) })}>
+    {tag => <div className={cx("tag-popover-card", { "entity-card-no-image": hasDefaultImage(tag.image_path) })}>
       <TagCard tag={tag} zoomIndex={0} />
     </div>}
   </EntityPopoverCard>

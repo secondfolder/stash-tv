@@ -46,6 +46,22 @@ describe("temporary filters", () => {
     });
   });
 
+  it("filters by a studio as Stash reads it: scenes from it or its sub-studios", () => {
+    const filter = makeEntityFilter("studio", { id: "studio-prism", name: "Prism Pictures" });
+
+    expect(sceneFilterOf(filter)).toEqual({
+      studios: { value: ["studio-prism"], excludes: [], modifier: GQL.CriterionModifier.Includes, depth: -1 },
+    });
+  });
+
+  it("never offers requiring more than one studio, as a scene has only one", () => {
+    const prism = { id: "studio-prism", name: "Prism Pictures" };
+    const filter = makeEntityFilter("studio", prism);
+
+    expect(canAddEntityToFilter(filter, "studio", { id: "studio-other", name: "Other" })).toBe(false);
+    expect(canRemoveEntityFromFilter(filter, "studio", prism)).toBe(false);
+  });
+
   it("adds an entity so the filter requires all of them, named after them all", () => {
     const filter = addEntityToFilter(makeEntityFilter("tag", alpha), "tag", beta);
 

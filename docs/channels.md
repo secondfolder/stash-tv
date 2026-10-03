@@ -64,10 +64,10 @@ A channel showing a filter that isn't saved anywhere, for showing something for 
 
 ### Filtering by an entity
 
-`src/components/channels/temporary-filter.ts` makes the temporary channel's filters from entities (tags and performers, so far):
+`src/components/channels/temporary-filter.ts` makes the temporary channel's filters from entities (tags, performers and studios):
 
-- `makeEntityFilter(entityType, entity)`: every scene with it. It's in the shape Stash saves filters in, its criterion in Stash's UI shape (`{ value: { items: [{ id, label }], excluded, depth }, modifier }`), which is what `ListFilterModel.configureFromSavedFilter` reads. A tag's depth is 0: just that tag, not its sub-tags. Performers aren't hierarchical, so have no depth.
-- `addEntityToFilter` adds another of that kind, the criterion requiring all of them (`INCLUDES_ALL`). `canAddEntityToFilter` says whether that's possible: the filter must already filter by that kind of entity, requiring all of them (a single one with `INCLUDES` is the same), and not already this one.
+- `makeEntityFilter(entityType, entity)`: every scene with it. It's in the shape Stash saves filters in, its criterion in Stash's UI shape (`{ value: { items: [{ id, label }], excluded, depth }, modifier }`), which is what `ListFilterModel.configureFromSavedFilter` reads. A tag's depth is 0: just that tag, not its sub-tags. Performers aren't hierarchical, so have no depth. A studio's depth is -1, its sub-studios too: the info panel shows a studio's parents, and a network's scenes are mostly its studios'.
+- `addEntityToFilter` adds another of that kind, the criterion requiring all of them (`INCLUDES_ALL`). Not for studios (`combinable: false`): a scene has only one, and Stash only allows `INCLUDES` for them. `canAddEntityToFilter` says whether that's possible: the filter must already filter by that kind of entity, requiring all of them (a single one with `INCLUDES` is the same), and not already this one.
 - `removeEntityFromFilter` takes one out, dropping the criterion once there's none left. `canRemoveEntityFromFilter` allows it only if the filter would still filter by something.
 - A filter's name is what it requires, joined with " & " (e.g. "Alpha & Beta"), so the channel is listed as "Scenes: Alpha & Beta".
 - Each kind of entity's criterion is in `entityCriteria`: adding a kind of entity to filter by is adding it there.

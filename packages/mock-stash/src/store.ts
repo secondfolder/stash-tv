@@ -80,6 +80,21 @@ export function expandTagIds(store: MockStore, tagIds: string[]): Set<string> {
   return result;
 }
 
+/** The studios and their sub-studios (any depth, as with `expandTagIds`) */
+export function expandStudioIds(store: MockStore, studioIds: string[]): Set<string> {
+  const result = new Set<string>();
+  const queue = [...studioIds];
+  while (queue.length) {
+    const id = queue.shift()!;
+    if (result.has(id) || !store.studios.has(id)) continue;
+    result.add(id);
+    for (const studio of store.studios.values()) {
+      if (studio.parent_studio_id === id) queue.push(studio.id);
+    }
+  }
+  return result;
+}
+
 export function markerTagIds(marker: MarkerRecord): string[] {
   return [marker.primary_tag_id, ...marker.tag_ids];
 }

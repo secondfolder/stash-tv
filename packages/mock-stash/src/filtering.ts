@@ -1,4 +1,4 @@
-import { expandTagIds, markerTagIds, type MockStore } from "./store";
+import { expandStudioIds, expandTagIds, markerTagIds, type MockStore } from "./store";
 import type { MarkerRecord, SceneRecord } from "./types";
 
 /**
@@ -43,7 +43,7 @@ interface SceneFilter {
   orientation?: OrientationCriterion | null;
   tags?: HierarchicalMultiCriterion | null;
   performers?: MultiCriterion | null;
-  studios?: MultiCriterion | null;
+  studios?: HierarchicalMultiCriterion | null;
   organized?: boolean | null;
   rating100?: IntCriterion | null;
   o_counter?: IntCriterion | null;
@@ -153,8 +153,12 @@ export function sceneMatchesFilter(
     if (!matchesIdList(scene.performer_ids, sceneFilter.performers)) return false;
   }
 
-  if (sceneFilter.studios && scene.studio_id) {
-    if (!matchesIdList([scene.studio_id], sceneFilter.studios)) return false;
+  if (sceneFilter.studios) {
+    // With their sub-studios. A scene without a studio isn't from any of them.
+    const expanded = expandStudioIds(store, sceneFilter.studios.value);
+    if (!matchesIdList(scene.studio_id ? [scene.studio_id] : [], { value: [...expanded], modifier: sceneFilter.studios.modifier })) {
+      return false;
+    }
   }
 
   if (sceneFilter.rating100 && scene.rating100 != null) {

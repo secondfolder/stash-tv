@@ -71,3 +71,15 @@
 .EntityPopover .entity-popover-card .grid-card button.btn.favorite-button.not-favorite {
   opacity: 1;
 }
+
+/* An entity with only Stash's stand-in image (see hasDefaultImage) is shown without it, but keeps the favourite button
+   shown over the image (in a link of its own, if any, not the image's), which then sits beside its name */
+.EntityPopover .entity-card-no-image {
+  .thumbnail-section > a:has(> img) {
+    display: none;
+  }
+
+  .card-section-title {
+    padding-right: 2.5rem;
+  }
+}

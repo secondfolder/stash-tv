@@ -103,6 +103,8 @@ export interface StudioRecord {
   name: string;
   url: string | null;
   parent_studio_id: string | null;
+  /** Whether it has an image of its own, rather than Stash's default one */
+  has_image?: boolean;
   created_at: string;
   updated_at: string;
 }

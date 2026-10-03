@@ -127,8 +127,9 @@ export const entityResolvers = {
     favorite: () => false,
     groups: () => [],
     movies: () => [],
-    image_path: (studio: { id: string }, _args: unknown, ctx: MockContext) =>
-      `${ctx.baseUrl}/studio/${studio.id}/image`,
+    // As Stash's, marked as its default image when the studio has none of its own
+    image_path: (studio: StudioRecord, _args: unknown, ctx: MockContext) =>
+      `${ctx.baseUrl}/studio/${studio.id}/image${studio.has_image ? "" : "?default=true"}`,
     scene_count: (studio: { id: string }, _args: unknown, ctx: MockContext) =>
       [...ctx.store.scenes.values()].filter((s) => s.studio_id === studio.id).length,
     image_count: () => 0,

@@ -51,9 +51,13 @@ export async function temporaryChannelFilter() {
   return getTemporaryFilter(useTvConfig.getState().channels);
 }
 
-/** Show a temporary channel filtering by the entity, as its popover's "Show scenes with…" does */
-export async function showTemporaryEntityFilter(entityType: FilterEntityType, entity: FilterEntity) {
+/**
+ * Show a temporary channel filtering by the entity, as its popover's "Show scenes with…" does, also requiring any others
+ * given, as "Add to channel filter" does
+ */
+export async function showTemporaryEntityFilter(entityType: FilterEntityType, entity: FilterEntity, ...others: FilterEntity[]) {
   const { showTemporaryFilter } = await import("../../../src/hooks/useMediaItemFilters");
-  const { makeEntityFilter } = await import("../../../src/components/channels/temporary-filter");
-  await act(async () => showTemporaryFilter(makeEntityFilter(entityType, entity)));
+  const { addEntityToFilter, makeEntityFilter } = await import("../../../src/components/channels/temporary-filter");
+  const filter = others.reduce((filter, other) => addEntityToFilter(filter, entityType, other), makeEntityFilter(entityType, entity));
+  await act(async () => showTemporaryFilter(filter));
 }

@@ -95,6 +95,53 @@ describe("queries the app uses", () => {
     );
   });
 
+  it("FindFullScenes — studios scene_filter, leaving out scenes without a studio", async () => {
+    const data = await gql<{ findScenes: { scenes: { id: string }[] } }>(
+      GQL.FindFullScenesDocument,
+      {
+        filter: { q: "", per_page: -1, sort: "date", direction: "DESC" },
+        scene_filter: { studios: { value: ["studio-prism"], modifier: "INCLUDES", depth: -1 } },
+      },
+    );
+    expect(data.findScenes.scenes.map((s) => s.id).sort()).toEqual(["scene-1", "scene-2"]);
+  });
+
+  it("FindFullScenes — studios scene_filter includes sub-studios' scenes", async () => {
+    const { studios, scenes } = server.store;
+    const scene3 = scenes.get("scene-3");
+    const prism = studios.get("studio-prism");
+    if (!scene3 || !prism) throw new Error("Fixtures changed");
+    studios.set("studio-sub", { ...prism, id: "studio-sub", name: "Sub", parent_studio_id: "studio-prism" });
+    scenes.set("scene-3", { ...scene3, studio_id: "studio-sub" });
+    try {
+      const data = await gql<{ findScenes: { scenes: { id: string }[] } }>(
+        GQL.FindFullScenesDocument,
+        {
+          filter: { q: "", per_page: -1, sort: "date", direction: "DESC" },
+          scene_filter: { studios: { value: ["studio-prism"], modifier: "INCLUDES", depth: -1 } },
+        },
+      );
+      expect(data.findScenes.scenes.map((s) => s.id).sort()).toEqual(["scene-1", "scene-2", "scene-3"]);
+    } finally {
+      studios.delete("studio-sub");
+      scenes.set("scene-3", scene3);
+    }
+  });
+
+  it("FindTag / FindPerformer / FindStudio, with Stash's mark on a stand-in image", async () => {
+    const tag = await gql<{ findTag: { name: string; image_path: string } }>(GQL.FindTagDocument, { id: "tag-alpha" });
+    expect(tag.findTag.name).toBe("Alpha");
+    expect(tag.findTag.image_path).toContain("default=true");
+    const performer = await gql<{ findPerformer: { name: string; image_path: string } }>(
+      GQL.FindPerformerDocument, { id: "performer-alice" },
+    );
+    expect(performer.findPerformer.name).toBe("Alice Amaze");
+    expect(performer.findPerformer.image_path).toContain("default=true");
+    const studio = await gql<{ findStudio: { name: string; image_path: string } }>(GQL.FindStudioDocument, { id: "studio-prism" });
+    expect(studio.findStudio.name).toBe("Prism Pictures");
+    expect(studio.findStudio.image_path).toContain("default=true");
+  });
+
   it("FindSceneMarkersForTv", async () => {
     const data = await gql<{ findSceneMarkers: { count: number; scene_markers: { id: string; scene: { id: string } }[] } }>(
       GQL.FindSceneMarkersForTvDocument,

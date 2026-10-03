@@ -4,6 +4,7 @@ import { getLogger } from "@logtape/logtape";
 import { ChevronLeft } from "react-bootstrap-icons";
 import { queryFindStudio } from "stash-ui/dist/src/core/StashService";
 import { defineField, Field, SceneInfoFieldProps } from "./shared";
+import { StudioPopover } from "../../../entity-popovers/StudioPopover";
 import { getStashUrl } from "../../../../helpers/getStashOrigin";
 
 const logger = getLogger(["stash-tv", "SceneInfo"]);
@@ -28,7 +29,7 @@ const getStudioOwnershipChain = async (studio: Studio): Promise<Studio[]> => {
 }
 
 /** The studio, with the studios it belongs to (fetched, as the scene has only its own) */
-function StudioField({ scene }: SceneInfoFieldProps) {
+function StudioField({ scene, preview, onExternalLinkClick }: SceneInfoFieldProps) {
   const [studioOwnershipChain, setStudioOwnershipChain] = useState<Studio[]>(scene.studio ? [scene.studio] : []);
 
   useEffect(() => {
@@ -43,15 +44,13 @@ function StudioField({ scene }: SceneInfoFieldProps) {
   return <Field field={fieldDefinition}>
     {studioOwnershipChain
       .map((studio, i) => {
-        const renderedStudio = (
-          <a
-            key={studio.id}
-            href={getStashUrl(`/studios/${studio.id}`)}
-            target="_blank"
-          >
-            {studio.name}
-          </a>
-        )
+        const href = getStashUrl(`/studios/${studio.id}`)
+        const renderedStudio = preview
+          ? <a key={studio.id} href={href} target="_blank">{studio.name}</a>
+          // Opens the studio's popover, or with a modifier key (or middle click), the studio in Stash
+          : <StudioPopover key={studio.id} studio={studio} onOpenInStash={onExternalLinkClick}>
+            {triggerProps => <a href={href} target="_blank" {...triggerProps}>{studio.name}</a>}
+          </StudioPopover>
         return i > 0
           ? [
             <ChevronLeft

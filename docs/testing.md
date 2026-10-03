@@ -85,7 +85,7 @@ Harness helpers for tests that change state outliving a test:
 
 Action button helpers shared by both tiers live in `test/helpers/actionButtons.tsx`: `sidePanel()` / `isSidePanelOpen()` / `closeSidePanelByClickingOutside()`, `actionButtonRoot(button)`, and `displayedIconState(actionButton, icon)`, which reads a button's state from its icon (the only sign of it for buttons whose title doesn't change). ⚠️ That file imports app code only inside its functions, and integration tests must do the same: see the `StashService` gotcha below.
 
-Tests that change the mock server's scenes or markers (rating, o-count, deleting) must restore them in `afterEach` (`restoreServerMediaAfterEach`): the server store outlives each test. Fixture scenes have no captions; set `captions` on a scene record to give it some. Fixture tags and performers have no images of their own: like Stash, mock-stash marks their `image_path` as its stand-in (`default=true`) unless the record has `has_image`.
+Tests that change the mock server's scenes or markers (rating, o-count, deleting) must restore them in `afterEach` (`restoreServerMediaAfterEach`): the server store outlives each test. Fixture scenes have no captions; set `captions` on a scene record to give it some. Fixture tags, performers and studios have no images of their own: like Stash, mock-stash marks their `image_path` as its stand-in (`default=true`) unless the record has `has_image`. Filtering scenes by studio includes sub-studios' scenes, and leaves out scenes without a studio.
 
 ## Standards (binding for all tests)
 
