@@ -33,9 +33,31 @@ async function openInfoPanel(page: Page) {
   await expect(infoPanel(page)).toHaveClass(/active/);
 }
 
+/**
+ * Wait for the panel to finish morphing into or out of the editor. Until then, copies of its fields and pills (with
+ * the same classes and attributes) are shown over it, moving.
+ *
+ * @see docs/scene-info-panel.md § "Customising the panel"
+ */
+async function morphDone(page: Page) {
+  await expect(infoPanel(page).locator('.morph-layer')).toHaveCount(0);
+}
+
+/** Switch the open panel to its editor */
+async function clickEdit(page: Page) {
+  await infoPanel(page).getByRole('button', { name: 'Customise info panel' }).click();
+  await morphDone(page);
+}
+
 async function startEditing(page: Page) {
   await openInfoPanel(page);
-  await infoPanel(page).getByRole('button', { name: 'Customise info panel' }).click();
+  await clickEdit(page);
+}
+
+/** Save the editor's changes, back to the panel showing the fields */
+async function saveEdits(page: Page) {
+  await infoPanel(page).getByRole('button', { name: 'Save' }).click();
+  await morphDone(page);
 }
 
 function pill(page: Page, field: string) {
@@ -168,6 +190,39 @@ function widthsBetween(from: number, to: number, step = 10) {
   return Array.from({ length: Math.floor((to - from) / step) + 1 }, (_, i) => from + i * step);
 }
 
+/**
+ * Record, every frame from the pointer being let go until it's gone, where the dragged field's copy settling into place
+ * is and how far it's turned, and whether the element it's settling into is shown. Read with `settlingFrames`.
+ */
+async function recordSettling(page: Page) {
+  await page.evaluate(() => {
+    const record = window as unknown as { settling: { x: number, y: number, angle: number, targetShown: boolean }[] };
+    record.settling = [];
+    const sample = () => {
+      const overlay = document.querySelector<HTMLElement>('[data-current-video="true"] .drag-overlay.settling');
+      if (!overlay && record.settling.length) return;
+      if (overlay) {
+        const item = overlay.querySelector('.layout-item')!.getBoundingClientRect();
+        const { a, b } = new DOMMatrix(getComputedStyle(overlay).transform);
+        const target = document.querySelector('[data-current-video="true"] .layout-item.settling');
+        record.settling.push({
+          x: item.left + item.width / 2,
+          y: item.top + item.height / 2,
+          angle: Math.atan2(b, a) * 180 / Math.PI,
+          targetShown: !!target && getComputedStyle(target).visibility !== 'hidden',
+        });
+      }
+      requestAnimationFrame(sample);
+    };
+    window.addEventListener('pointerup', () => requestAnimationFrame(sample), { once: true });
+  });
+}
+
+async function settlingFrames(page: Page) {
+  await page.waitForTimeout(800);
+  return await page.evaluate(() => (window as unknown as { settling: { x: number, y: number, angle: number, targetShown: boolean }[] }).settling);
+}
+
 async function box(locator: Locator) {
   const result = await locator.boundingBox();
   if (!result) throw new Error('Element not rendered');
@@ -204,8 +259,9 @@ test.describe('Scene info panel', () => {
     await expectUsableOnScreen(infoPanel(page).getByRole('button', { name: 'Save' }));
     const lastAvailable = infoPanel(page).getByRole('button', { name: 'Add URLs' });
     await lastAvailable.scrollIntoViewIfNeeded();
-    // Its name rather than the pill, whose rounded corners aren't part of it
-    await expectUsableOnScreen(lastAvailable.locator('.pill-name'));
+    // Its controls' drag handle rather than the pill, whose rounded corners aren't part of it (its controls, which
+    // the pointer can reach when they're hidden, are over its name)
+    await expectUsableOnScreen(infoPanel(page).locator('.available-items .field-pill[data-field="urls"] .drag-handle'));
     // Scrolling the panel mustn't have scrolled the feed on to another video
     await expectUsableOnScreen(infoPanel(page).getByRole('button', { name: 'Save' }));
   });
@@ -260,7 +316,7 @@ test.describe('Scene info panel', () => {
     await dragTo(page, pill(page, 'date'), title.x + 4, (title.y + title.height + performers.y) / 2);
 
     await expect.poll(() => editorLayout(page)).toEqual([['title'], ['date'], ['performers']]);
-    await infoPanel(page).getByRole('button', { name: 'Save' }).click();
+    await saveEdits(page);
     await expect(infoPanel(page).locator('.field-line')).toHaveText(['Grotto Glow', '14 February 2025', 'Bob Bold']);
 
     await page.reload();
@@ -363,7 +419,7 @@ test.describe('Scene info panel', () => {
 
     await expect.poll(() => editorLayout(page)).toEqual([['title', 'date']]);
     await expect(rightAlignedPill(page, 'date')).toHaveCount(1);
-    await infoPanel(page).getByRole('button', { name: 'Save' }).click();
+    await saveEdits(page);
     const line = infoPanel(page).locator('.field-line');
     await expect(line).toHaveText(['Grotto Glow14 February 2025']);
     const rightAligned = line.locator('.right-aligned-fields');
@@ -443,7 +499,7 @@ test.describe('Scene info panel', () => {
     for (const right of leftRows) expect(right).toBeLessThanOrEqual(rightStart - 2 * em + 0.5);
 
     // And the same in the panel itself
-    await infoPanel(page).getByRole('button', { name: 'Save' }).click();
+    await saveEdits(page);
     const line = infoPanel(page).locator('.field-line').first();
     const panelLine = await box(line);
     const panelRightRows = await rowRightEdges(line.locator('.right-aligned-fields > *'));
@@ -477,7 +533,7 @@ test.describe('Scene info panel', () => {
     const panelField = (field: string) => box(infoPanel(page).locator(`.field-${field}`));
     expect((await panelField('duration')).x).toBeGreaterThan((await panelField('resolution')).x);
 
-    await infoPanel(page).getByRole('button', { name: 'Customise info panel' }).click();
+    await clickEdit(page);
     expect((await box(pill(page, 'duration'))).x).toBeGreaterThan((await box(pill(page, 'resolution'))).x);
   });
 
@@ -667,7 +723,8 @@ test.describe('Scene info panel', () => {
   });
 
   test('slides the lines apart to make room for a new line once a field is dropped there', async ({ page, request }) => {
-    await setPanelConfig(request, { sceneInfoLayout: [['studio'], ['title', 'date'], ['performers']] });
+    // Enough lines to be taller than the unused fields beside them, so the panel grows with a new one
+    await setPanelConfig(request, { sceneInfoLayout: [['studio'], ['title', 'date'], ['performers'], ['tags'], ['rating'], ['details']] });
     await startEditing(page);
     const title = await box(pill(page, 'title'));
     const performers = await box(pill(page, 'performers'));
@@ -677,7 +734,7 @@ test.describe('Scene info panel', () => {
 
     await recordSlidingFields(page);
     await page.mouse.up();
-    await expect.poll(() => editorLayout(page)).toEqual([['studio'], ['title'], ['date'], ['performers']]);
+    await expect.poll(() => editorLayout(page)).toEqual([['studio'], ['title'], ['date'], ['performers'], ['tags'], ['rating'], ['details']]);
 
     // The panel grows upwards, so the lines above the new one move up, and the toolbar with them. Side by side (the
     // screen's wider than it's tall) the unused fields move up too. The panel's background grows with them.
@@ -1033,6 +1090,7 @@ test.describe('Scene info panel', () => {
   test('names a field with no value for the scene when showing values', async ({ page }) => {
     await startEditing(page);
     await infoPanel(page).getByRole('button', { name: 'Field value' }).click();
+    await morphDone(page);
 
     // The first scene has no studio
     const studioValue = pill(page, 'studio').locator('.pill-value');
@@ -1127,6 +1185,7 @@ test.describe('Scene info panel', () => {
       await page.reload();
       await startEditing(page);
       await infoPanel(page).getByRole('button', { name: 'Field value' }).click();
+      await morphDone(page);
       await page.waitForTimeout(500);
       const lines = infoPanel(page).locator('.layout-lines > .layout-line');
       const linesBox = await box(infoPanel(page).locator('.layout-lines'));
@@ -1221,6 +1280,198 @@ test.describe('Scene info panel', () => {
     expect(clipped).toBe(0);
   });
 
+  test('reaches the bottom of the screen while editing, over the video\'s progress bar', async ({ page }) => {
+    await startEditing(page);
+    const viewport = page.viewportSize()!;
+
+    const panel = await box(infoPanel(page));
+    expect(panel.y + panel.height).toBeCloseTo(viewport.height, 0);
+    const progressBarCovered = await currentSlide(page).locator('.vjs-progress-control').evaluate((progress) => {
+      const rect = progress.getBoundingClientRect();
+      return !!document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)?.closest('.SceneInfo');
+    });
+    expect(progressBarCovered).toBe(true);
+    // The action buttons are still over it
+    await expectUsableOnScreen(currentSlide(page).getByRole('button', { name: 'Close scene info' }));
+  });
+
+  /** @see docs/scene-info-panel.md § "Switching to and from editing" */
+  test('morphs its fields into their pills as editing starts, and back once it ends, without wrapping their text', async ({ page, request }) => {
+    await setPanelConfig(request, { sceneInfoLayout: [['title'], ['date']] });
+    await openInfoPanel(page);
+    // Every frame of the morph: whether it's going, and any copy of a field or pill whose text has wrapped
+    await page.evaluate(() => {
+      const record = window as unknown as { morphFrames: number, wrapped: Set<string> };
+      record.morphFrames = 0;
+      record.wrapped = new Set();
+      const sample = () => {
+        const layer = document.querySelector('[data-current-video="true"] .morph-layer');
+        if (layer) {
+          record.morphFrames++;
+          for (const copy of layer.querySelectorAll<HTMLElement>('.field, .field-pill')) {
+            if (copy.scrollHeight > copy.clientHeight + 1) record.wrapped.add(copy.className);
+          }
+        }
+        requestAnimationFrame(sample);
+      };
+      sample();
+    });
+
+    await clickEdit(page);
+    await saveEdits(page);
+
+    const { morphFrames, wrapped } = await page.evaluate(() => {
+      const { morphFrames, wrapped } = window as unknown as { morphFrames: number, wrapped: Set<string> };
+      return { morphFrames, wrapped: [...wrapped] };
+    });
+    expect(morphFrames).toBeGreaterThan(10);
+    expect(wrapped).toEqual([]);
+    await expect(infoPanel(page).locator('.field-date')).toHaveText('14 February 2025');
+  });
+
+  /** @see docs/scene-info-panel.md § "Switching to and from editing" */
+  test('fades the unused fields in with the editor as editing starts, not faded twice over', async ({ page }) => {
+    await openInfoPanel(page);
+    // Every frame of the morph: the unused fields' own opacity, apart from the editor's they're in
+    await page.evaluate(() => {
+      const record = window as unknown as { ownOpacities: number[] };
+      record.ownOpacities = [];
+      const sample = () => {
+        const panel = document.querySelector('[data-current-video="true"] .SceneInfo');
+        if (panel?.querySelector('.morph-layer')) {
+          for (const pill of panel.querySelectorAll('.available-items .field-pill')) {
+            record.ownOpacities.push(Number(getComputedStyle(pill).opacity));
+          }
+        }
+        requestAnimationFrame(sample);
+      };
+      sample();
+    });
+
+    await clickEdit(page);
+
+    const ownOpacities = await page.evaluate(() => (window as unknown as { ownOpacities: number[] }).ownOpacities);
+    expect(ownOpacities.length).toBeGreaterThan(10);
+    expect(ownOpacities.every((opacity) => opacity === 1)).toBe(true);
+  });
+
+  /** @see docs/scene-info-panel.md § "Switching to and from editing" */
+  test('morphs the pills between names and values, without wrapping their text', async ({ page }) => {
+    await startEditing(page);
+    await page.evaluate(() => {
+      const record = window as unknown as { morphFrames: number, wrapped: Set<string> };
+      record.morphFrames = 0;
+      record.wrapped = new Set();
+      const sample = () => {
+        const layer = document.querySelector('[data-current-video="true"] .morph-layer');
+        if (layer) {
+          record.morphFrames++;
+          for (const copy of layer.querySelectorAll<HTMLElement>('.field-pill')) {
+            if (copy.scrollHeight > copy.clientHeight + 1) record.wrapped.add(copy.dataset.field ?? '');
+          }
+        }
+        requestAnimationFrame(sample);
+      };
+      sample();
+    });
+
+    await infoPanel(page).getByRole('button', { name: 'Field value' }).click();
+
+    await morphDone(page);
+    await morphDone(page);
+
+    const { morphFrames, wrapped } = await page.evaluate(() => {
+      const { morphFrames, wrapped } = window as unknown as { morphFrames: number, wrapped: Set<string> };
+      return { morphFrames, wrapped: [...wrapped] };
+    });
+    expect(morphFrames).toBeGreaterThan(10);
+    expect(wrapped).toEqual([]);
+    await expect(pill(page, 'date')).toHaveText('14 February 2025');
+  });
+
+  test('switches to and from editing at once when the user prefers reduced motion', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await openInfoPanel(page);
+    await infoPanel(page).getByRole('button', { name: 'Customise info panel' }).click();
+
+    await expect(pill(page, 'title')).toBeVisible();
+    expect(await infoPanel(page).locator('.morph-layer').count()).toBe(0);
+  });
+
+  test('shows a field\'s controls over it while it\'s hovered over, but not while it\'s dragged', async ({ page }) => {
+    await startEditing(page);
+    const controls = pill(page, 'title').locator('.item-controls');
+    const opacity = () => controls.evaluate((element) => Number(getComputedStyle(element).opacity));
+    expect(await opacity()).toBe(0);
+
+    await pill(page, 'title').hover();
+    await expect.poll(opacity).toBe(1);
+    // Over the field, not beside it
+    const [pillBox, controlsBox] = await Promise.all([box(pill(page, 'title')), box(controls)]);
+    expect(controlsBox).toEqual(pillBox);
+    await expect(pill(page, 'title').getByRole('button', { name: 'Remove Title' })).toBeVisible();
+
+    const performers = await box(pill(page, 'performers'));
+    await startDrag(page, pill(page, 'title'), performers.x + 4, performers.y + performers.height / 2);
+    await expect(infoPanel(page).locator('.item-controls:visible')).toHaveCount(0);
+    await page.mouse.up();
+  });
+
+  test('offers to add an unused field with its controls\' + rather than a ×', async ({ page }) => {
+    await startEditing(page);
+    const tags = infoPanel(page).locator('.available-items .field-pill[data-field="tags"]');
+
+    await tags.hover();
+    await expect(tags.getByRole('button', { name: 'Remove Tags' })).toHaveCount(0);
+    await tags.getByRole('button', { name: 'Add Tags' }).click();
+
+    await expect.poll(() => editorLayout(page)).toEqual([['studio'], ['title'], ['performers'], ['date'], ['tags']]);
+  });
+
+  test('slides a field let go where it can\'t go back to where it came from, straightening as it goes', async ({ page }) => {
+    await startEditing(page);
+    const date = await box(pill(page, 'date'));
+    const panel = await box(infoPanel(page));
+
+    // Above the panel, over the video
+    await startDrag(page, pill(page, 'date'), date.x + 8, panel.y - 40);
+    await recordSettling(page);
+    await page.mouse.up();
+    const frames = await settlingFrames(page);
+
+    await expect.poll(() => editorLayout(page)).toEqual([['studio'], ['title'], ['performers'], ['date']]);
+    expect(frames.length).toBeGreaterThan(5);
+    // From where it was let go, tilted, to where it was, straight
+    expect(frames[0].y).toBeLessThan(panel.y);
+    expect(Math.abs(frames[0].angle)).toBeGreaterThan(1);
+    const last = frames.at(-1)!;
+    expect(last.x).toBeCloseTo(date.x + date.width / 2, -1);
+    expect(last.y).toBeCloseTo(date.y + date.height / 2, -1);
+    expect(Math.abs(last.angle)).toBeLessThan(0.5);
+    // The field itself only shows once its copy gets there
+    expect(frames.every((frame) => !frame.targetShown)).toBe(true);
+    await expect(pill(page, 'date')).toBeVisible();
+  });
+
+  test('slides a field dropped on a line into its new place rather than jumping there', async ({ page }) => {
+    await startEditing(page);
+    const title = await box(pill(page, 'title'));
+
+    await startDrag(page, pill(page, 'date'), pastEnd(title), title.y + title.height / 2);
+    await recordSettling(page);
+    await page.mouse.up();
+    const frames = await settlingFrames(page);
+
+    await expect.poll(() => editorLayout(page)).toEqual([['studio'], ['title', 'date'], ['performers']]);
+    const date = await box(pill(page, 'date'));
+    expect(frames.length).toBeGreaterThan(5);
+    expect(frames[0].x).toBeGreaterThan(date.x + date.width);
+    const last = frames.at(-1)!;
+    expect(last.x).toBeCloseTo(date.x + date.width / 2, -1);
+    expect(last.y).toBeCloseTo(date.y + date.height / 2, -1);
+    expect(Math.abs(last.angle)).toBeLessThan(0.5);
+  });
+
   for (const orientation of ['below', 'beside'] as const) {
     test(`spaces the toolbar, the lines and the unused fields evenly with the unused fields ${orientation} the lines`, async ({ page }) => {
       await page.setViewportSize(orientation === 'below' ? { width: 600, height: 1000 } : { width: 1280, height: 720 });
@@ -1234,6 +1485,43 @@ test.describe('Scene info panel', () => {
       else expect(unused.y).toBeCloseTo(lines.y, 0);
     });
   }
+});
+
+/**
+ * On a touchscreen, which can't hover, a field's controls show once it's tapped.
+ *
+ * @see docs/line-layout-editor.md § "Using it"
+ */
+test.describe('Scene info panel editor on a touchscreen', () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 412, height: 915 } });
+
+  test.beforeEach(async ({ request }) => {
+    await setPanelConfig(request, {});
+  });
+
+  test.afterEach(async ({ request }) => {
+    await setTvConfig(request, null);
+  });
+
+  test('shows a field\'s controls once it\'s tapped, rather than pressing the hidden one under the tap', async ({ page }) => {
+    await page.goto('/');
+    await currentSlide(page).getByRole('button', { name: 'Show scene info' }).tap();
+    await expect(infoPanel(page)).toHaveClass(/active/);
+    await infoPanel(page).getByRole('button', { name: 'Customise info panel' }).tap();
+    await morphDone(page);
+    const title = await box(pill(page, 'title'));
+    const controls = pill(page, 'title').locator('.item-controls');
+    const opacity = () => controls.evaluate((element) => Number(getComputedStyle(element).opacity));
+
+    // Where its × is, once shown
+    await page.touchscreen.tap(title.x + 8, title.y + title.height / 2);
+    await expect.poll(opacity).toBe(1);
+    await expect.poll(() => editorLayout(page)).toEqual([['studio'], ['title'], ['performers'], ['date']]);
+
+    // Now it's shown, tapping it removes the field
+    await page.touchscreen.tap(title.x + 8, title.y + title.height / 2);
+    await expect.poll(() => editorLayout(page)).toEqual([['studio'], ['performers'], ['date']]);
+  });
 });
 
 /**
@@ -1339,7 +1627,7 @@ test.describe('Scene info panel fields', () => {
     await dialog.getByText('Always show every tag').click();
     await dialog.getByRole('button', { name: 'Save' }).click();
     await expect(dialog).toHaveCount(0);
-    await infoPanel(page).getByRole('button', { name: 'Save' }).click();
+    await saveEdits(page);
 
     const tags = infoPanel(page).locator('.field-tags');
     await expect(tags).not.toHaveClass(/capped/);
@@ -1405,7 +1693,7 @@ test.describe('Scene info panel fields', () => {
     // The layout's set up as the title's line, then the tags'
     expect(lines[0]).toEqual(['title', 'spacer']);
 
-    await infoPanel(page).getByRole('button', { name: 'Save' }).click();
+    await saveEdits(page);
     const beside = infoPanel(page).locator('.field-line').first().locator('.field-spacer');
     expect((await box(beside)).width).toBeGreaterThan(0);
   });

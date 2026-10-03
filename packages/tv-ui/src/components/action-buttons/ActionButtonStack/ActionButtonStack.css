@@ -11,7 +11,8 @@
   flex-direction: column;
   justify-content: end;
   align-items: end;
-  z-index: 3;
+  /* Over the scene info panel, even while it's being edited and lifted over the video's controls (see SceneInfo.css) */
+  z-index: 4;
   max-height: calc(var(--y-unit-small) * 100 - var(--bottom-offset));
   /* Only its buttons take the pointer. Its scrolling area is wider than they are (room for their shadows and the scroll
   bar), and reaches over what's beside the stack (e.g. the scene info panel's edit button), which it would otherwise

@@ -1,5 +1,5 @@
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
-import React, { ReactNode } from "react";
+import React, { createContext, ReactNode, useContext } from "react";
 import cx from "classnames";
 import type { LabelOption, LabelStyle, OptionsOf, OptionsSchema } from "../field-options";
 
@@ -57,13 +57,20 @@ export const getStashUrl = (path: string) => {
 }
 
 /**
+ * The key of the field's entry in the layout, given to fields shown in the panel (not in the editor's pills), so
+ * switching to and from the editor morphs each into its pill and back (see useMorphTransition)
+ */
+export const FieldMorphKeyContext = createContext<string | undefined>(undefined);
+
+/**
  * A field's container. `showLabel` shows the field's name before the value, for values that don't explain themselves,
  * and `icon` an icon standing in for it.
  */
 export function Field({ field, showLabel, icon, className, children }: {
   field: { id: string, label: string }, showLabel?: boolean, icon?: ReactNode, className?: string, children: ReactNode,
 }) {
-  return <div className={cx("field", `field-${field.id}`, className)}>
+  const morphKey = useContext(FieldMorphKeyContext);
+  return <div className={cx("field", `field-${field.id}`, className)} data-morph-key={morphKey}>
     {showLabel && <span className="field-label">{field.label}</span>}
     {icon && <span className="field-icon" role="img" aria-label={field.label} title={field.label}>
       {icon}

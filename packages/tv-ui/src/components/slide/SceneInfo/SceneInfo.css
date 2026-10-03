@@ -14,6 +14,18 @@
   flex-direction: column;
   z-index: 3; /* Make sure it's above .text-selection-on-gesture-workaround if present */
 
+  /* Editing, it reaches the bottom of the screen, over the video's controls (which share its z-index, and come after
+  it), for more room. The action buttons are lifted to match, staying over it. */
+  &.editing {
+    z-index: 4;
+    bottom: var(--y-dynamic-diff);
+    max-height: calc(var(--y-unit-small) * 100 - var(--safe-inset-top) - var(--crt-inset-top, 0px));
+
+    .panel-content {
+      padding-bottom: calc(1em + var(--safe-inset-bottom-min) + var(--crt-inset-bottom, 0px));
+    }
+  }
+
   .panel-background {
     position: absolute;
     inset: 0;
@@ -267,39 +279,23 @@
       font-style: italic;
     }
 
-    .pill-name, .pill-value {
+    .pill-name {
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
-    /* Values are shown to identify the field, not to be clicked */
+    /* Values are shown to identify the field, not to be clicked. Otherwise they're shown just as in the panel. */
     .pill-value {
+      min-width: 0;
       pointer-events: none;
 
       &:empty::before {
         content: attr(data-empty-label);
         font-style: italic;
-      }
-
-      .field, .field-studio, .field-tags, .field-tags .tag-list, .field-urls {
-        display: inline;
-      }
-
-      .field-label, .separator {
-        color: inherit;
         opacity: 0.6;
       }
-
-      h5 {
-        display: inline;
-        font-size: inherit;
-      }
-    }
-
-    .item-button.field-options {
-      font-size: 0.85em;
     }
 
     /* Buttons in a value (e.g. the rating's stars) look as they do in the panel, not like Stash's buttons in a tag
@@ -315,7 +311,8 @@
     }
   }
 
-  /* Showing values, each pill shows its field as the panel does, outlined rather than as a badge */
+  /* Showing values, each pill is its field as the panel shows it, outlined rather than a badge (so none of the badge's
+  text styles) */
   .scene-info-editor.showing-values .field-pill {
     background: none;
     border: 1px solid rgba(255, 255, 255, 0.2);
@@ -326,50 +323,6 @@
     text-align: left;
     white-space: normal;
     padding: 0.3em 0.7em;
-
-    .pill-value {
-      white-space: normal;
-      overflow: visible;
-
-      &:empty::before {
-        opacity: 0.6;
-      }
-
-      .field-studio {
-        display: flex;
-      }
-
-      .field-tags {
-        display: block;
-        margin: 0;
-
-        .tag-list {
-          display: flex;
-        }
-      }
-
-      .field-urls {
-        display: flex;
-      }
-
-      .field-label {
-        color: var(--text-muted);
-        opacity: 1;
-      }
-
-      .separator {
-        color: var(--text-muted);
-        opacity: 1;
-      }
-
-      h5 {
-        display: block;
-      }
-    }
-
-    .item-button {
-      color: inherit;
-    }
   }
 
   /* A spacer is space rather than a field, so it's just its name (and buttons), not a badge or outlined, and with no
@@ -381,10 +334,6 @@
     padding: 0;
     box-shadow: none;
     color: var(--text-muted);
-
-    .item-button {
-      color: inherit;
-    }
 
     .spacer-preview {
       opacity: 1;

@@ -4,8 +4,9 @@ import { LayoutGroup, motion } from "framer-motion";
 import { unstable_batchedUpdates } from "react-dom";
 import cx from "classnames";
 import { Badge, Button } from "react-bootstrap";
-import { ArrowReturnLeft, ArrowReturnRight, XLg } from "react-bootstrap-icons";
+import { ArrowReturnLeft, ArrowReturnRight, ArrowsMove, PlusLg, XLg } from "react-bootstrap-icons";
 import { useResizeObserver } from "../../hooks/useResizeObserver";
+import { layoutOffset, layoutSize } from "../../helpers/layoutOffset";
 import {
   DropTarget,
   isRightAligned,
@@ -31,6 +32,13 @@ type Drag<T> = {
   item: T;
   /** The React key of the item's element, which is kept by its ghost so it's the same element, just moved and dimmed */
   key: string;
+  /**
+   * The React key of the element that was pressed: the item's, or, for an available item, the available item's (which
+   * may not be the item, see `take`)
+   */
+  pressedKey: string;
+  /** Whether one of the item's buttons was pressed, rather than the item itself */
+  pressedButton: boolean;
   /** Where the item was in the layout, or null if it's being dragged in from the available items */
   from: LayoutPosition | null;
   pointerId: number;
@@ -42,7 +50,7 @@ type Drag<T> = {
   grab: { x: number; y: number; width: number };
   /** Where the item being dragged is, relative to the editor */
   position: { left: number; top: number };
-  /** Where it will go, in `baseLayout` */
+  /** Where it will go, in `baseLayout`, or null if it's somewhere it can't go (above or below the editor) */
   target: DropTarget | null;
   /** The pointer's last horizontal position, to tell which way it's moving */
   lastX: number;
@@ -65,6 +73,21 @@ type Drag<T> = {
   startingHeights: { lines: number; available: number } | null;
   /** The item whose place the ghost took as it arrived on the line, while it's ignored (see getSlotNearGhost) */
   arrivedOver: number | null;
+};
+
+/** The dragged item, let go, sliding into its place */
+type Settle<T> = {
+  item: T;
+  /** The React key of the element it's sliding to, which is hidden until it gets there */
+  key: string;
+  /** Where it was on screen as it was let go */
+  fromScreen: { left: number; top: number };
+  width: number;
+  /**
+   * Where it slides from and to, relative to the editor, measured once the drop's rendered. `to` is null if it's no
+   * longer anywhere (e.g. an instance of a repeatable item dropped on the available items), in which case it fades away.
+   */
+  path?: { from: { left: number; top: number }; to: { left: number; top: number; width: number } | null };
 };
 
 /** A line in the editor as it's laid out: where it is, and its items (but not the ghost) and their boxes */
@@ -90,16 +113,13 @@ export type LineLayoutItemContext = {
 };
 
 export type LineLayoutActionContext = {
-  isGhost: boolean;
-  /**
-   * False for copies of the item that aren't to be interacted with (the one following the pointer, and the one measured
-   * to see whether a line would change height), which should render the same, but as plain elements rather than
-   * buttons
-   */
-  interactive: boolean;
+  /** Whether it's on a line or among the available items */
+  area: "line" | "available";
   /** Wraps a click handler so that it ignores the click a drag ends with (e.g. on a button that was pressed to drag) */
   onTap: (handler: () => void) => () => void;
 };
+
+type DataAttributes = { [attribute: `data-${string}`]: string | undefined };
 
 export type LineLayoutEditorProps<T> = {
   layout: Layout<T>;
@@ -118,12 +138,12 @@ export type LineLayoutEditorProps<T> = {
   take?: (item: T) => T;
   /** An item's content */
   renderItem: (item: T, context: LineLayoutItemContext) => ReactNode;
-  /** Buttons of an item's own, beside its × (on the lines only) */
+  /** A button of an item's own (e.g. its options), at the end of the controls shown over it, opposite its ×/+ */
   renderItemActions?: (item: T, context: LineLayoutActionContext) => ReactNode;
   /** What an item's called, for its buttons ("Remove …", "Add …") */
   itemLabel: (item: T) => string;
   /** Classes and data attributes of an item's element */
-  itemProps?: (item: T) => { className?: string } & { [attribute: `data-${string}`]: string | undefined };
+  itemProps?: (item: T) => { className?: string } & DataAttributes;
   /** Above the lines (e.g. the editor's buttons). Slides with the rest as the editor grows or shrinks. */
   toolbar?: ReactNode;
   availableHint: ReactNode;
@@ -132,12 +152,20 @@ export type LineLayoutEditorProps<T> = {
   /** Whether the available items are beside the lines rather than below them */
   availableBeside?: boolean;
   className?: string;
+  /** Data attributes of the editor's root element */
+  rootAttributes?: DataAttributes;
 };
 
 let nextEditorId = 0;
 
 /** How far the pointer must move before pressing an item starts dragging it */
 const dragThreshold = 5;
+
+/**
+ * How the dragged item slides into place once it's let go: framer-motion's default layout transition, so it arrives as
+ * the items sliding about to make room for it do
+ */
+const settleTransition = { duration: 0.45, ease: [0.4, 0, 0.1, 1] };
 
 /** Stands in the layout for the ghost of the dragged item, showing where it will go */
 const ghostItem = Symbol("ghost");
@@ -153,7 +181,7 @@ function lineHeight(rect: Rect | undefined) {
  */
 export function LineLayoutEditor<T>({
   layout, onChange, getKey, getAvailable, take = item => item, renderItem, renderItemActions, itemLabel, itemProps,
-  toolbar, availableHint, emptyHint, availableBeside = false, className,
+  toolbar, availableHint, emptyHint, availableBeside = false, className, rootAttributes,
 }: LineLayoutEditorProps<T>) {
   // Scopes the items' layoutIds to this editor. Otherwise moving between editors (e.g. each slide has its own scene info
   // panel) had the new editor's items slide in from where the old one's were, now off screen.
@@ -169,8 +197,12 @@ export function LineLayoutEditor<T>({
     dragRef.current = next;
     setDragState(next);
   }
-  // A drag ends with a click on whatever was pressed (e.g. an item's ×), which mustn't count as a tap
-  const justDraggedRef = useRef(false);
+  // A click that mustn't count as a tap: the one a drag ends with on whatever was pressed (e.g. an item's ×), or one on
+  // an item's hidden controls that revealed them
+  const ignoreClickRef = useRef(false);
+  const [settle, setSettle] = useState<Settle<T> | null>(null);
+  // The item whose controls are shown over it after it was tapped, on a device that can't hover over it
+  const [revealedKey, setRevealedKey] = useState<string | null>(null);
 
   // While an item is dragged, targets are positions in the layout without it. The line it's dragged off keeps its place
   // (and its space, see fromLineHeight) until it's dropped, even if it's left empty, so the lines after it don't move
@@ -213,7 +245,9 @@ export function LineLayoutEditor<T>({
   const layoutRect = (element: HTMLElement, containerRect: DOMRect): Rect => {
     const left = containerRect.left + element.offsetLeft;
     const top = containerRect.top + element.offsetTop;
-    return { left, right: left + element.offsetWidth, top, bottom: top + element.offsetHeight };
+    // To the fraction of a pixel: the line an item's dragged off is held at its height, which rounded shrank it a little
+    const { width, height } = layoutSize(element);
+    return { left, right: left + width, top, bottom: top + height };
   }
 
   /** Each line shown, with where it is and where its items (but not the ghost) are */
@@ -346,6 +380,11 @@ export function LineLayoutEditor<T>({
 
   /** Where the item dragged to `point` would go, given where it would go before (`current.target`) */
   const measureTarget = (point: { x: number, y: number }, current: Drag<T>): Pick<Drag<T>, "target" | "arrivedOver" | "newLineAt" | "insertAt"> => {
+    // Above or below the editor (e.g. over the video, above the scene info panel) is nowhere: let go there, it goes back
+    const editorRect = editorRef.current?.getBoundingClientRect();
+    if (editorRect && (point.y < editorRect.top || point.y > editorRect.bottom)) {
+      return { target: null, arrivedOver: null, newLineAt: null, insertAt: null };
+    }
     const availableRect = availableRef.current?.getBoundingClientRect();
     if (availableRect && contains(availableRect, point)) return { target: { type: "remove" }, arrivedOver: null, newLineAt: null, insertAt: null };
     const linesRect = linesRef.current?.getBoundingClientRect();
@@ -391,13 +430,19 @@ export function LineLayoutEditor<T>({
     return place(offset + index, right, fromSide(over));
   }
 
-  const startDrag = (event: React.PointerEvent<HTMLElement>, item: T, key: string, from: LayoutPosition | null) => {
+  const startDrag = (event: React.PointerEvent<HTMLElement>, item: T, key: string, pressedKey: string, from: LayoutPosition | null) => {
     if (event.button !== 0 || dragRef.current) return;
     const itemRect = event.currentTarget.getBoundingClientRect();
     probeHeightsRef.current.clear();
+    setSettle(null);
+    // A touch on an item whose controls aren't showing reveals them, rather than pressing the hidden button under it.
+    // Decided here rather than by CSS (only hovering showing them), as a device with a touchscreen can also hover.
+    const controlsShown = event.pointerType === "mouse" || pressedKey === revealedKey;
     setDrag({
       item,
       key,
+      pressedKey,
+      pressedButton: controlsShown && event.target instanceof Element && !!event.target.closest("button"),
       from,
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -416,7 +461,7 @@ export function LineLayoutEditor<T>({
 
   // Pointer events are followed on the window rather than the pressed item, which re-renders elsewhere (as the
   // ghost) once the drag starts. Kept in a ref so the listeners always see the latest layout.
-  const pointerHandlersRef = useRef<{ move: (event: PointerEvent) => void, end: (event: PointerEvent) => void }>({ move: () => {}, end: () => {} });
+  const pointerHandlersRef = useRef<{ move: (event: PointerEvent) => void, end: (event: PointerEvent) => void, cancel: () => void }>({ move: () => {}, end: () => {}, cancel: () => {} });
   pointerHandlersRef.current = {
     move: (event) => {
       const current = dragRef.current;
@@ -439,6 +484,7 @@ export function LineLayoutEditor<T>({
       } else {
         measured = measureTarget({ x: event.clientX, y: event.clientY }, current);
       }
+      if (!current.active) setRevealedKey(null);
       const startingHeights = current.startingHeights ?? {
         lines: linesRef.current?.offsetHeight ?? 0,
         available: availableRef.current?.offsetHeight ?? 0,
@@ -451,15 +497,71 @@ export function LineLayoutEditor<T>({
       // In one render: dropping the item and ending the drag. Rendered one at a time, the new layout would briefly be
       // shown with the old drag's ghost and target.
       unstable_batchedUpdates(() => {
+        const ignoreClick = () => {
+          ignoreClickRef.current = true;
+          setTimeout(() => ignoreClickRef.current = false);
+        };
         if (current.active) {
-          justDraggedRef.current = true;
-          setTimeout(() => justDraggedRef.current = false);
-          if (current.target) onChange(placeItem(baseLayout, current.item, null, current.target));
+          ignoreClick();
+          const next = current.target && placeItem(baseLayout, current.item, null, current.target);
+          if (next) onChange(next);
+          settleDropped(current, !!next && JSON.stringify(next) !== JSON.stringify(layout));
+        } else if (event.pointerType !== "mouse" && !current.pressedButton) {
+          // Tapped with a touch, which can't hover over it, so its controls show only once it's tapped
+          ignoreClick();
+          setRevealedKey(revealed => revealed === current.pressedKey ? null : current.pressedKey);
         }
         setDrag(null);
       });
     },
+    cancel: () => {
+      const current = dragRef.current;
+      if (!current) return;
+      unstable_batchedUpdates(() => {
+        if (current.active) settleDropped(current, false);
+        setDrag(null);
+      });
+    },
   };
+
+  /**
+   * Slides the dragged item, let go, into its place: the item's element if it was dropped somewhere new, or, if not
+   * (e.g. let go where it can't go), the element it was dragged from
+   */
+  const settleDropped = (current: Drag<T>, moved: boolean) => {
+    const editorRect = editorRef.current?.getBoundingClientRect();
+    setSettle({
+      item: current.item,
+      key: moved ? current.key : current.pressedKey,
+      fromScreen: { left: (editorRect?.left ?? 0) + current.position.left, top: (editorRect?.top ?? 0) + current.position.top },
+      width: current.grab.width,
+    });
+  };
+  // Once the drop's rendered: where the item slides from (where it was let go, wherever the editor is now) and to
+  useLayoutEffect(() => {
+    const editor = editorRef.current;
+    if (!settle || settle.path || !editor) return;
+    const editorRect = editor.getBoundingClientRect();
+    const target = editor.querySelector<HTMLElement>(`[data-item-key="${CSS.escape(settle.key)}"]`);
+    setSettle({
+      ...settle,
+      path: {
+        from: { left: settle.fromScreen.left - editorRect.left, top: settle.fromScreen.top - editorRect.top },
+        to: target && { ...layoutOffset(target, editor), width: target.offsetWidth },
+      },
+    });
+  }, [settle]);
+
+  // Tapping anywhere but the item whose controls are shown hides them
+  useEffect(() => {
+    if (revealedKey === null) return;
+    const hide = (event: PointerEvent) => {
+      const revealed = editorRef.current?.querySelector(`[data-item-key="${CSS.escape(revealedKey)}"]`);
+      if (!(event.target instanceof Node && revealed?.contains(event.target))) setRevealedKey(null);
+    };
+    window.addEventListener("pointerdown", hide, true);
+    return () => window.removeEventListener("pointerdown", hide, true);
+  }, [revealedKey]);
   /**
    * Where each side of the lines that wrap onto more rows has its later rows, from the top of the lines' container, for
    * the marker showing they're one line. Measured after every render (and when the editor's resized) as wrapping is down
@@ -494,7 +596,7 @@ export function LineLayoutEditor<T>({
     if (!hasDrag) return;
     const move = (event: PointerEvent) => pointerHandlersRef.current.move(event);
     const end = (event: PointerEvent) => pointerHandlersRef.current.end(event);
-    const cancel = () => setDrag(null);
+    const cancel = () => pointerHandlersRef.current.cancel();
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", end);
     window.addEventListener("pointercancel", cancel);
@@ -506,15 +608,33 @@ export function LineLayoutEditor<T>({
   }, [hasDrag]);
 
   const onTap = (handler: () => void) => () => {
-    if (justDraggedRef.current) return;
+    if (ignoreClickRef.current) return;
     handler();
   };
 
-  /** The item's buttons, as on a line, for copies of it that aren't to be interacted with */
-  const staticActions = (item: T) => <>
-    {renderItemActions?.(item, { isGhost: false, interactive: false, onTap })}
-    <span className="item-button remove-item btn"><XLg /></span>
-  </>;
+  /**
+   * The controls shown over an item when it's hovered over (or tapped, on a device that can't hover, or a button in it
+   * is focused with the keyboard): its × removing it from its line, or + adding it, then a handle showing it can be
+   * dragged, then its own button (`renderItemActions`). Over the item rather than beside it, so it's no bigger for them,
+   * and its ghost, the copy following the pointer and the one measured are the same size without them. Hidden while
+   * an item's dragged.
+   */
+  const itemControls = (item: T, area: "line" | "available", onAddOrRemove: () => void) => <div className="item-controls">
+    <div className="item-control start">
+      <Button
+        className={cx("item-button", area === "line" ? "remove-item" : "add-item")}
+        aria-label={`${area === "line" ? "Remove" : "Add"} ${itemLabel(item)}`}
+        onClick={onTap(onAddOrRemove)}
+      >
+        {area === "line" ? <XLg /> : <PlusLg />}
+      </Button>
+    </div>
+    <div className="item-control drag-handle" aria-hidden><ArrowsMove /></div>
+    <div className="item-control end">{renderItemActions?.(item, { area, onTap })}</div>
+  </div>;
+
+  /** Classes shared by an item's elements: whether its controls are shown after a tap, and whether it's being settled into */
+  const itemStateClasses = (key: string) => ({ revealed: key === revealedKey, settling: key === settle?.key });
 
   /**
    * An item on the lines. The dragged item's ghost is its own element (same key), moved to where it will go and
@@ -537,33 +657,24 @@ export function LineLayoutEditor<T>({
       variant="secondary"
       pill
       key={key}
-      className={cx("tag-item", "layout-item", itemClassName, { ghost: isGhost })}
+      className={cx("tag-item", "layout-item", itemClassName, { ghost: isGhost, ...itemStateClasses(key) })}
       {...dataAttributes}
       data-key={getKey(item)}
+      data-item-key={key}
       data-line={line ?? undefined}
       aria-hidden={isGhost || undefined}
-      onPointerDown={from ? (event: React.PointerEvent<HTMLElement>) => startDrag(event, item, key, from) : undefined}
+      onPointerDown={from ? (event: React.PointerEvent<HTMLElement>) => startDrag(event, item, key, key, from) : undefined}
     >
       {renderItem(item, { area: line === null ? "available" : "line", isGhost, rightAligned })}
-      {/* As with the ×, pressing them and dragging still drags the item, and the ghost has them too */}
-      {line !== null && renderItemActions?.(item, { isGhost, interactive: true, onTap: handler => onTap(() => from && handler()) })}
-      {/* Pressing the × and dragging still drags the item. The ghost has one too, so it's the same size as the item. */}
-      {line !== null && <Button
-        className="item-button remove-item"
-        aria-label={`Remove ${itemLabel(item)}`}
-        tabIndex={isGhost ? -1 : undefined}
-        onClick={onTap(() => {
-          if (from) onChange(placeItem(layout, item, from, { type: "remove" }));
-        })}
-      >
-        <XLg />
-      </Button>}
+      {/* Pressing its controls and dragging still drags the item */}
+      {!isGhost && from && itemControls(item, "line", () => onChange(placeItem(layout, item, from, { type: "remove" })))}
     </Badge>;
   };
 
   return <LayoutGroup id={layoutGroupId}><div
     className={cx("LineLayoutEditor", className, { dragging: isDragging, "side-by-side": availableBeside })}
     ref={editorRef}
+    {...rootAttributes}
   >
     {/* Slides, like the items, when the editor grows or shrinks */}
     {toolbar && <motion.div layout="position" className="layout-toolbar">{toolbar}</motion.div>}
@@ -640,29 +751,28 @@ export function LineLayoutEditor<T>({
           }
           const { className: itemClassName, ...dataAttributes } = itemProps?.(item) ?? {};
           return <Badge
-            as={motion.button}
+            as={motion.div}
             layout="position"
             layoutId={layoutId(key)}
-            type="button"
             variant="secondary"
             pill
             key={key}
-            className={cx("tag-item", "layout-item", itemClassName)}
+            className={cx("tag-item", "layout-item", itemClassName, itemStateClasses(key))}
             {...dataAttributes}
             data-key={key}
-            aria-label={`Add ${itemLabel(item)}`}
+            data-item-key={key}
             onPointerDown={(event: React.PointerEvent<HTMLElement>) => {
               // What's dragged is what adding it puts in the layout (e.g. a new instance of it, leaving it here), which
               // keeps its key from its ghost to its element once it's dropped
               const taken = take(item);
-              startDrag(event, taken, getKey(taken), null);
+              startDrag(event, taken, getKey(taken), key, null);
             }}
-            onClick={onTap(() => {
-              // Tapping one adds it at the bottom
-              onChange(placeItem(layout, take(item), null, { type: "new-line", line: layout.length, right: false }));
-            })}
           >
             {renderItem(item, { area: "available", isGhost: false, rightAligned: false })}
+            {/* Its + adds it at the bottom */}
+            {itemControls(item, "available", () => (
+              onChange(placeItem(layout, take(item), null, { type: "new-line", line: layout.length, right: false }))
+            ))}
           </Badge>;
         })}
       </div>
@@ -673,11 +783,25 @@ export function LineLayoutEditor<T>({
     >
       <Badge as="div" variant="secondary" pill className={cx("tag-item", "layout-item", "dragged", itemProps?.(drag.item).className)}>
         {renderItem(drag.item, { area: "overlay", isGhost: false, rightAligned: false })}
-        {drag.from && staticActions(drag.item)}
       </Badge>
     </div>}
     {/*
-      The dragged item as it would be on a line (with its buttons), unseen, for measuring whether a line would change
+      Let go, the item slides (and straightens) into its place, or back to where it came from if it was let go
+      somewhere it can't go, rather than jumping there. Its element there is hidden until it arrives.
+    */}
+    {settle?.path && <motion.div
+      className="drag-overlay settling"
+      initial={{ ...settle.path.from, width: settle.width, rotate: -3, scale: 1.05, opacity: 1 }}
+      animate={settle.path.to ? { ...settle.path.to, rotate: 0, scale: 1 } : { opacity: 0, scale: 0.9 }}
+      transition={settleTransition}
+      onAnimationComplete={() => setSettle(null)}
+    >
+      <Badge as="div" variant="secondary" pill className={cx("tag-item", "layout-item", "dragged", itemProps?.(settle.item).className)}>
+        {renderItem(settle.item, { area: "overlay", isGhost: false, rightAligned: false })}
+      </Badge>
+    </motion.div>}
+    {/*
+      The dragged item as it would be on a line, unseen, for measuring whether a line would change
       height with it on (see probeLineHeight). Rendered as the item's pressed, before the drag's first move measures.
       Laid out (not `display: none`), as the item following the pointer is, so items that measure themselves (e.g.
       capping their contents to a number of rows) do so as they would there.
@@ -685,7 +809,6 @@ export function LineLayoutEditor<T>({
     {drag && <div className="probe-source" aria-hidden style={{ width: drag.from ? drag.grab.width : undefined }}>
       <Badge as="div" variant="secondary" pill className={cx("tag-item", "layout-item", itemProps?.(drag.item).className)}>
         {renderItem(drag.item, { area: "probe", isGhost: false, rightAligned: false })}
-        {staticActions(drag.item)}
       </Badge>
     </div>}
   </div></LayoutGroup>

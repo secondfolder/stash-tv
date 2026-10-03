@@ -2,8 +2,7 @@ import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import React, { useMemo, useState } from "react";
 import cx from "classnames";
 import { Button, ButtonGroup } from "react-bootstrap";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPenToSquare } from "@fortawesome/free-solid-svg-icons";
+import { GearFill } from "react-bootstrap-icons";
 import { SceneInfoField } from "./fields";
 import { SceneInfoFieldOptionsModal } from "./SceneInfoFieldOptionsModal";
 import { LineLayoutEditor } from "../../LineLayoutEditor";
@@ -38,7 +37,7 @@ const shownValuesLabels: Record<SceneInfoEditorPillContent, string> = {
  * the fields not in the panel listed below (or beside) them to drag in.
  */
 export function SceneInfoEditor({
-  scene, layout, onChange, fieldOptionsConfig, onFieldOptionsChange, onReset, isDefault, onSave, onCancel,
+  scene, layout, onChange, fieldOptionsConfig, onFieldOptionsChange, onReset, isDefault, onSave, onCancel, beforePillsChange,
 }: {
   scene: GQL.SceneDataFragment;
   layout: SceneInfoLayout;
@@ -52,10 +51,16 @@ export function SceneInfoEditor({
   isDefault: boolean;
   onSave: () => void;
   onCancel: () => void;
+  /** Called just before the pills switch between names and values, to morph them from how they look now */
+  beforePillsChange?: () => void;
 }) {
   // Global state, as each slide has its own editor, so it's kept moving to another slide while editing
   const { sceneInfoEditorPillContent: shownValues, set: setGlobalState } = useGlobalState();
-  const setShownValues = (content: SceneInfoEditorPillContent) => setGlobalState("sceneInfoEditorPillContent", content);
+  const setShownValues = (content: SceneInfoEditorPillContent) => {
+    if (content === shownValues) return;
+    beforePillsChange?.();
+    setGlobalState("sceneInfoEditorPillContent", content);
+  };
   // Side by side when the screen's wider than it's tall (useWindowSize allows for forced landscape)
   const { orientation } = useWindowSize();
   const showValues = shownValues === "values";
@@ -108,16 +113,16 @@ export function SceneInfoEditor({
       renderItem={(entry, { rightAligned }) => (
         <PillContent field={entry} scene={scene} fieldOptions={optionsFor(entry)} showValues={showValues} rightAligned={rightAligned} />
       )}
-      renderItemActions={(entry, { isGhost, interactive, onTap }) => {
+      renderItemActions={(entry, { area, onTap }) => {
         if (!hasFieldOptions(entryField(entry))) return null;
-        if (!interactive) return <span className="item-button field-options btn"><FontAwesomeIcon icon={faPenToSquare} /></span>;
+        // An unused repeatable field isn't an instance, so it has no options of its own: each one added has its own
+        if (area === "available" && typeof entry === "string" && isRepeatableField(entry)) return null;
         return <Button
           className="item-button field-options"
           aria-label={`${nameOf(entry)} options`}
-          tabIndex={isGhost ? -1 : undefined}
           onClick={onTap(() => setOptionsEntry(entry))}
         >
-          <FontAwesomeIcon icon={faPenToSquare} />
+          <GearFill />
         </Button>;
       }}
       itemLabel={nameOf}
@@ -126,7 +131,11 @@ export function SceneInfoEditor({
           unknown: !isKnownField(entryField(entry)), "spacer-pill": entryField(entry) === "spacer",
         }),
         "data-field": entryField(entry),
+        // Morphs from and into the field in the panel, switching to and from the editor
+        "data-morph-key": entryKey(entry),
       })}
+      // Fades in and out, switching to and from the editor, as its pills morph from and into the panel's fields
+      rootAttributes={{ "data-morph-key": "editor" }}
       toolbar={toolbar}
       // There's always one: the spacer, which can be added any number of times
       availableHint="Drag the fields you want to show into the section above"

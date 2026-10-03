@@ -7,6 +7,8 @@ below the lines or beside them */
   /* The least space between a line's left items and its right-aligned ones, so they don't run together */
   --line-sides-gap: 2em;
   --layout-editor-gap: 1.25rem;
+  /* The width of the buttons either side of an item's controls (and of its drag handle, at least) */
+  --item-control-width: 1.75em;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -179,12 +181,14 @@ below the lines or beside them */
   .layout-item {
     display: inline-flex;
     align-items: center;
-    /* Between the item and its buttons */
-    gap: 0.3em;
+    justify-content: center;
     border-radius: 1em;
     max-width: 100%;
-    min-width: 0;
+    /* Wide enough for its controls, shown over it */
+    min-width: calc(var(--item-control-width) * 3);
     margin: 0;
+    /* Its controls are laid over it. Being positioned doesn't change other items' offset parent (see the docs). */
+    position: relative;
     /* Big enough to grab easily on a touchscreen */
     font-size: 1rem;
     padding: 0.3em 0.7em;
@@ -206,31 +210,79 @@ below the lines or beside them */
       box-shadow: 0 0.4em 1em rgba(0, 0, 0, 0.7);
     }
 
-    /* Spaced by the item's gap rather than Stash's .tag-item .btn margin and padding, so items without any (the
-    available ones) have even padding too */
-    .item-button {
-      bottom: 0;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      align-items: center;
-      font-size: 0.75em;
-      /* Clearer than Stash's half-faded .tag-item .btn */
-      opacity: 0.8;
-      /* A bigger target than the icon, for touch, without taking more room */
-      position: relative;
-
-      &::after {
-        content: "";
-        position: absolute;
-        inset: -0.6em;
-      }
+    /* Where the dragged item is sliding to once it's let go, until it gets there */
+    &.settling {
+      visibility: hidden;
     }
   }
 
-  /* The available items are buttons, which the browser gives a border */
-  button.layout-item {
-    border: none;
+  /* Over an item, shown when it's hovered over, tapped or has keyboard focus: its × (or +), a drag handle, and its own
+  button */
+  .item-controls {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: var(--item-control-width) minmax(0, 1fr) var(--item-control-width);
+    border-radius: inherit;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    font-size: 1rem;
+    opacity: 0;
+    transition: opacity 0.12s ease-out;
+  }
+
+  .layout-item.revealed > .item-controls,
+  .layout-item:has(:focus-visible) > .item-controls {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  @media (hover: hover) {
+    &:not(.dragging) .layout-item:hover > .item-controls {
+      opacity: 1;
+    }
+  }
+
+  /* Not while an item's dragged */
+  &.dragging .item-controls {
+    display: none;
+  }
+
+  .item-control {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+
+    &.drag-handle {
+      color: var(--text-muted);
+      cursor: grab;
+    }
+
+    /* Stash's .tag-item .btn is a small faded button with margins; these fill their side of the item */
+    .item-button {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      border-radius: 0;
+      background: none;
+      box-shadow: none;
+      color: inherit;
+      font-size: 0.9em;
+      line-height: 1;
+      opacity: 1;
+
+      &:hover, &:focus-visible {
+        background: rgba(255, 255, 255, 0.15);
+      }
+    }
   }
 
   .drag-overlay {

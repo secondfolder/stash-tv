@@ -172,7 +172,7 @@ Three Zustand stores, each exposing the same typed `set` / `get` / `setToDefault
 
 ### Key Hooks (`src/hooks/`)
 
-`useMediaItems()` (the feed's list of item references and pagination) and `useLiveMediaItem()` (a slide's live data from the Apollo cache) — see [media loading](docs/media-loading.md), `useMediaItemFilters()` (resolves the active channel to a filter — see [channels](docs/channels.md)), `getApolloClient()` (singleton Apollo client for the Stash API), `useStashTvConfig()`, `useGamepad()`, `useViewportRotate()`, `useBrowserZoomResetOnViewportChange()`, `useResizeObserver()` (re-measure when elements resize: use it rather than hand-rolling a `ResizeObserver` effect)
+`useMediaItems()` (the feed's list of item references and pagination) and `useLiveMediaItem()` (a slide's live data from the Apollo cache) — see [media loading](docs/media-loading.md), `useMediaItemFilters()` (resolves the active channel to a filter — see [channels](docs/channels.md)), `getApolloClient()` (singleton Apollo client for the Stash API), `useStashTvConfig()`, `useGamepad()`, `useViewportRotate()`, `useBrowserZoomResetOnViewportChange()`, `useResizeObserver()` (re-measure when elements resize: use it rather than hand-rolling a `ResizeObserver` effect), `useMorphTransition()` (animate a change to what's shown, each `data-morph-key` element sliding and morphing into its counterpart: used for the scene info panel's editor)
 
 ### Component Hierarchy
 

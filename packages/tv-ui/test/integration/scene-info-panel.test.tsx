@@ -484,7 +484,7 @@ describe("scene info panel", () => {
       expect(within(infoPanel).getByRole("button", { name: "Add Spacer" })).toBeInTheDocument();
       // Showing values, the added ones show theirs (their size), and the one to add only its name
       click(within(infoPanel).getByRole("button", { name: "Field value" }));
-      expect(within(infoPanel).getByRole("button", { name: "Add Spacer" })).toHaveTextContent(/^Spacer$/);
+      expect(within(infoPanel).getByRole("button", { name: "Add Spacer" }).closest(".layout-item")).toHaveTextContent(/^Spacer$/);
       expect(infoPanel.querySelectorAll(".layout-lines .spacer-preview")).toHaveLength(2);
       save(infoPanel);
       await waitFor(() => expect(spacers(savedLayout())).toHaveLength(2));

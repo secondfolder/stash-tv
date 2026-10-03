@@ -8,6 +8,7 @@ import { Pencil } from "react-bootstrap-icons";
 import { useTvConfig } from "../../../store/tvConfig";
 import { useGlobalState } from "../../../store/globalState";
 import { SceneInfoField } from "./fields";
+import { FieldMorphKeyContext } from "./fields/shared";
 import {
   defaultSceneInfoFieldOptions,
   entryField,
@@ -21,6 +22,7 @@ import {
 } from "./scene-info-config";
 import { SceneInfoEditor } from "./SceneInfoEditor";
 import { useResizeObserver } from "../../../hooks/useResizeObserver";
+import { useMorphTransition } from "../../../hooks/useMorphTransition";
 import { lineSides } from "../../LineLayoutEditor/line-layout";
 
 export type Props = {
@@ -42,6 +44,21 @@ const SceneInfo = forwardRef(({scene, open, className, style, onExternalLinkClic
     const fieldOptions = useMemo(() => resolveFieldOptions(sceneInfoFieldOptions), [sceneInfoFieldOptions]);
     const draftFieldOptions = useMemo(() => draft && resolveFieldOptions(draft.fieldOptions), [draft?.fieldOptions]);
 
+    const panelRef = useRef<HTMLDivElement | null>(null);
+    const setRefs = (element: HTMLDivElement | null) => {
+      panelRef.current = element;
+      if (typeof ref === "function") ref(element);
+      else if (ref) ref.current = element;
+    };
+    // Switching to and from the editor, the fields slide and morph into their pills and back, and the panel to its new
+    // size and place (see "Customising the panel" in docs/scene-info-panel.md)
+    const morph = useMorphTransition(panelRef);
+    /** Starts or stops editing, morphing the panel from how it looks now */
+    const setDraftMorphing = (newDraft: typeof draft) => {
+      morph();
+      setDraft(newDraft);
+    };
+
     // Closing the panel cancels editing, so it opens showing the scene's info again
     useEffect(() => {
       if (!open) setGlobalState("sceneInfoDraft", null);
@@ -52,7 +69,7 @@ const SceneInfo = forwardRef(({scene, open, className, style, onExternalLinkClic
         className={cx("SceneInfo", "hide-on-ui-hide", {active: open, editing}, className)}
         data-testid="MediaSlide--sceneInfo"
         style={style}
-        ref={ref}
+        ref={setRefs}
         onClick={(event) => {
           event.stopPropagation();
         }}
@@ -63,7 +80,9 @@ const SceneInfo = forwardRef(({scene, open, className, style, onExternalLinkClic
           Motion elements only while editing, the only time anything's animated: they measure their layout every time
           they render, which every slide's panel otherwise paid for.
         */}
-        {editing ? <motion.div layout className="panel-background" aria-hidden /> : <div className="panel-background" aria-hidden />}
+        {editing
+          ? <motion.div layout className="panel-background" data-morph-key="panel-background" data-morph-frame aria-hidden />
+          : <div className="panel-background" data-morph-key="panel-background" data-morph-frame aria-hidden />}
         {/* A motion element (while editing) so the editor's pills, which framer-motion animates, allow for it scrolling */}
         <PanelContent editing={editing}>
         {draft && draftFieldOptions
@@ -81,15 +100,18 @@ const SceneInfo = forwardRef(({scene, open, className, style, onExternalLinkClic
             onSave={() => {
               setTvConfig("sceneInfoLayout", draft.layout);
               setTvConfig("sceneInfoFieldOptions", draft.fieldOptions);
-              setDraft(null);
+              setDraftMorphing(null);
             }}
-            onCancel={() => setDraft(null)}
+            onCancel={() => setDraftMorphing(null)}
+            // Only the pills: framer-motion slides the rest (e.g. the unused fields' box) as they change size
+            beforePillsChange={() => morph(".field-pill")}
           />
           : <>
             <Button
               variant="link"
               className="edit-toggle"
-              onClick={() => setDraft({ layout: sceneInfoLayout, fieldOptions: sceneInfoFieldOptions })}
+              onClick={() => setDraftMorphing({ layout: sceneInfoLayout, fieldOptions: sceneInfoFieldOptions })}
+              data-morph-key="edit-toggle"
               aria-label="Customise info panel"
               title="Customise info panel"
             >
@@ -166,15 +188,18 @@ function FieldLines({ layout, scene, fieldOptionsConfig, fieldOptions, onExterna
       const fields = (entries: SceneInfoLayoutEntry[], rightAligned: boolean) => entries.map(entry => {
         const field = entryField(entry);
         if (!isKnownField(field)) return null;
-        return <SceneInfoField
-          key={entryKey(entry)}
-          field={field}
-          scene={scene}
-          // An instance of a repeatable field (e.g. a spacer) has its own
-          fieldOptions={typeof entry === "string" ? fieldOptions : resolveFieldOptions(fieldOptionsConfig, entry)}
-          rightAligned={rightAligned}
-          onExternalLinkClick={onExternalLinkClick}
-        />;
+        const key = entryKey(entry);
+        // Keyed, so it morphs into its pill in the editor and back
+        return <FieldMorphKeyContext.Provider key={key} value={key}>
+          <SceneInfoField
+            field={field}
+            scene={scene}
+            // An instance of a repeatable field (e.g. a spacer) has its own
+            fieldOptions={typeof entry === "string" ? fieldOptions : resolveFieldOptions(fieldOptionsConfig, entry)}
+            rightAligned={rightAligned}
+            onExternalLinkClick={onExternalLinkClick}
+          />
+        </FieldMorphKeyContext.Provider>;
       });
       // Each side in a box wrapping on its own
       return <div className="field-line" key={lineIndex}>
