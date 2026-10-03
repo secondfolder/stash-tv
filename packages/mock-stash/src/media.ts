@@ -70,7 +70,11 @@ export function handleMediaRoute(
     // `/scene/{id}_thumbs.vtt`
     const match = segments[1].match(/^(.*)_thumbs\.vtt$/);
     if (match) {
-      res.writeHead(200, { ...corsHeaders(), "content-type": "text/vtt" }).end("WEBVTT\n\n");
+      if (!store.scenes.has(match[1])) {
+        res.writeHead(404).end();
+        return true;
+      }
+      res.writeHead(200, { ...corsHeaders(), "content-type": "text/vtt" }).end(thumbnailsVtt(match[1]));
       return true;
     }
   }
@@ -87,6 +91,20 @@ export function handleMediaRoute(
 
   serveFileWithRange(req, res, filePath);
   return true;
+}
+
+/**
+ * A thumbnail cue for every second of the scene, like the `_thumbs.vtt` Stash generates alongside a scene's sprite.
+ * Every cue shows the whole sprite (the scene's screenshot here) since the fixtures have no real sprite sheet.
+ * Image paths are relative to the VTT's URL, as Stash's are.
+ */
+function thumbnailsVtt(sceneId: string): string {
+  const { duration, width, height } = mediaFileFor(sceneId);
+  const timestamp = (seconds: number) => `${new Date(seconds * 1000).toISOString().slice(11, 23)}`;
+  const cues = Array.from({ length: Math.ceil(duration) }, (_, second) =>
+    `${timestamp(second)} --> ${timestamp(Math.min(second + 1, duration))}\n${sceneId}/sprite#xywh=0,0,${width},${height}`
+  );
+  return `WEBVTT\n\n${cues.join("\n\n")}\n`;
 }
 
 function corsHeaders(): Record<string, string> {

@@ -55,6 +55,34 @@ Also note:
 
 ---
 
+## Gestures
+
+Tapping, holding and dragging on a slide's video plays, skips and seeks through it. `useGestureControls()` in `MediaSlide` handles them with `@use-gesture/react`, on the video element, or on iOS on a `div` over it (iOS ignores `user-select: none` on a Video.js video, so a long press there selects text).
+
+- **Tap** (released within 250ms): the left third skips back, the middle plays/pauses, the right third skips forwards (`seekBackwards` / `seekForwards`: about a third of a short video, less for long ones, snapping to a nearby marker). Taps come from `pointerup`, as Video.js stops click events on touch devices. No feedback is shown. ⚠️ While a video is paused its big play button covers the middle third, so taps (and holds) there go to the button, which plays it.
+- **Hold** (250ms or more) seeks until released: rewinding from the left third, paused from the middle, 1.5x from the right. Dragging sideways changes the speed by the 6th power of the distance (a tenth of the video's width changes it by 1), by at most a third of the video's duration either way. A drag that starts before the hold registers is ignored until the pointer next moves.
+- **Speeds** are rounded to steps (`toDiscreteSeekSpeed()`: tenths around normal speed, then whole numbers, then 5s, 15s, 30s and 60s steps). From 0.1x up to 5x the video plays at that rate ("1.5x", play icon). Otherwise it's paused and its time is moved every 100ms ("5s" with a forward or backward icon, or a pause icon at 0), with the progress bar's thumbnail preview showing above 5 forwards or 2 backwards. Markers and previews have no thumbnails: their players get the `vttThumbnails` stub from `allow-plugin-removal.ts`, whose no-op methods the seeking calls. (It used to have only `src()`, so seeking fast threw on every time update, and letting go threw before the overlay was removed, leaving it stuck.)
+- **Feedback**: the overlay shows the speed for as long as the hold lasts and is removed straight away (not faded) when it ends.
+- **Ending**: letting go restores the video's paused state and playback rate. A seek's speed is never the user's playback rate: `MediaSlide` doesn't save rate changes while `isSeeking()`, so other slides keep the user's rate. Seeking never mutes, so mute isn't touched (muting during a hold used to be undone on release).
+- **Slide changes**: a gesture belongs to its slide. If the slide stops being current while it's held (the video ended, a shortcut or scrolling moved the feed), the gesture ends there, its video is left paused, and the pointer does nothing more until it's lifted. Otherwise the overlay stayed up and the old slide kept seeking.
+- **The ends of the video**: playing or skipping forwards to the end moves on to the next slide. A paused video never fires its own `ended` event, so skipping triggers it. Passing a clip's end timestamp (fixed or random play length) doesn't end the slide while held, as the player is scrubbing; it moves on after release. On a looping video, skipping stops at either end of the loop and says so ("End of loop reached"). The loop ends at the end timestamp or, for items without one (markers, previews), the end of the video. It stops just short of the very end because a looping video moved to its end jumps back to its start.
+- **Scrolling**: a scroll in the first 250ms (a touch swipe through the feed) cancels the tap.
+- **Arrow keys** share the seeking (`seek()`): hold ← or → to seek at 2x either way, then ↑ and ↓ step the speed (see [keyboard shortcuts](keyboard-shortcuts.md)).
+- ⚠️ use-gesture captures the pointer, so dragging off the video (e.g. over the action buttons) doesn't end a hold.
+
+Tests: `test/e2e/gesture-controls*.test.ts` and `test/e2e/keyboard-seeking.test.ts` (see [testing](testing.md) § "Running E2E tests").
+
+---
+
+## Unloading videos that aren't current
+
+When a slide stops being current, `MediaSlide` calls `player.cancelLoading()` (`ScenePlayer/video.js/pause-loading-plugin.ts`) so the rendered slides around it stop downloading. It pauses the video, shows its current frame as the poster, then clears the video's `src`. Playing or seeking it through Video.js loads it again (the plugin's middleware calls `enableLoading()`).
+
+- ⚠️ **The source is unloaded a moment after `cancelLoading()`**, once the frame is showing as the poster. Enabling loading in the meantime calls the unload off. It used not to, so going back to a slide straight after leaving it unloaded the video while it was current, stopping it.
+- ⚠️ Calling the `<video>` element's own `play()` bypasses the middleware, so it doesn't load an unloaded video ("The element has no supported sources").
+
+---
+
 ## Picture-in-picture
 
 The `picture-in-picture` action button (and the `p` shortcut) puts the current slide's video into the browser's PiP window, and PiP then follows the feed. Helpers live in `src/helpers/picture-in-picture.ts`, hooks in `src/hooks/usePictureInPicture.ts`.

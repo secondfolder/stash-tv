@@ -1,4 +1,6 @@
 import { test, expect } from '@playwright/test';
+import { bootFeed, changeSlideWithKeyboard, currentSlide, videoState } from './helpers/gestures';
+import { setTvConfig } from './helpers/stash';
 
 /**
  * E2E tests: the feed boots in a real browser against the mock Stash API.
@@ -6,6 +8,8 @@ import { test, expect } from '@playwright/test';
  */
 
 test.describe('Feed', () => {
+  test.afterEach(async ({ request }) => setTvConfig(request, null));
+
   test('renders media slides from the mock Stash API', async ({ page }) => {
     await page.goto('/');
 
@@ -32,6 +36,19 @@ test.describe('Feed', () => {
 
     // ...and it contains a video player
     await expect(firstSlide.locator('video-js').first()).toBeVisible();
+  });
+
+  // Leaving a slide unloads its video once it has shown its last frame as the poster, which takes a moment: going back
+  // within it used to unload the video anyway, stopping it
+  test('keeps playing a slide gone back to straight after leaving it', async ({ page, request }) => {
+    await bootFeed(page, request);
+
+    for (let attempt = 0; attempt < 4; attempt++) {
+      await changeSlideWithKeyboard(page, 'next');
+      await changeSlideWithKeyboard(page, 'previous');
+      await page.waitForTimeout(1000);
+      expect(await videoState(currentSlide(page))).toMatchObject({ paused: false, readyState: 4 });
+    }
   });
 
   test('displays action buttons on the current slide', async ({ page }) => {

@@ -69,6 +69,10 @@ export function allowPluginRemoval(videojs: typeof videoJsNamespace) {
             player.vttThumbnails = (() => {
                 return {
                     src: () => {},
+                    // Gesture seeking shows the thumbnail preview while seeking fast (see useGestureControls)
+                    showThumbnailHolder: () => {},
+                    hideThumbnailHolder: () => {},
+                    updateThumbnailStyle: () => {},
                 }
             }) as unknown as VideoJsPlayer["vttThumbnails"];
         }

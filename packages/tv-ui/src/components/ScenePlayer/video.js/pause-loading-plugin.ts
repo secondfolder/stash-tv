@@ -29,8 +29,13 @@ class PauseLoadingPlugin extends videojs.getPlugin("plugin") {
     let unloadedSource: string | null = null;
     let unloadedPoster: string | null = null;
     let pausedStateOnUnload = player.paused()
+    // Loading is canceled straight away but the source is only unloaded once the video has paused and its current frame
+    // is showing as the poster, so there's a moment between the two
     let _loadingCanceled = false
+    let sourceUnloaded = false
     player.loadingCanceled = () => _loadingCanceled
+    // Stops showing the video's frame as its poster, once the video plays again
+    let hideFramePoster: (() => void) | null = null
 
     async function getVideoFrameBlob(video: HTMLVideoElement) {
       const canvas = document.createElement('canvas');
@@ -75,7 +80,8 @@ class PauseLoadingPlugin extends videojs.getPlugin("plugin") {
           posterElement.style.opacity = "1"
           posterElement.style.transition = `opacity ${fadeToPosterTime}s`
         }
-        player.one("playing", () => {
+        hideFramePoster = () => {
+          hideFramePoster = null
           if (posterElement && posterElement instanceof HTMLElement) {
             posterElement.style.opacity = ""
             posterElement.style.display = ""
@@ -88,7 +94,8 @@ class PauseLoadingPlugin extends videojs.getPlugin("plugin") {
               }
             }, 500)
           }
-        })
+        }
+        player.one("playing", () => hideFramePoster?.())
         // Wait till opacity transition is complete
         await new Promise(resolve => setTimeout(resolve, fadeToPosterTime * 1000))
       } else {
@@ -97,6 +104,7 @@ class PauseLoadingPlugin extends videojs.getPlugin("plugin") {
     }
 
     player.cancelLoading = function() {
+      if (_loadingCanceled) return
       _loadingCanceled = true
       const videoElm = player.tech(true).el()
       if (!(videoElm instanceof HTMLVideoElement)) {
@@ -107,7 +115,7 @@ class PauseLoadingPlugin extends videojs.getPlugin("plugin") {
       unloadedPoster = player.poster();
 
       async function unloadAfterPaused() {
-        if (player.isDisposed()) return
+        if (player.isDisposed() || !_loadingCanceled) return
         if (await supports10BitVideos === undefined) {
           supports10BitVideos = testFor10BitSupport()
         }
@@ -116,12 +124,17 @@ class PauseLoadingPlugin extends videojs.getPlugin("plugin") {
           await setPosterToCurrentFrame()
         }
         if (player.isDisposed()) return
+        // Loading was enabled again while we waited (e.g. its slide was made current again straight away)
+        if (!_loadingCanceled) {
+          if (!player.paused()) hideFramePoster?.()
+          return
+        }
         const currentTime = videoElm.currentTime
         videoElm.src = ""; // clear sources to cancel requests
         videoElm.load()
         videoElm.currentTime = currentTime
+        sourceUnloaded = true
 
-        player.trigger("loadingCanceled", {currentTime})
         logger.debug('Loading canceled.');
       }
 
@@ -135,6 +148,11 @@ class PauseLoadingPlugin extends videojs.getPlugin("plugin") {
     };
 
     player.enableLoading = function() {
+      if (!_loadingCanceled) return
+      _loadingCanceled = false
+      // Its source hasn't been unloaded yet, and now won't be
+      if (!sourceUnloaded) return
+      sourceUnloaded = false
       if (!unloadedSource) {
         throw Error("unloadedSource not set")
       }
@@ -143,7 +161,6 @@ class PauseLoadingPlugin extends videojs.getPlugin("plugin") {
         logger.error(`Unexpected element {*}`, {videoElm})
         return
       }
-      _loadingCanceled = false
       if (player.isDisposed()) return
       const currentTime = videoElm.currentTime
       videoElm.src = unloadedSource
@@ -168,17 +185,9 @@ class PauseLoadingPlugin extends videojs.getPlugin("plugin") {
 videojs.registerPlugin('pauseLoading', PauseLoadingPlugin);
 
 function pauseLoadingMiddleware(player: VideoJsPlayer) {
-  let currentTimeWhenLoadingCanceled: number | undefined = undefined
-
-  player.on("loadingCanceled", (event, data) => {
-    currentTimeWhenLoadingCanceled = data.currentTime
-  })
-
+  // Also called while the source is waiting to be unloaded, which stops it being unloaded
   function enableLoadingIfCanceled() {
-    if (currentTimeWhenLoadingCanceled !== undefined) {
-      currentTimeWhenLoadingCanceled = undefined
-      player.enableLoading()
-    }
+    if (player.loadingCanceled?.()) player.enableLoading()
   }
 
   return {

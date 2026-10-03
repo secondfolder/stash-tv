@@ -52,6 +52,14 @@ Playwright re-evaluates its config in every worker. Run standalone,
 
 E2E tests set up server-side state through `test/e2e/helpers/stash.ts`: `graphql(request, query, variables)` runs an operation against mock-stash, `setTvConfig(request, state)` replaces the persisted tvConfig with the given settings, and `setActionButtons(request, config)` replaces just the action button stack (`null` restores the defaults for either; call it in `afterEach`). `expectUsableOnScreen(locator)` (`test/e2e/helpers/layout.ts`) checks an element is on screen with nothing covering it. ⚠️ It hit-tests the element's corners, which aren't part of an element with rounded corners (e.g. a pill): check something inside it instead.
 
+Tests of playback and gestures use `test/e2e/helpers/gestures.ts` (import `test` and `expect` from it rather than `@playwright/test`):
+- `bootFeed(page, request, config)` sets tvConfig, loads the feed and waits for the first video to play. It starts videos from the beginning (see the gotcha below)
+- `currentSlide` / `slideAt` / `videoState(slide)` / `seekCurrentVideo` / `changeSlideWithKeyboard`: the current slide's video and moving about the feed
+- `mousePointer(page)` / `touchPointer(page)`: one interface for both. A finger needs the context's `hasTouch`, and is driven with CDP touch events since Playwright's touchscreen can only tap. `areaPoint(page, area)` gives a point in a third of the current video, checking nothing covers it. `speedDrag(pointer, start, width)` drags a hold to a given speed change
+- `expectFeedback(page, text, icon)` / `expectFeedbackGone(page)` / `feedbackShownDuring(page, action)`: the feedback overlay. A recorder logs every change to it from page load, so a test can tell if it ever flashed up, not just what it shows when checked. `expectFeedbackGone` also checks it stays gone (it once got stuck after gestures)
+- `E2E_LOG_GESTURES=1` prints the app's gesture and seeking logs and where each video was played or paused from, to see what a failing test did
+- `E2E_COVERAGE_DIR=<dir>` writes each test's raw V8 coverage of the app's source there as JSON. Vitest's `ast-v8-to-istanbul` turns it into an istanbul report, using Vite's inline source maps to map it back to the source
+
 ⚠️ Don't background the servers from a shell script (`server & sleep && …`).
 Nothing kills them when the script exits, and killing the `vitest` parent
 leaves its worker (the one holding the port) running. Playwright avoids this by
@@ -85,7 +93,7 @@ Harness helpers for tests that change state outliving a test:
 
 Action button helpers shared by both tiers live in `test/helpers/actionButtons.tsx`: `sidePanel()` / `isSidePanelOpen()` / `closeSidePanelByClickingOutside()`, `actionButtonRoot(button)`, and `displayedIconState(actionButton, icon)`, which reads a button's state from its icon (the only sign of it for buttons whose title doesn't change). ⚠️ That file imports app code only inside its functions, and integration tests must do the same: see the `StashService` gotcha below.
 
-Tests that change the mock server's scenes or markers (rating, o-count, deleting) must restore them in `afterEach` (`restoreServerMediaAfterEach`): the server store outlives each test. Fixture scenes have no captions; set `captions` on a scene record to give it some. Fixture tags, performers and studios have no images of their own: like Stash, mock-stash marks their `image_path` as its stand-in (`default=true`) unless the record has `has_image`. Filtering scenes by studio includes sub-studios' scenes, and leaves out scenes without a studio.
+Tests that change the mock server's scenes or markers (rating, o-count, deleting) must restore them in `afterEach` (`restoreServerMediaAfterEach`): the server store outlives each test. Fixture scenes have no captions; set `captions` on a scene record to give it some. Each scene's `_thumbs.vtt` has a cue for every second, showing its screenshot, so the progress bar's thumbnail preview shows as it does with Stash's sprites. Fixture tags, performers and studios have no images of their own: like Stash, mock-stash marks their `image_path` as its stand-in (`default=true`) unless the record has `has_image`. Filtering scenes by studio includes sub-studios' scenes, and leaves out scenes without a studio.
 
 ## Standards (binding for all tests)
 
@@ -230,6 +238,10 @@ describe("integration feature", () => {
 
 ⚠️ **Dropdown e2e tests need realistic data and timing.** The mock has only 5 tags, so a tag menu is much shorter than on a real library, and Stash's tag selects load their options asynchronously, so a menu opened straight away is just "Loading...". Bugs that depend on menu size, like react-select scrolling the page to reveal a menu, only show up with enough options and once they've loaded: create extra tags with the mock's `tagCreate` (and `tagDestroy` them afterwards), and wait for the field's `.react-select__loading-indicator` to go before clicking (see the very-short-window test in `create-marker-button.test.ts`).
 
+⚠️ **E2E tests leave scenes' play positions in mock-stash.** The app saves a scene's resume time as it plays (Stash's save-activity mutation), and the e2e mock server outlives each test, so a later test's video starts where an earlier one left it. That broke looping tests, as a looping video's loop starts there. `bootFeed` sets `startPosition: 'beginning'`; set it too if you boot the feed another way.
+
+⚠️ **use-gesture ignores the first 3px of a drag** (its threshold for telling a drag from a tap), in the direction the drag first went, for the rest of the drag. `speedDrag` allows for it. Without that, drags landed just short of the speed aimed for. A drag can also pass through other speeds on the way, which matters at the end of a looping video, where any speed that plays it loops it round: pass `{ steps: 1 }` to jump straight there.
+
 ⚠️ **E2E tests that need non-default config set it through the API.** tvConfig lives in Stash's plugin config, so send a `configurePlugin` mutation to `/graphql` (proxied to mock-stash) before `page.goto`, and reset it to `{}` afterwards: the mock server is shared by every e2e test. Include `showGuideOverlay: false`, or the first-run guide overlay covers the page and swallows every click.
 
 ⚠️ **The iOS on-screen keyboard can only be reproduced in the iOS Simulator, with a person tapping.** Playwright's WebKit has no on-screen keyboard. What works:
@@ -269,7 +281,7 @@ Issues found in the 2026-09 test-suite review that were **not** fixed — pick t
 
 - **mock-stash `meta.test.ts`**: the marker create/update/destroy test bundles three behaviours in one `it`.
 - **Conformance suite** (`packages/mock-stash/test/conformance/`): scattered `as` casts on projections (centralise a typed-projection helper); "findScenes sorts by path consistently" sorts inside its own projection, weakening what it verifies.
-- **E2E is still mostly smoke-level**: the only interaction tests are the create-marker side panel's dropdowns. Nothing yet covers scrolling to the next slide or opening settings.
+- **E2E is still mostly smoke-level outside playback**: gestures, keyboard seeking and moving between slides are covered, as are the create-marker side panel's dropdowns, but nothing yet covers opening settings.
 - **`EditTagsContents` unit tests mock `EditTagSelectionForm`** — a real-form integration test would cover the prop forwarding for free and exercise the actual editing flow.
 
 ### App-code smells surfaced by the review (fix in app code, not tests)

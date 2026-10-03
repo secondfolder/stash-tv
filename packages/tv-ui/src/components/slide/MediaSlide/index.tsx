@@ -179,6 +179,8 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
     }
 
     player.on("ratechange", () => {
+      // The speed of a gesture's or arrow key's seek is only temporary, not the user's chosen playback rate
+      if (isSeeking()) return;
       logger.info(`Video.js player ratechange event - player playback rate is ${player.playbackRate()}`);
       setTvConfig("playbackRate", player.playbackRate());
     });
@@ -452,7 +454,8 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
     videojsPlayerRef.current?.play()
   }, [getSkipTime, props.index, goToItem, effectiveLooping]);
 
-  const {textSelectionWorkaroundElm, seek, toDiscreteSeekSpeed} = useGestureControls({
+  const {textSelectionWorkaroundElm, seek, isSeeking, toDiscreteSeekSpeed} = useGestureControls({
+    isCurrentVideo,
     videoRef,
     videojsPlayerRef,
     seekForwards,
@@ -983,7 +986,8 @@ const MediaSlide: React.FC<MediaSlideProps> = ({ mediaItemRef, ...otherProps }) 
 export default React.memo(MediaSlide);
 
 function useGestureControls(
-  { videoRef, videojsPlayerRef, seekForwards, seekBackwards, logger, looping, initialTimestamp, endTimestamp }: {
+  { isCurrentVideo, videoRef, videojsPlayerRef, seekForwards, seekBackwards, logger, looping, initialTimestamp, endTimestamp }: {
+    isCurrentVideo: boolean,
     videoRef: React.RefObject<HTMLVideoElement | null>,
     videojsPlayerRef: React.RefObject<VideoJsPlayer | null>,
     seekForwards: () => void,
@@ -1011,8 +1015,8 @@ function useGestureControls(
     desiredTimeDelta: number,
   }) & {
     discretePlaybackRate: number,
-    initialMuteState: boolean,
     initialPausedState: boolean,
+    initialPlaybackRate: number,
     thumbnailTimeUpdateHandler: (() => void) | null,
   } | null>(null);
 
@@ -1076,43 +1080,11 @@ function useGestureControls(
 
   const gestureElmRef = textSelectionWorkaroundElmRef ?? videoRef;
 
-  const blockOutsideMuteChangeFunction = useRef<((event: Event) => void) | null>(null);
-  const lockedMuteState = useRef<boolean | null>(null);
-
-  // We only want to temporarily mute at some points during the drag so we suppress any related events or attempt to
-  // change it back so that the user's mute setting doesn't get changed.
-  function mute(mute: boolean, {hold}: {hold?: boolean} = {}) {
-    const muteLogger = logger.getChild("mute");
-    if (!videoRef.current) return;
-    if (hold) {
-      lockedMuteState.current = mute
-    }
-    if (hold && !blockOutsideMuteChangeFunction.current) {
-      muteLogger.debug("Adding mute change block")
-      const handler = (event: Event) => {
-        if (videoRef.current && videoRef.current.muted !== lockedMuteState.current) {
-          muteLogger.debug("Mute change blocked")
-        }
-        event.stopPropagation();
-      }
-      videoRef.current?.addEventListener("volumechange", handler, { capture: true });
-      blockOutsideMuteChangeFunction.current = handler
-    }
-    if (videoRef.current.muted !== mute) {
-      muteLogger.debug(`${mute ? "Muting" : "Unmuting"} media`)
-      videoRef.current.muted = mute
-    }
-    if (!hold && blockOutsideMuteChangeFunction.current) {
-      muteLogger.debug("Removing mute change block")
-      videoRef.current?.removeEventListener("volumechange", blockOutsideMuteChangeFunction.current, { capture: true });
-      blockOutsideMuteChangeFunction.current = null
-    }
-  }
-
   const blockOutsidePausedChange = useRef<((event: Event) => void) | null>(null);
   const lockedPausedState = useRef<boolean | null>(null);
 
-  // Similar to mute above we want to temporarily pause during drag without affecting the user's desired play/pause state
+  // We want to temporarily pause during a drag without affecting the user's desired play/pause state, so we suppress
+  // any attempt to change it until the drag ends
   function pause(pause: boolean, {hold}: {hold?: boolean} = {}) {
     const pauseLogger = logger.getChild("pause");
     if (!videoRef.current) return;
@@ -1265,6 +1237,10 @@ function useGestureControls(
     return { discrete, faster, slower };
   }
 
+  // Where seeking forwards stops on a looping video: its end timestamp, or for items without one (markers, previews)
+  // the end of the video
+  const getLoopEnd = () => endTimestamp ?? (videojsPlayerRef.current?.duration() || Infinity);
+
   function seek(playbackRate: number | null) {
     console.log("Seek called with rate:", playbackRate);
     if (playbackRate === null) {
@@ -1278,14 +1254,14 @@ function useGestureControls(
       return;
     }
 
-    const initialMuteState = seekState?.initialMuteState ?? videojsPlayerRef.current?.muted()
     const initialPausedState = seekState?.initialPausedState ?? videojsPlayerRef.current?.paused()
-    if (initialMuteState === undefined || initialPausedState === undefined) {
+    const initialPlaybackRate = seekState?.initialPlaybackRate ?? videojsPlayerRef.current?.playbackRate()
+    if (initialPausedState === undefined || initialPlaybackRate === undefined) {
       logger.warn("Failed to get video state");
       return;
     }
     if (!seekState) {
-      logger.debug(`Initial mute state: ${initialMuteState}, initial paused state: ${initialPausedState}`)
+      logger.debug(`Initial paused state: ${initialPausedState}, initial playback rate: ${initialPlaybackRate}`)
     }
 
     const maxRate = 5
@@ -1301,8 +1277,8 @@ function useGestureControls(
         seekState = {
           type: "playback-rate",
           discretePlaybackRate: discretePlaybackRate,
-          initialMuteState,
           initialPausedState,
+          initialPlaybackRate,
           thumbnailTimeUpdateHandler: null
         }
         seekStateRef.current = seekState
@@ -1332,8 +1308,8 @@ function useGestureControls(
           discretePlaybackRate: discretePlaybackRate,
           seekTimeout: null,
           desiredTimeDelta: 0,
-          initialMuteState,
           initialPausedState,
+          initialPlaybackRate,
           thumbnailTimeUpdateHandler: null,
         }
         seekStateRef.current = seekState
@@ -1347,7 +1323,7 @@ function useGestureControls(
       const currentTime = videojsPlayerRef.current?.currentTime()
       if (currentTime !== undefined) {
         const hitTimeBounds = (discretePlaybackRate < 0 && (currentTime <= (initialTimestamp || 0)))
-        || (discretePlaybackRate > 0 && (currentTime >= (endTimestamp ?? Infinity)))
+        || (discretePlaybackRate > 0 && (currentTime >= getLoopEnd()))
         // If we are looping and have hit the bounds then we set the feedback in the tick function instead
         if (!looping || !hitTimeBounds ) {
           if (discretePlaybackRate) {
@@ -1384,19 +1360,26 @@ function useGestureControls(
           const currentTime = videojsPlayerRef.current?.currentTime()
           if (currentTime !== undefined) {
             const newTime = currentTime + desiredTimeDelta
+            const duration = videojsPlayerRef.current?.duration() || Infinity
             if (looping && newTime < currentTime && (newTime <= (initialTimestamp || 0))) {
               setFeedback(
                 "Start of loop reached",
                 {hold: true}
               );
               videojsPlayerRef.current?.currentTime(initialTimestamp || 0)
-            } else if (looping && newTime > currentTime && (newTime >= (endTimestamp ?? Infinity))) {
+            } else if (looping && newTime > currentTime && (newTime >= getLoopEnd())) {
               setFeedback(
                 "End of loop reached",
                 {hold: true}
               );
-              videojsPlayerRef.current?.currentTime(endTimestamp ?? Infinity)
-
+              // Stop just short of the very end of the video, where a looping video goes back to its start
+              videojsPlayerRef.current?.currentTime(Math.min(getLoopEnd(), duration - 0.1))
+            } else if (!looping && newTime > currentTime && newTime >= duration) {
+              // Skipping to the end moves on to the next item like playing to it does. The video is paused while
+              // skipping so it never fires its own ended event.
+              logger.debug("End of video reached while skipping forwards")
+              videojsPlayerRef.current?.trigger('ended');
+              return
             } else if (desiredTimeDelta) {
               videojsPlayerRef.current?.currentTime(newTime)
               seekState.desiredTimeDelta = 0;
@@ -1541,7 +1524,8 @@ function useGestureControls(
     seek(null);
   }
 
-  function cleanupSeek() {
+  /** Undo everything seeking changed, leaving the video paused if `paused` is given or as it was before if not. */
+  function cleanupSeek({paused}: {paused?: boolean} = {}) {
     logger.info("Cleaning up seek")
 
     if (!seekStateRef.current) {
@@ -1549,22 +1533,32 @@ function useGestureControls(
       return;
     }
     teardownThumbnailUpdate()
-    const { initialMuteState, initialPausedState } = seekStateRef.current
+    const { initialPausedState, initialPlaybackRate } = seekStateRef.current
     seekStateRef.current = null
 
-    videojsPlayerRef.current?.playbackRate(1);
+    videojsPlayerRef.current?.playbackRate(initialPlaybackRate);
     videojsPlayerRef.current?.scrubbing(false);
     setFeedback(null, {fade: false});
 
 
-    mute(initialMuteState);
-    pause(initialPausedState);
-    logger.debug(`Reset mute state to ${initialMuteState} and restored paused state to ${initialPausedState}`)
+    pause(paused ?? initialPausedState);
+    logger.debug(`Restored playback rate to ${initialPlaybackRate} and set paused state to ${paused ?? initialPausedState}`)
   }
+
+  // A gesture belongs to the slide it started on, so it ends if that slide stops being the current one while it's
+  // still held. Its video is left paused, as videos that aren't current don't play.
+  useEffect(() => {
+    if (isCurrentVideo) return;
+    clearTimeout(waitForClickTimeoutRef.current);
+    waitForClickTimeoutRef.current = undefined;
+    gestureStateRef.current = null;
+    if (seekStateRef.current) cleanupSeek({paused: true});
+  }, [isCurrentVideo]);
 
   return {
     textSelectionWorkaroundElm,
     seek,
+    isSeeking: () => seekStateRef.current !== null,
     toDiscreteSeekSpeed
   }
 }
