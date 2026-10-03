@@ -87,7 +87,7 @@ A channel showing a filter that isn't saved anywhere, for showing something for 
 
 - Rows show the source's name. Saved filters get a `Scenes: ` or `Markers: ` prefix to tell them apart; "All scenes" / "All markers" have none.
 - A row has no delete button while it's the only channel. The temporary channel doesn't count towards that, as it won't be there next time: a saved channel can't be deleted while it's the only saved one, but the temporary channel always can.
-- The temporary channel has a "Temporary" badge after its name, and no edit button or drag handle (it can only show a filter made for it, and it's always last).
+- The temporary channel has a "Temporary" badge after its name, and no edit button or drag handle (it can only show a filter made for it, and it's always last). It's in a list of its own under the others (`.temporary-channel-list`), not the one they're dragged about in. ⚠️ In the same list, dragging a channel below it crashed the page: framer-motion's `Reorder` kept moving the channel there as `normalizeChannels()` kept moving it back.
 - The active channel has an accent bar down its left edge and a bold name. Its text isn't recoloured.
 
 The list and modal use the same shared list and modal components as the action-button list (see [action buttons](action-buttons.md) § "Settings Integration"):

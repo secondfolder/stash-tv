@@ -48,3 +48,17 @@
     }
   }
 }
+
+/* The temporary channel, below the others (see ChannelSettings), striped as if it were in their list */
+.temporary-channel-list {
+  list-style: none;
+  padding: 0;
+
+  li:nth-child(odd) {
+    background: none;
+  }
+
+  li.odd-row {
+    background: rgba(0, 0, 0, 0.15);
+  }
+}

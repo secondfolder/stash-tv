@@ -35,7 +35,9 @@ export function ChannelSettings() {
   const [channelDraft, setChannelDraft] = useState<ChannelConfig | null>(null)
   const isInChannelList = (channel: ChannelConfig) => channels.some(otherChannel => otherChannel.id === channel.id)
   // The temporary channel goes when Stash TV closes, so it doesn't count towards there being one to show
-  const persistedChannelCount = persistedChannels(channels).length
+  const savedChannels = persistedChannels(channels)
+  const persistedChannelCount = savedChannels.length
+  const temporaryChannel = channels.find(isTemporaryChannel)
 
   const saveChannelDraft = (channel: ChannelConfig) => {
     if (isInChannelList(channel)) {
@@ -44,6 +46,62 @@ export function ChannelSettings() {
       setTvConfig("channels", [...channels, channel])
       setActiveChannel(channel.id)
     }
+  }
+
+  /** A channel's row, which can be dragged by `dragHandleProps` if given */
+  const renderChannel = (channel: ChannelConfig, dragHandleProps?: object) => {
+    // Channels have a single source for now
+    const source = channel.sources[0]
+    const { prefix, name, sourceInfo } = getChannelName(channel, availableSavedFilters, availableSavedFiltersLoading)
+    const isActive = channel.id === activeChannel?.id
+    // The temporary channel's filter can't be edited
+    const temporary = isTemporaryChannel(channel)
+    return <ConfigListItem
+      className={cx("channel", {active: isActive, missing: sourceInfo?.missing, temporary})}
+      dragHandleProps={dragHandleProps}
+      title={<Button
+        variant="link"
+        className="select-channel"
+        aria-current={isActive ? "true" : undefined}
+        onClick={() => setActiveChannel(channel.id)}
+      >
+        <span className="channel-title">
+          {prefix && <span className="channel-name-prefix">{prefix}</span>}
+          <span className="channel-name">{name}</span>
+        </span>
+        {temporary && <Badge
+          variant="secondary"
+          className="temporary-badge"
+          title="Not saved: it's gone once Stash TV is closed"
+        >
+          Temporary
+        </Badge>}
+        {source?.randomise && !sourceInfo?.sortedRandomly && <FontAwesomeIcon
+          className="randomised-icon"
+          icon={faShuffle}
+          title="Randomised"
+        />}
+      </Button>}
+      controls={<>
+        {!temporary && <Button
+          variant="link"
+          className={cx("edit-channel", "muted")}
+          onClick={() => setChannelDraft(channel)}
+          aria-label="Edit channel"
+        >
+          <FontAwesomeIcon icon={faPenToSquare} />
+        </Button>}
+        {/* There must always be a channel to show */}
+        {(temporary || persistedChannelCount > 1) && <Button
+          variant="link"
+          className={cx("delete-channel", "muted")}
+          onClick={() => setTvConfig("channels", channels.filter(otherChannel => otherChannel !== channel))}
+          aria-label="Delete channel"
+        >
+          <FontAwesomeIcon icon={faTrashCan} />
+        </Button>}
+      </>}
+    />
   }
 
   return <>
@@ -59,65 +117,19 @@ export function ChannelSettings() {
     <Form.Group className="ChannelSettings">
       <ConfigList<ChannelConfig>
         className="channel-list"
-        items={channels}
-        onItemsOrderChange={newOrder => setTvConfig("channels", newOrder)}
+        items={savedChannels}
+        onItemsOrderChange={newOrder => setTvConfig("channels", temporaryChannel ? [...newOrder, temporaryChannel] : newOrder)}
         getItemKey={channel => channel.id}
-        renderItem={({ item: channel, items, getDragHandleProps }) => {
-          const dragHandleProps = getDragHandleProps({className: "drag-handle"})
-          // Channels have a single source for now
-          const source = channel.sources[0]
-          const { prefix, name, sourceInfo } = getChannelName(channel, availableSavedFilters, availableSavedFiltersLoading)
-          const isActive = channel.id === activeChannel?.id
-          // The temporary channel is always last, so it can't be moved, and its filter can't be edited
-          const temporary = isTemporaryChannel(channel)
-          return <ConfigListItem
-            className={cx("channel", {active: isActive, missing: sourceInfo?.missing, temporary})}
-            dragHandleProps={items.length > 1 && !temporary ? dragHandleProps : undefined}
-            title={<Button
-              variant="link"
-              className="select-channel"
-              aria-current={isActive ? "true" : undefined}
-              onClick={() => setActiveChannel(channel.id)}
-            >
-              <span className="channel-title">
-                {prefix && <span className="channel-name-prefix">{prefix}</span>}
-                <span className="channel-name">{name}</span>
-              </span>
-              {temporary && <Badge
-                variant="secondary"
-                className="temporary-badge"
-                title="Not saved: it's gone once Stash TV is closed"
-              >
-                Temporary
-              </Badge>}
-              {source?.randomise && !sourceInfo?.sortedRandomly && <FontAwesomeIcon
-                className="randomised-icon"
-                icon={faShuffle}
-                title="Randomised"
-              />}
-            </Button>}
-            controls={<>
-              {!temporary && <Button
-                variant="link"
-                className={cx("edit-channel", "muted")}
-                onClick={() => setChannelDraft(channel)}
-                aria-label="Edit channel"
-              >
-                <FontAwesomeIcon icon={faPenToSquare} />
-              </Button>}
-              {/* There must always be a channel to show */}
-              {(temporary || persistedChannelCount > 1) && <Button
-                variant="link"
-                className={cx("delete-channel", "muted")}
-                onClick={() => setTvConfig("channels", channels.filter(otherChannel => otherChannel !== channel))}
-                aria-label="Delete channel"
-              >
-                <FontAwesomeIcon icon={faTrashCan} />
-              </Button>}
-            </>}
-          />
-        }}
+        renderItem={({ item: channel, items, getDragHandleProps }) => renderChannel(
+          channel,
+          items.length > 1 ? getDragHandleProps({className: "drag-handle"}) : undefined,
+        )}
       />
+      {/* Always last, so it isn't in the list the others are dragged about in: the list would try to put a channel
+          dragged below it there, and with the channels always put back in order, kept trying, crashing the page */}
+      {temporaryChannel && <ul className={cx("ConfigList", "channel-list", "temporary-channel-list")}>
+        <li className={cx({ "odd-row": savedChannels.length % 2 === 0 })}>{renderChannel(temporaryChannel)}</li>
+      </ul>}
       {!channels.length && <Form.Text className="text-muted">
         Showing all scenes. Add a channel to choose what the feed shows.
       </Form.Text>}
