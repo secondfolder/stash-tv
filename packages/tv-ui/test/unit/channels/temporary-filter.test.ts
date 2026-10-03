@@ -54,6 +54,25 @@ describe("temporary filters", () => {
     });
   });
 
+  it("offers adding an entity of a kind the filter doesn't have, so it requires that too", () => {
+    const bob = { id: "performer-bob", name: "Bob Bold" };
+    const prism = { id: "studio-prism", name: "Prism Pictures" };
+    const performerFilter = makeEntityFilter("performer", bob);
+
+    expect(canAddEntityToFilter(performerFilter, "tag", alpha)).toBe(true);
+    expect(canAddEntityToFilter(performerFilter, "studio", prism)).toBe(true);
+    const filter = addEntityToFilter(addEntityToFilter(performerFilter, "tag", alpha), "studio", prism);
+
+    expect(filter.name).toBe("Bob Bold & Alpha & Prism Pictures");
+    expect(sceneFilterOf(filter)).toEqual({
+      performers: { value: ["performer-bob"], excludes: [], modifier: GQL.CriterionModifier.IncludesAll },
+      tags: { value: ["tag-alpha"], excludes: [], modifier: GQL.CriterionModifier.IncludesAll, depth: 0 },
+      studios: { value: ["studio-prism"], excludes: [], modifier: GQL.CriterionModifier.Includes, depth: -1 },
+    });
+    // With something else to filter by, the studio can go again
+    expect(canRemoveEntityFromFilter(filter, "studio", prism)).toBe(true);
+  });
+
   it("never offers requiring more than one studio, as a scene has only one", () => {
     const prism = { id: "studio-prism", name: "Prism Pictures" };
     const filter = makeEntityFilter("studio", prism);
@@ -71,7 +90,7 @@ describe("temporary filters", () => {
     });
   });
 
-  it("offers adding an entity only to a filter requiring all of that kind of entity, and not already this one", () => {
+  it("offers adding an entity of a kind the filter has to one requiring all of them, and not already this one", () => {
     const alphaFilter = makeEntityFilter("tag", alpha);
     const anyOfFilter: TemporaryFilter = {
       ...alphaFilter,
@@ -82,12 +101,10 @@ describe("temporary filters", () => {
         },
       },
     };
-    const noTagsFilter: TemporaryFilter = { ...alphaFilter, object_filter: {} };
 
     expect(canAddEntityToFilter(alphaFilter, "tag", beta)).toBe(true);
     expect(canAddEntityToFilter(alphaFilter, "tag", alpha)).toBe(false);
     expect(canAddEntityToFilter(anyOfFilter, "tag", beta)).toBe(false);
-    expect(canAddEntityToFilter(noTagsFilter, "tag", beta)).toBe(false);
     expect(canAddEntityToFilter(undefined, "tag", beta)).toBe(false);
   });
 

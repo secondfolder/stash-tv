@@ -16,7 +16,7 @@ import { EntityPopoverAction } from "./EntityPopover";
 
 /**
  * The buttons every entity's popover has: show the scenes that have it in the feed (in the temporary channel), and,
- * when the temporary channel already filters by that kind of entity, add it to that filter or remove it from it.
+ * when there's a temporary channel, add it to that channel's filter or remove it from it.
  * There's no button opening it in Stash: its card's title links there.
  *
  * @see docs/entity-popovers.md § "Actions"

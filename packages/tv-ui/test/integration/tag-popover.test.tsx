@@ -109,7 +109,7 @@ describe("Tag popover", () => {
     await app.unmount();
   });
 
-  it("doesn't offer to add the tag to a filter without one, or one already requiring it", async () => {
+  it("doesn't offer to add the tag without a temporary channel, or to a filter already requiring it", async () => {
     const app = await bootShowingFields(["tags"]);
 
     let popover = await openEntityPopover(app, "Beta");
@@ -140,6 +140,25 @@ describe("Tag popover", () => {
     // Alpha's the only tag left, and without it the filter would show everything
     popover = await openEntityPopover(app, "Alpha");
     expect(within(popover).queryByRole("button", { name: "Remove from channel filter" })).not.toBeInTheDocument();
+
+    await app.unmount();
+  });
+
+  it("offers to add the tag to a temporary channel filtering by something else, requiring both", async () => {
+    const app = await bootShowingFields(["performers", "tags"]);
+
+    // "Bob Bold" is in "Grotto Glow" (tagged "Beta"), "Blueprint Boulevard" (also "Beta") and "Ember Evening" (not)
+    let popover = await openEntityPopover(app, "Bob Bold");
+    click(within(popover).getByRole("button", { name: "Show scenes with this performer" }));
+    await feedShows(app, "Ember Evening");
+
+    popover = await openEntityPopover(app, "Beta");
+    expect(within(popover).getByRole("button", { name: "Show scenes with this tag" })).toBeInTheDocument();
+    click(within(popover).getByRole("button", { name: "Add to channel filter" }));
+
+    await feedDoesNotShow(app, "Ember Evening");
+    await feedShows(app, "Blueprint Boulevard");
+    expect((await temporaryChannelFilter())?.name).toBe("Bob Bold & Beta");
 
     await app.unmount();
   });
