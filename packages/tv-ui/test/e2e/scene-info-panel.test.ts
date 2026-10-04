@@ -1,6 +1,8 @@
-import { test, expect, type APIRequestContext, type Locator, type Page } from '@playwright/test';
+import { type APIRequestContext, type Locator, type Page } from '@playwright/test';
+import { test, expect } from './helpers/test';
 import { graphql, setTvConfig } from './helpers/stash';
 import { expectUsableOnScreen } from './helpers/layout';
+import { currentSlide, infoPanel, box } from './helpers/feed';
 
 /**
  * E2E tests: customising the scene info panel. Where its edit button and editor sit, and dragging its fields' pills
@@ -17,14 +19,6 @@ const SIMPLE_LAYOUT = [['studio'], ['title'], ['performers'], ['date']];
 /** `setTvConfig`, with the simple layout unless the settings give one */
 function setPanelConfig(request: APIRequestContext, state: Record<string, unknown>) {
   return setTvConfig(request, { sceneInfoLayout: SIMPLE_LAYOUT, ...state });
-}
-
-function currentSlide(page: Page) {
-  return page.locator('[data-testid="MediaSlide--container"][data-current-video="true"]');
-}
-
-function infoPanel(page: Page) {
-  return currentSlide(page).getByTestId('MediaSlide--sceneInfo');
 }
 
 async function openInfoPanel(page: Page) {
@@ -230,12 +224,6 @@ async function recordSettling(page: Page) {
 async function settlingFrames(page: Page) {
   await page.waitForTimeout(800);
   return await page.evaluate(() => (window as unknown as { settling: { x: number, y: number, angle: number, targetShown: boolean }[] }).settling);
-}
-
-async function box(locator: Locator) {
-  const result = await locator.boundingBox();
-  if (!result) throw new Error('Element not rendered');
-  return result;
 }
 
 test.describe('Scene info panel', () => {

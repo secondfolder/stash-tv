@@ -1,6 +1,6 @@
-import { test as base, expect, type CDPSession, type Locator, type Page } from '@playwright/test';
-import { mkdir, writeFile } from 'node:fs/promises';
-import path from 'node:path';
+import { type CDPSession, type Locator, type Page } from '@playwright/test';
+import { expect } from './test';
+import { currentIndex, currentSlide, slideAt } from './feed';
 import { setTvConfig } from './stash';
 
 /**
@@ -8,29 +8,6 @@ import { setTvConfig } from './stash';
  * share with the arrow keys. @see docs/video-player.md § "Gestures"
  */
 
-/**
- * Playwright's `test`, collecting the browser's JS coverage of the app's source when `E2E_COVERAGE_DIR` is set: each
- * test's raw V8 coverage is written to that directory as JSON.
- */
-export const test = base.extend<{ jsCoverage: void }>({
-  jsCoverage: [
-    async ({ page }, use, testInfo) => {
-      const directory = process.env.E2E_COVERAGE_DIR;
-      if (!directory) return use();
-      await page.coverage.startJSCoverage({ resetOnNavigation: false });
-      await use();
-      // The dev server serves the app's source from its root, and dependencies from /node_modules/ or /@fs/
-      const coverage = (await page.coverage.stopJSCoverage()).filter((entry) => {
-        const { origin, pathname } = new URL(entry.url);
-        return origin === new URL(page.url()).origin && /\.tsx?$/.test(pathname) && !/^\/(@|node_modules\/)/.test(pathname);
-      });
-      await mkdir(directory, { recursive: true });
-      await writeFile(path.join(directory, `${testInfo.testId}-${testInfo.retry}.json`), JSON.stringify(coverage));
-    },
-    { auto: true },
-  ],
-});
-export { expect };
 
 export type Area = 'left' | 'middle' | 'right';
 export interface Point {
@@ -88,13 +65,7 @@ export async function bootFeed(page: Page, request: Parameters<typeof setTvConfi
 
 /* ------------------------------ Slides & video ----------------------------- */
 
-export const slideAt = (page: Page, index: number) =>
-  page.locator(`[data-testid="MediaSlide--container"][data-index="${index}"]`);
-export const currentSlide = (page: Page) => page.locator('[data-testid="MediaSlide--container"][data-current-video="true"]');
 
-export async function currentIndex(page: Page) {
-  return Number(await currentSlide(page).getAttribute('data-index'));
-}
 
 /** Wait for the slide at `index` to be the current one, and its video to be playing. */
 export async function expectCurrentSlide(page: Page, index: number) {

@@ -3,9 +3,6 @@ import {
   areaPoint,
   bootFeed,
   changeSlideWithKeyboard,
-  currentIndex,
-  currentSlide,
-  expect,
   expectFeedback,
   expectFeedbackGone,
   feedbackShownDuring,
@@ -13,11 +10,12 @@ import {
   seekCurrentVideo,
   speedDrag,
   tap,
-  test,
   videoState,
   videoWidth,
   type Pointer,
 } from './helpers/gestures';
+import { expect, test } from './helpers/test';
+import { currentIndex, currentSlide } from './helpers/feed';
 
 /**
  * E2E: on a looping video gestures never move the feed on: seeking past either end of the loop stops there (saying so)

@@ -1,17 +1,16 @@
 import { setTvConfig } from './helpers/stash';
 import {
   bootFeed,
-  currentSlide,
-  expect,
   expectCurrentSlide,
   expectFeedback,
   expectFeedbackGone,
   feedbackShownDuring,
   seekCurrentVideo,
-  test,
   timeMovedOver,
   videoState,
 } from './helpers/gestures';
+import { expect, test } from './helpers/test';
+import { currentSlide } from './helpers/feed';
 
 /**
  * E2E: the arrow keys skip and seek through the current video the way gestures on it do, sharing their seeking and

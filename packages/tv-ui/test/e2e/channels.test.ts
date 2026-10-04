@@ -1,5 +1,7 @@
-import { test, expect, type Locator, type Page } from '@playwright/test';
+import { type Locator, type Page } from '@playwright/test';
+import { test, expect } from './helpers/test';
 import { setTvConfig } from './helpers/stash';
+import { currentSlide } from './helpers/feed';
 
 /**
  * E2E tests: reordering channels in the Settings tab, which needs pointer events and layout.
@@ -16,10 +18,6 @@ async function settledBox(locator: Locator) {
     if (box && previous && box.x === previous.x && box.y === previous.y) return box;
     previous = box;
   }
-}
-
-function currentSlide(page: Page) {
-  return page.locator('[data-testid="MediaSlide--container"][data-current-video="true"]');
 }
 
 /** The channels listed in the Settings tab, as their names */

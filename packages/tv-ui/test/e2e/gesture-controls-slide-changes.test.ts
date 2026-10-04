@@ -4,24 +4,21 @@ import {
   areaPoint,
   bootFeed,
   changeSlideWithKeyboard,
-  currentIndex,
-  currentSlide,
-  expect,
   expectCurrentSlide,
   expectFeedback,
   expectFeedbackGone,
   feedbackShownDuring,
   mousePointer,
   seekCurrentVideo,
-  slideAt,
   speedDrag,
-  test,
   timeMovedOver,
   videoState,
   videoWidth,
   type Point,
   type Pointer,
 } from './helpers/gestures';
+import { expect, test } from './helpers/test';
+import { currentIndex, currentSlide, slideAt } from './helpers/feed';
 
 /**
  * E2E: a gesture ends when its slide stops being the current one while it's still held, whether the video ended, a

@@ -1,5 +1,7 @@
-import { test, expect, type Locator, type Page } from '@playwright/test';
+import { type Locator, type Page } from '@playwright/test';
+import { test, expect } from './helpers/test';
 import { setTvConfig } from './helpers/stash';
+import { box, currentSlide, infoPanel } from './helpers/feed';
 
 /**
  * E2E tests: where an entity's popover opens (above or below what opened it), and how it's laid out, depend on layout,
@@ -8,14 +10,6 @@ import { setTvConfig } from './helpers/stash';
  * @see docs/entity-popovers.md § "Placement"
  * @see docs/entity-popovers.md § "Cards"
  */
-
-function currentSlide(page: Page) {
-  return page.locator('[data-testid="MediaSlide--container"][data-current-video="true"]');
-}
-
-function infoPanel(page: Page) {
-  return currentSlide(page).getByTestId('MediaSlide--sceneInfo');
-}
 
 /** Open the info panel, and from it the popover of the first slide's tag ("Beta") */
 async function openTagPopover(page: Page) {
@@ -29,10 +23,10 @@ async function openTagPopover(page: Page) {
   return { tag, popover };
 }
 
-async function box(locator: Locator) {
-  const box = await locator.boundingBox();
-  if (!box) throw new Error('Not shown');
-  return { top: box.y, bottom: box.y + box.height };
+/** Where the top and bottom of the element are */
+async function verticalEdges(locator: Locator) {
+  const { y, height } = await box(locator);
+  return { top: y, bottom: y + height };
 }
 
 test.afterEach(async ({ request }) => {
@@ -46,8 +40,8 @@ test('opens above a tag with room above it, its buttons below its card', async (
   const card = popover.getByRole('heading', { name: 'Beta' });
   const buttons = popover.getByRole('button', { name: 'Show scenes with this tag' });
   // Within a pixel, as positions are rounded
-  expect((await box(popover)).bottom).toBeLessThanOrEqual((await box(tag)).top + 1);
-  expect((await box(buttons)).top).toBeGreaterThan((await box(card)).bottom);
+  expect((await verticalEdges(popover)).bottom).toBeLessThanOrEqual((await verticalEdges(tag)).top + 1);
+  expect((await verticalEdges(buttons)).top).toBeGreaterThan((await verticalEdges(card)).bottom);
 });
 
 test('opens below a tag without room above it, its buttons above its card', async ({ page, request }) => {
@@ -63,8 +57,8 @@ test('opens below a tag without room above it, its buttons above its card', asyn
 
   const card = popover.getByRole('heading', { name: 'Beta' });
   const buttons = popover.getByRole('button', { name: 'Show scenes with this tag' });
-  expect((await box(popover)).top).toBeGreaterThanOrEqual((await box(tag)).bottom - 1);
-  expect((await box(buttons)).bottom).toBeLessThan((await box(card)).top);
+  expect((await verticalEdges(popover)).top).toBeGreaterThanOrEqual((await verticalEdges(tag)).bottom - 1);
+  expect((await verticalEdges(buttons)).bottom).toBeLessThan((await verticalEdges(card)).top);
 });
 
 test("shows a tag's card without Stash's stand-in image for a tag with none of its own", async ({ page, request }) => {

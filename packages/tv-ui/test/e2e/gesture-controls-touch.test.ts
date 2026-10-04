@@ -2,23 +2,20 @@ import { setTvConfig } from './helpers/stash';
 import {
   areaPoint,
   bootFeed,
-  currentIndex,
-  currentSlide,
-  expect,
   expectCurrentSlide,
   expectFeedback,
   expectFeedbackGone,
   feedbackShownDuring,
   seekCurrentVideo,
-  slideAt,
   speedDrag,
   tap,
-  test,
   touchPointer,
   videoState,
   videoWidth,
   type Pointer,
 } from './helpers/gestures';
+import { expect, test } from './helpers/test';
+import { currentIndex, currentSlide, slideAt } from './helpers/feed';
 
 /**
  * E2E: gestures with a finger on a touch screen, where a quick swipe scrolls the feed instead, and on iOS, where they're

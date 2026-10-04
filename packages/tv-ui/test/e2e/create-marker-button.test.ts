@@ -1,6 +1,8 @@
-import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
+import { type APIRequestContext, type Page } from '@playwright/test';
+import { test, expect } from './helpers/test';
 import { graphql, setActionButtons } from './helpers/stash';
 import { expectUsableOnScreen } from './helpers/layout';
+import { currentSlide } from './helpers/feed';
 
 /**
  * E2E tests: dropdowns inside the create-marker button's side panel open where the user can see and use them.
@@ -48,7 +50,7 @@ async function expectAllOptionsUsable(page: Page) {
 
 async function openPanel(page: Page) {
   await page.goto('/');
-  const slide = page.locator('[data-testid="MediaSlide--container"][data-current-video="true"]');
+  const slide = currentSlide(page);
   await slide.getByRole('button', { name: 'Add/edit scene marker' }).click();
   const panel = page.locator('.PopoverPanel');
   await expect(panel.locator('.action-button-create-marker')).toBeVisible();
@@ -168,7 +170,7 @@ test.describe('Create-marker side panel', () => {
 
     test("doesn't scroll the feed behind it when scrolling past the end of its contents", async ({ page }) => {
       const currentScene = () =>
-        page.locator('[data-testid="MediaSlide--container"][data-current-video="true"]').getAttribute('data-scene-id');
+        currentSlide(page).getAttribute('data-scene-id');
       const panel = await openPanel(page);
       const sceneBefore = await currentScene();
       const panelBox = (await panel.boundingBox())!;
@@ -235,7 +237,7 @@ test.describe('Create-marker side panel', () => {
       markerDefaults: { title: 'Finale', primaryTagId: 'tag-alpha', tagIds: [] },
     }]);
     await page.goto('/');
-    const slide = page.locator('[data-testid="MediaSlide--container"][data-current-video="true"]');
+    const slide = currentSlide(page);
     await slide.getByRole('button', { name: 'Add/edit "Alpha" markers' }).click();
     const panel = page.locator('.PopoverPanel');
 
@@ -314,7 +316,7 @@ test.describe('Create-marker side panel', () => {
     test("opening a dropdown in the panel doesn't scroll the page", async ({ page }) => {
       const panel = await openPanel(page);
       const currentScene = () =>
-        page.locator('[data-testid="MediaSlide--container"][data-current-video="true"]').getAttribute('data-scene-id');
+        currentSlide(page).getAttribute('data-scene-id');
       const sceneBefore = await currentScene();
       await page.evaluate(() => {
         const win = window as Window & { pageScrolled?: boolean };

@@ -1,5 +1,7 @@
-import { test, expect, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
+import { test, expect } from './helpers/test';
 import { setActionButtons } from './helpers/stash';
+import { currentSlide } from './helpers/feed';
 
 /**
  * E2E tests: a closed folder previews the icons of its first 4 shown buttons, and opening or closing it animates each
@@ -11,8 +13,6 @@ import { setActionButtons } from './helpers/stash';
 
 type Box = { x: number, y: number, width: number, height: number };
 type Frame = { time: number, preview: Box[], open: Box[], stackScrollable: boolean, arrowOpacity: number };
-
-const currentSlide = (page: Page) => page.locator('[data-testid="MediaSlide--container"][data-current-video="true"]');
 
 /**
  * Where the folder's icons are on each animation frame while `action` runs and for a while after: in the current
@@ -82,7 +82,7 @@ test.describe('Action button folder preview', () => {
     }]);
 
     await page.goto('/');
-    const slide = page.locator('[data-testid="MediaSlide--container"][data-current-video="true"]');
+    const slide = currentSlide(page);
     const icons = slide.getByRole('button', { name: 'Open folder' }).locator('.ActionButtonIcon');
 
     await expect(icons).toHaveCount(5);

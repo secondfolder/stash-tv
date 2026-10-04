@@ -4,9 +4,6 @@ import {
   areaPoint,
   bootFeed,
   changeSlideWithKeyboard,
-  currentIndex,
-  currentSlide,
-  expect,
   expectCurrentSlide,
   expectFeedback,
   expectFeedbackGone,
@@ -15,16 +12,16 @@ import {
   pauseCurrentVideo,
   playbackRates,
   seekCurrentVideo,
-  slideAt,
   speedDrag,
   tap,
-  test,
   thumbnailShowing,
   timeMovedOver,
   videoState,
   videoWidth,
   type Pointer,
 } from './helpers/gestures';
+import { expect, test } from './helpers/test';
+import { currentIndex, currentSlide, slideAt } from './helpers/feed';
 
 /**
  * E2E: tapping, holding and dragging on a slide's video to play/pause, skip and seek, with the feedback overlay

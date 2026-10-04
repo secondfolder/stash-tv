@@ -2,16 +2,14 @@ import { setTvConfig } from './helpers/stash';
 import {
   areaPoint,
   bootFeed,
-  currentIndex,
-  currentSlide,
-  expect,
   expectFeedback,
   expectFeedbackGone,
   mousePointer,
-  test,
   videoState,
   type Pointer,
 } from './helpers/gestures';
+import { expect, test } from './helpers/test';
+import { currentIndex, currentSlide } from './helpers/feed';
 
 /**
  * E2E: gestures on markers, which play a clip of their scene (the offset plugin), have no end timestamp of their own,

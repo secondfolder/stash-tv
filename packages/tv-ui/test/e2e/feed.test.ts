@@ -1,6 +1,11 @@
-import { test, expect } from '@playwright/test';
-import { bootFeed, changeSlideWithKeyboard, currentSlide, videoState } from './helpers/gestures';
+import { test, expect } from './helpers/test';
+import {
+  bootFeed,
+  changeSlideWithKeyboard,
+  videoState,
+} from './helpers/gestures';
 import { setTvConfig } from './helpers/stash';
+import { currentSlide } from './helpers/feed';
 
 /**
  * E2E tests: the feed boots in a real browser against the mock Stash API.

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/test';
 
 /**
  * E2E: forced landscape rotates the UI by making the page's viewport measurements report the rotated size, so layout

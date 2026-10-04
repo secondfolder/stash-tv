@@ -3,18 +3,17 @@ import { setTvConfig } from './helpers/stash';
 import {
   areaPoint,
   bootFeed,
-  currentSlide,
-  expect,
   expectFeedback,
   expectFeedbackGone,
   feedbackShownDuring,
   mousePointer,
   seekCurrentVideo,
-  test,
   videoState,
   type Area,
   type Pointer,
 } from './helpers/gestures';
+import { expect, test } from './helpers/test';
+import { currentSlide } from './helpers/feed';
 
 /**
  * E2E: only the primary mouse button makes gestures, and a press whose release may never come (a context menu was

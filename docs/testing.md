@@ -57,13 +57,15 @@ Playwright re-evaluates its config in every worker. Run standalone,
 
 E2E tests set up server-side state through `test/e2e/helpers/stash.ts`: `graphql(request, query, variables)` runs an operation against mock-stash, `setTvConfig(request, state)` replaces the persisted tvConfig with the given settings, and `setActionButtons(request, config)` replaces just the action button stack (`null` restores the defaults for either; call it in `afterEach`). `expectUsableOnScreen(locator)` (`test/e2e/helpers/layout.ts`) checks an element is on screen with nothing covering it. ⚠️ It hit-tests the element's corners, which aren't part of an element with rounded corners (e.g. a pill): check something inside it instead.
 
-Tests of playback and gestures use `test/e2e/helpers/gestures.ts` (import `test` and `expect` from it rather than `@playwright/test`):
+Every e2e test imports `test` and `expect` from `test/e2e/helpers/test.ts` rather than `@playwright/test`, for the fixtures every test needs (e.g. coverage, below). Things on the page are found with `test/e2e/helpers/feed.ts`: `currentSlide` / `slideAt` / `currentIndex`, `infoPanel(page)`, and `box(locator)` (its bounding box, failing if it isn't rendered).
+
+Tests of playback and gestures use `test/e2e/helpers/gestures.ts`:
 - `bootFeed(page, request, config)` sets tvConfig, loads the feed and waits for the first video to play. It starts videos from the beginning (see the gotcha below)
-- `currentSlide` / `slideAt` / `videoState(slide)` / `seekCurrentVideo` / `changeSlideWithKeyboard`: the current slide's video and moving about the feed
+- `videoState(slide)` / `seekCurrentVideo` / `changeSlideWithKeyboard`: the current slide's video and moving about the feed
 - `mousePointer(page)` / `touchPointer(page)`: one interface for both. A finger needs the context's `hasTouch`, and is driven with CDP touch events since Playwright's touchscreen can only tap. `areaPoint(page, area)` gives a point in a third of the current video, checking nothing covers it. `speedDrag(pointer, start, width)` drags a hold to a given speed change
 - `expectFeedback(page, text, icon)` / `expectFeedbackGone(page)` / `feedbackShownDuring(page, action)`: the feedback overlay. A recorder logs every change to it from page load, so a test can tell if it ever flashed up, not just what it shows when checked. `expectFeedbackGone` also checks it stays gone (it once got stuck after gestures)
 - `E2E_LOG_GESTURES=1` prints the app's gesture and seeking logs and where each video was played or paused from, to see what a failing test did
-- `E2E_COVERAGE_DIR=<dir>` writes each test's raw V8 coverage of the app's source there as JSON. Vitest's `ast-v8-to-istanbul` turns it into an istanbul report, using Vite's inline source maps to map it back to the source
+- `E2E_COVERAGE_DIR=<dir>` (any e2e test, through `helpers/test.ts`) writes each test's raw V8 coverage of the app's source there as JSON. Vitest's `ast-v8-to-istanbul` turns it into an istanbul report, using Vite's inline source maps to map it back to the source
 
 ⚠️ Don't background the servers from a shell script (`server & sleep && …`).
 Nothing kills them when the script exits, and killing the `vitest` parent
