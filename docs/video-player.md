@@ -17,7 +17,7 @@ How video playback works: Stash TV's `ScenePlayer` wraps Stash's ScenePlayer (vi
 
 ## Current-Player Tracking
 
-Stash's components assume a single active player at a time. `packages/stash-ui/patches/scene-player-utils.ts` watches for `.current-video` class changes on slides inside `.VideoScroller` and keeps a module-level `VIDEO_PLAYER_ID` pointing at the focused player; Stash components read that ID. `getPlayerPosition()` (same file) returns the current player's playback time.
+Stash's components assume a single active player at a time. `packages/stash-ui/patches/scene-player-utils.ts` watches for `.current-video` class changes on slides inside `.VideoScroller` and keeps a module-level `VIDEO_PLAYER_ID` pointing at the focused player; Stash components read that ID. `getPlayerPosition()` (same file) returns the current player's playback time. ⚠️ It starts watching the page as it's imported, so a copy evaluated again (a hot reload, or each boot in the integration tests) first stops the previous copy's watchers. Otherwise each copy watched the page for good, keeping that copy of the app in memory (~30MB per test boot).
 
 ⚠️ **If adding new video players or changing the slide/scroller DOM structure, ensure that patch still tracks them** (it keys off `.VideoScroller` > children with `.current-video` containing a `video-js` element).
 

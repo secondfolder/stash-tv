@@ -7,7 +7,13 @@ export let VIDEO_PLAYER_ID = "";
 export const getPlayerPosition = () =>
   videojs.getPlayer(VIDEO_PLAYER_ID)?.currentTime();
 
-watchForCurrentVideoClass(element => {
+// This module can be evaluated more than once in a page (on a hot reload in development, and on every boot in Stash
+// TV's integration tests), so stop the previous copy's watchers first. They would otherwise run for as long as the
+// page does, each keeping its copy, and the elements it last saw, in memory.
+const stopWatchingKey = Symbol.for("stash-ui.scene-player-utils.stop-watching");
+const pageWindow: Window & { [stopWatchingKey]?: () => void } = window;
+pageWindow[stopWatchingKey]?.();
+pageWindow[stopWatchingKey] = watchForCurrentVideoClass(element => {
   VIDEO_PLAYER_ID = element.querySelector('video-js')?.id || "";
 })
 
