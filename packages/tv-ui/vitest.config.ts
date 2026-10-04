@@ -1,14 +1,11 @@
-import { defineConfig, type Plugin } from "vitest/config";
+import { defineConfig } from "vitest/config";
 import path from "node:path";
 import svgr from "vite-plugin-svgr";
 
 // Match the app build: `*.svg?react` imports are React components. Without this
 // they resolve to data-URL strings, so components render different icons in tests
 // than in the app. Projects don't inherit root `plugins`, so each project sets it.
-// The assertion is only for types: vite-plugin-svgr is typed against its own
-// nested copy of `vite`, whose plugin types don't match vitest's copy even
-// though the plugin works with both.
-const sharedPlugins = [svgr() as Plugin];
+const sharedPlugins = [svgr()];
 
 const sharedTestOptions = {
   // Radix's ESM dist imports "react/jsx-runtime" extensionless, which Node's CJS
