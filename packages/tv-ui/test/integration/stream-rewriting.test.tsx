@@ -1,10 +1,9 @@
 /**
  * Stream rewriting integration tests.
  *
- * Tests the preview-only mode where scene data is rewritten so the only
- * available stream is the scene preview ("Direct stream") with an estimated
- * duration — observable through the dev-options `window.tvCurrentMediaItem` export (the item the current slide
- * is playing).
+ * Turning on the preview-only mode for scenes makes the current slide play its scene's preview, posing as the direct
+ * stream — observable through the dev-options `window.tvCurrentMediaItem` export (the item the current slide is
+ * playing). How an item is rewritten is unit tested (test/unit/helpers/makeMediaItemPreviewOnly.test.ts).
  *
  * @see docs/media-loading.md § "Preview-only modes"
  * @see docs/video-player.md § "Source Selection"
@@ -48,14 +47,6 @@ describe("Stream rewriting integration", () => {
       },
       { timeout: 5000 }
     );
-
-    // Duration is estimated from the preview segment config until real metadata
-    // loads (fixtures: 12s scene, 12 × 0.75s segments → 9s estimate)
-    const item = currentSceneItem();
-    expect(item.entity.files[0].duration).toBe(9);
-    // Playback-affecting fields that preview mode must neutralise
-    expect(item.entity.resume_time).toBeNull();
-    expect(item.entity.scene_markers).toEqual([]);
 
     await app.unmount();
   });

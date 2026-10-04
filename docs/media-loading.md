@@ -105,7 +105,7 @@ Users can define custom JavaScript functions to filter/transform media items (po
 - [create-marker-button.test.tsx](packages/tv-ui/test/integration/create-marker-button.test.tsx) and [create-marker-button-defaults.test.tsx](packages/tv-ui/test/integration/create-marker-button-defaults.test.tsx) — a marker created, edited or deleted from a slide shows on it straight away (Stash evicts the scene's markers)
 - [delete-media-item.test.tsx](packages/tv-ui/test/integration/delete-media-item.test.tsx) — deleting moves on to the next item and keeps every remaining item reachable across a shifted page boundary, and doesn't refetch the deleted scene
 - [keyboard-rating.test.tsx](packages/tv-ui/test/integration/keyboard-rating.test.tsx) — includes a rating shown on a slide from page 2
-- [stream-rewriting.test.tsx](packages/tv-ui/test/integration/stream-rewriting.test.tsx) — preview-only rewrite
+- [stream-rewriting.test.tsx](packages/tv-ui/test/integration/stream-rewriting.test.tsx) — turning on preview-only for scenes plays the preview; the rewrite itself is unit tested in [makeMediaItemPreviewOnly.test.ts](packages/tv-ui/test/unit/helpers/makeMediaItemPreviewOnly.test.ts)
 - [getFunctionFromString.test.ts](packages/tv-ui/test/unit/helpers/getFunctionFromString.test.ts) — modifier function parsing
 
 See [Testing](docs/testing.md) for full test suite details.
