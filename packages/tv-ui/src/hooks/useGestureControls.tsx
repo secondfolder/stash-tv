@@ -9,6 +9,7 @@ import { type Seeking } from "./useSeeking";
 
 type Press = {
   area: GestureArea,
+  pointerType: string,
   /** The width of the element pressed, to tell how far across it a drag has gone */
   width: number,
   /** How far it's been dragged since it was pressed */
@@ -73,9 +74,18 @@ export function useGestureControls(options: {
   useGesture({
     onPointerDown: ({ event }) => {
       if (!(event.target instanceof HTMLElement)) return;
+      // Only the primary button (always it for touch and pens): a right-click would otherwise be a tap, and its context
+      // menu takes the release, leaving it held
+      if (event.button !== 0) return;
       endPress();
       const width = event.target.clientWidth;
-      const press: Press = { area: gestureArea(event.offsetX, width), width, offsetX: 0, held: false };
+      const press: Press = {
+        area: gestureArea(event.offsetX, width),
+        pointerType: event.pointerType,
+        width,
+        offsetX: 0,
+        held: false,
+      };
       // Until it's been held a moment it might be a tap. A drag made in the meantime counts once it's held.
       press.holdTimer = setTimeout(() => {
         latest.current.logger.getChild("useGestureControls").debug(`Holding ${press.area}`);
@@ -131,6 +141,23 @@ export function useGestureControls(options: {
     };
     window.addEventListener("scroll", handleScroll, { capture: true });
     return () => window.removeEventListener("scroll", handleScroll, { capture: true });
+  }, []);
+
+  // A context menu opened during a mouse press (e.g. Ctrl+click on macOS) takes its release, so the press ends there.
+  // Not for touch, where a long press can open one and shouldn't cut a hold short.
+  useEffect(() => {
+    const handleContextMenu = () => {
+      if (pressRef.current?.pointerType === "mouse") endPress();
+    };
+    window.addEventListener("contextmenu", handleContextMenu, { capture: true });
+    return () => window.removeEventListener("contextmenu", handleContextMenu, { capture: true });
+  }, []);
+
+  // The window losing focus mid-press (an OS menu, switching apps) means its release may never come
+  useEffect(() => {
+    const handleBlur = () => endPress();
+    window.addEventListener("blur", handleBlur);
+    return () => window.removeEventListener("blur", handleBlur);
   }, []);
 
   // A press belongs to the slide it started on. Its seek ends with the slide too, leaving the video paused (see
