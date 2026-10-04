@@ -14,9 +14,9 @@
 import { describe, expect, it } from "vitest";
 import { waitFor, within } from "@testing-library/react";
 import { bootApp } from "./helpers/harness";
-import { bootWithTvConfig, currentSlide, pinActionButtons, pinUncheckedActionButton, sceneIdOf, setChannel } from "./helpers/feed";
-import { isSidePanelOpen } from "../helpers/actionButtons";
-import { setupCreateMarkerButtonTest, markerDefaults, firstScene, seedMarker, serverMarkersOf, click, displayedPlayingMarker, sidePanel, markerForm, chooseOption, markerFormStartTime, markerFormTitle, selectedMarkerChoice, openMarkerChoiceMenu, chooseMarker, openNewMarkerForm } from "./helpers/create-marker-button";
+import { bootWithTvConfig, currentSlide, pinActionButtons, pinUncheckedActionButton, sceneIdOf, setChannel, click } from "./helpers/feed";
+import { isSidePanelOpen, sidePanel } from "../helpers/actionButtons";
+import { setupCreateMarkerButtonTest, firstScene, seedMarker, serverMarkersOf, displayedPlayingMarker, markerForm, chooseOption, markerFormStartTime, markerFormTitle, selectedMarkerChoice, openMarkerChoiceMenu, chooseMarker, openNewMarkerForm } from "./helpers/create-marker-button";
 
 const integration = setupCreateMarkerButtonTest();
 

@@ -7,8 +7,8 @@
 import { describe, expect, it } from "vitest";
 import { waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { currentSlide, goToNextSlide, sceneIdOf, slides } from "./helpers/feed";
-import { setupKeyboardRatingTest, initialRatings, serverRating, otherRenderedSceneIds, bootMarkersFeed } from "./helpers/keyboard-rating";
+import { currentSlide, goToNextSlide, sceneIdOf, slides, bootMarkersFeed } from "./helpers/feed";
+import { setupKeyboardRatingTest, initialRatings, serverRating, otherRenderedSceneIds } from "./helpers/keyboard-rating";
 
 setupKeyboardRatingTest();
 

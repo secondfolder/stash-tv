@@ -10,9 +10,9 @@
 import { describe, expect, it } from "vitest";
 import { waitFor, within } from "@testing-library/react";
 import { bootApp, type BootedApp } from "./helpers/harness";
-import { currentSlide, pinActionButtons, sceneIdOf } from "./helpers/feed";
-import { actionButtonRoot, displayedIconState } from "../helpers/actionButtons";
-import { setupCreateMarkerButtonTest, markerDefaults, firstScene, seedMarker, serverMarkersOf, createMarkerButton, click, displayedPlayingMarker, sidePanel, markerForm, chooseOption } from "./helpers/create-marker-button";
+import { currentSlide, pinActionButtons, sceneIdOf, click } from "./helpers/feed";
+import { actionButtonRoot, displayedIconState, sidePanel } from "../helpers/actionButtons";
+import { setupCreateMarkerButtonTest, markerDefaults, firstScene, seedMarker, serverMarkersOf, createMarkerButton, displayedPlayingMarker, markerForm, chooseOption } from "./helpers/create-marker-button";
 
 setupCreateMarkerButtonTest();
 

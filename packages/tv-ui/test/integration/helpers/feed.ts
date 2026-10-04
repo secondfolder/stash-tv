@@ -1,10 +1,25 @@
-import { act, waitFor } from "@testing-library/react";
+import { act, fireEvent, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, vi } from "vitest";
 import { bootApp, type BootedApp } from "./harness";
 import type { useTvConfig } from "../../../src/store/tvConfig";
 import type { ActionButtonConfig } from "../../../src/components/action-buttons/buttons";
+import type { ActionButtonStackConfig } from "../../../src/components/action-buttons/ActionButtonStack";
 import type { ChannelSource } from "../../../src/components/channels/channel-config";
+
+/**
+ * Click an element. fireEvent rather than userEvent: see docs/testing.md § "Gotchas" (userEvent.click breaks with a
+ * MediaSlide mounted).
+ */
+export function click(element: HTMLElement) {
+  fireEvent.click(element);
+}
+
+/** The booted app's tvConfig store (imported only once the app's booted: see docs/testing.md § "Gotchas") */
+export async function tvConfig() {
+  const { useTvConfig } = await import("../../../src/store/tvConfig");
+  return useTvConfig.getState();
+}
 
 /**
  * Change persisted tvConfig, then boot fresh so the app starts with it (as it would after a reload). `readyText` is
@@ -147,4 +162,34 @@ export async function pinUncheckedActionButton(options: { buttonType: string } &
     // Persisted config is untrusted at runtime, which is exactly what this simulates, so it can't be typed as valid
     useTvConfig.getState().set("actionButtonStackConfig", [config as unknown as ActionButtonConfig]);
   });
+}
+
+/** Replace the action button stack with the given config */
+export async function setStackConfig(config: ActionButtonStackConfig[]) {
+  const { useTvConfig } = await import("../../../src/store/tvConfig");
+  await act(async () => useTvConfig.getState().set("actionButtonStackConfig", config));
+}
+
+/**
+ * The current slide's action button with the given accessible name (its title). In the action button stack: the scene
+ * info panel can have buttons of the same name (e.g. its o-count's "Mark Orgasm").
+ */
+export async function actionButton(app: BootedApp, name: string | RegExp) {
+  const stack = await within(currentSlide(app)).findByTestId("MediaSlide--toggleableUi");
+  return within(stack).findByRole("button", { name });
+}
+
+/** Boot showing every marker (fixture filter "3", "All Markers", sorted by scene) */
+export async function bootMarkersFeed() {
+  return await bootWithTvConfig((tvConfig) => setChannel(tvConfig, "3"), "Intro");
+}
+
+/** Wait for the feed to show the given text (e.g. a scene's title) */
+export async function feedShows(app: BootedApp, text: string) {
+  await waitFor(() => expect(app.rendered.container.querySelector(".VideoScroller")?.textContent).toContain(text));
+}
+
+/** Wait for the feed to stop showing the given text */
+export async function feedDoesNotShow(app: BootedApp, text: string) {
+  await waitFor(() => expect(app.rendered.container.querySelector(".VideoScroller")?.textContent).not.toContain(text));
 }

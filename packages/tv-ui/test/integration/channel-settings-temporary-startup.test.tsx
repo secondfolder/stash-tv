@@ -8,10 +8,10 @@ import { describe, expect, it } from "vitest";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { bootApp, savedTvConfig } from "./helpers/harness";
-import { bootWithTvConfig } from "./helpers/feed";
+import { bootWithTvConfig, feedShows, click, tvConfig, feedDoesNotShow } from "./helpers/feed";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import type { ChannelConfig } from "../../src/components/channels/channel-config";
-import { setupChannelSettingsTest, ALPHA_SCENE, MARKER, alphaChannel, allMarkersChannel, click, tvConfig, openChannelSettings, listedChannels, channelItem, feedShows, feedDoesNotShow } from "./helpers/channel-settings";
+import { setupChannelSettingsTest, ALPHA_SCENE, MARKER, alphaChannel, allMarkersChannel, openChannelSettings, listedChannels, channelItem } from "./helpers/channel-settings";
 
 const integration = setupChannelSettingsTest();
 

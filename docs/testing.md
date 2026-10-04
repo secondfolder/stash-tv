@@ -78,6 +78,10 @@ writes.
 
 Feed-level helpers live in `test/integration/helpers/feed.ts`:
 - `slides` / `currentSlide` / `sceneIdOf` / `goToNextSlide` / `goToSlide`: find and move between rendered slides
+- `click(element)`: click with `fireEvent` (see the `userEvent.click` gotcha below). Use it rather than a local copy
+- `tvConfig()`: the booted app's tvConfig store. `setStackConfig(config)` replaces the action button stack
+- `actionButton(app, name)`: the current slide's action button with that name, looked for in the action button stack only (the info panel has buttons of the same names)
+- `bootMarkersFeed()`: boot showing every marker. `feedShows(app, text)` / `feedDoesNotShow(app, text)`: wait for the feed to show text (e.g. a scene's title), or stop showing it
 - `bootWithTvConfig(configure, readyText?)`: change persisted tvConfig, then boot with it (e.g. a different filter or page size). It changes the config through a fresh copy of the tvConfig store without rendering the app: the store loads saved config as it's imported and saves through the app's own storage, and rendering the feed is most of what a boot costs
 - `pinActionButtons([...])` and `displayedSideInfo(app, buttonType)`: most action buttons sit in a closed folder by default, so pin the ones whose displayed state you assert on. Pass a button type, or a button's options for buttons that need them (e.g. `{ buttonType: "create-marker", iconId: "bookmark", markerDefaults: … }`)
 
@@ -85,11 +89,16 @@ Feed-level helpers live in `test/integration/helpers/feed.ts`:
 - `fireLoadStart(app)`: fire `loadstart` on the current slide's video (see the gotcha below)
 - `failCurrentSource(app)`: make the current slide's video fail to play its source, as a browser does when it can't decode it
 
-Entity popover helpers (`test/integration/helpers/entity-popovers.ts`): `bootShowingFields([...])` boots with the info panel open showing the title, date and those fields; `openEntityPopover(app, name)` clicks an entity's name in it and returns its popover; `showTemporaryEntityFilter`, `temporaryChannelFilter`, and `feedShows` / `feedDoesNotShow` (by scene title).
+Entity popover helpers (`test/integration/helpers/entity-popovers.ts`): `bootWithPanelOpenShowing([...])` boots with the info panel open showing the title, date and those fields; `openEntityPopover(app, name)` clicks an entity's name in it and returns its popover; `showTemporaryEntityFilter` and `temporaryChannelFilter`.
+
+Dropdowns (`test/integration/helpers/selects.ts`), for the react-select selects in Stash's forms and ours: `chooseSelectOption(combobox, text)` types an option's name and picks it, `openSelectMenu(combobox)` opens the menu and returns its listbox, and `typeIntoSelect(combobox, keys)` types anything and returns the listbox once shown.
+
+Helpers used by one feature's tests live in `test/integration/helpers/<feature>.ts`, with a `setup…Test()` (see the gotcha on keeping files short). Before adding one, check `feed.ts`, `harness.tsx` and `selects.ts`, and the shared `test/helpers/actionButtons.tsx`, for one that already does it.
 
 Harness helpers for tests that change state outliving a test:
 - `restoreServerMediaAfterEach(integration)`: snapshot the server's scenes and markers before each test and restore them after
 - `savedTvConfig(integration)`: the tvConfig the app has saved to the server (see the gotcha below)
+- `serverOCount(integration, sceneId)`: the scene's o-count on the server
 
 Action button helpers shared by both tiers live in `test/helpers/actionButtons.tsx`: `sidePanel()` / `isSidePanelOpen()` / `closeSidePanelByClickingOutside()`, `actionButtonRoot(button)`, and `displayedIconState(actionButton, icon)`, which reads a button's state from its icon (the only sign of it for buttons whose title doesn't change). ⚠️ That file imports app code only inside its functions, and integration tests must do the same: see the `StashService` gotcha below.
 

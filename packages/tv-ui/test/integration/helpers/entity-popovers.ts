@@ -1,7 +1,6 @@
-import { expect } from "vitest";
-import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import type { BootedApp } from "./harness";
-import { bootWithTvConfig, currentSlide } from "./feed";
+import { bootWithTvConfig, currentSlide, click } from "./feed";
 import type { FilterEntity, FilterEntityType } from "../../../src/components/channels/temporary-filter";
 
 /**
@@ -12,13 +11,8 @@ import type { FilterEntity, FilterEntityType } from "../../../src/components/cha
 /** The first slide's scene's date (fixture scene-7, "Grotto Glow") */
 export const FIRST_SCENE_DATE = "14 February 2025";
 
-// fireEvent rather than userEvent: see docs/testing.md § "Gotchas" (userEvent.click breaks with a MediaSlide mounted)
-export function click(element: HTMLElement) {
-  fireEvent.click(element);
-}
-
 /** Boot showing the scene info panel with just the title (which the feed is checked for), the date, and these fields */
-export async function bootShowingFields(fields: string[]) {
+export async function bootWithPanelOpenShowing(fields: string[]) {
   const layout = [["title"], ["date"], ...fields.map(field => [field])];
   const app = await bootWithTvConfig((tvConfig) => tvConfig.set("sceneInfoLayout", layout), FIRST_SCENE_DATE);
   const { useGlobalState } = await import("../../../src/store/globalState");
@@ -35,14 +29,6 @@ export async function openEntityPopover(app: BootedApp, name: string) {
   // The feed may be reloading for a new channel filter, with no current slide yet
   click(await waitFor(() => entityLink(app, name)));
   return await screen.findByRole("dialog", { name });
-}
-
-export async function feedShows(app: BootedApp, text: string) {
-  await waitFor(() => expect(app.rendered.container.querySelector(".VideoScroller")?.textContent).toContain(text));
-}
-
-export async function feedDoesNotShow(app: BootedApp, text: string) {
-  await waitFor(() => expect(app.rendered.container.querySelector(".VideoScroller")?.textContent).not.toContain(text));
 }
 
 export async function temporaryChannelFilter() {

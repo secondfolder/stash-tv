@@ -11,8 +11,8 @@
 import { describe, expect, it, onTestFinished } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import { bootApp, savedTvConfig } from "./helpers/harness";
-import { bootWithTvConfig } from "./helpers/feed";
-import { setupChannelSettingsTest, ALPHA_SCENE, NON_ALPHA_SCENE, defaultChannel, alphaChannel, allMarkersChannel, click, tvConfig, openChannelSettings, listedChannels, channelItem, channelModal, chooseSource, sourceOptions, feedShows, feedDoesNotShow } from "./helpers/channel-settings";
+import { bootWithTvConfig, feedShows, click, tvConfig, feedDoesNotShow } from "./helpers/feed";
+import { setupChannelSettingsTest, ALPHA_SCENE, NON_ALPHA_SCENE, defaultChannel, alphaChannel, allMarkersChannel, openChannelSettings, listedChannels, channelItem, channelModal, chooseSource, sourceOptions } from "./helpers/channel-settings";
 
 const integration = setupChannelSettingsTest();
 

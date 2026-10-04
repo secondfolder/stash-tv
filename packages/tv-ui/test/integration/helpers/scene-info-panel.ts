@@ -1,7 +1,7 @@
-import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { expect } from "vitest";
 import { setupIntegrationTest, savedTvConfig, type BootedApp } from "./harness";
-import { bootWithTvConfig, currentSlide } from "./feed";
+import { bootWithTvConfig, currentSlide, click } from "./feed";
 
 /**
  * Helpers for the scene info panel's tests, which are split across files so they run in parallel.
@@ -25,11 +25,6 @@ export const DATE = "14 February 2025";
 export const TAG = "Beta";
 // Booting waits for the first scene's title by default, which a customised panel may hide, so tests that customise it
 // wait for the date instead
-
-// fireEvent rather than userEvent: see docs/testing.md § "Gotchas" (userEvent.click breaks with a MediaSlide mounted)
-export function click(element: HTMLElement) {
-  fireEvent.click(element);
-}
 
 export async function openPanel(app: BootedApp) {
   const { useGlobalState } = await import("../../../src/store/globalState");
@@ -109,8 +104,4 @@ export async function openFieldOptions(infoPanel: HTMLElement, fieldName: string
 export async function saveFieldOptions(dialog: HTMLElement) {
   click(within(dialog).getByRole("button", { name: "Save" }));
   await waitFor(() => expect(dialog).not.toBeInTheDocument());
-}
-
-export function serverOCount(sceneId: string) {
-  return integration.server.store.scenes.get(sceneId)?.o_history.length;
 }

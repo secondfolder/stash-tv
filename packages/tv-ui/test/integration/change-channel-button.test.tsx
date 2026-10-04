@@ -7,9 +7,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { act, fireEvent, waitFor, within } from "@testing-library/react";
+import { act, waitFor, within } from "@testing-library/react";
 import { setupIntegrationTest, bootApp, savedTvConfig, type BootedApp } from "./helpers/harness";
-import { bootWithTvConfig, currentSlide, pinActionButtons } from "./helpers/feed";
+import { bootWithTvConfig, currentSlide, pinActionButtons, click } from "./helpers/feed";
 import { isSidePanelOpen, sidePanel } from "../helpers/actionButtons";
 import type { ChannelConfig } from "../../src/components/channels/channel-config";
 
@@ -26,11 +26,6 @@ const channelNames = ["All scenes", "Scenes: Alpha Scenes", "All markers"];
 const NON_ALPHA_SCENE = "Blueprint Boulevard";
 const ALPHA_SCENE = "Drift Duration";
 const MARKER = "Intro";
-
-// fireEvent rather than userEvent: see docs/testing.md § "Gotchas" (userEvent.click breaks with a MediaSlide mounted)
-function click(element: HTMLElement) {
-  fireEvent.click(element);
-}
 
 async function bootOnFirstChannel() {
   return await bootWithTvConfig((config) => {

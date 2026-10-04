@@ -1,9 +1,8 @@
-import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { setupIntegrationTest, type BootedApp } from "./harness";
-import { currentSlide } from "./feed";
+import { currentSlide, click } from "./feed";
 import type { ActionButtonIconName } from "../../../src/components/action-buttons/icons";
-import type { ActionButtonStackConfig } from "../../../src/components/action-buttons/ActionButtonStack";
+import { chooseSelectOption, openSelectMenu } from "./selects";
 
 /**
  * Helpers for the action button settings forms' tests, which are split across files so they run in parallel.
@@ -19,11 +18,6 @@ export function setupActionButtonSettingsTest() {
   return integration;
 }
 
-// fireEvent rather than userEvent: see docs/testing.md § "Gotchas" (userEvent.click breaks with a MediaSlide mounted)
-export function click(element: HTMLElement) {
-  fireEvent.click(element);
-}
-
 export async function stackConfig() {
   const { useTvConfig } = await import("../../../src/store/tvConfig");
   return useTvConfig.getState().actionButtonStackConfig;
@@ -32,11 +26,6 @@ export async function stackConfig() {
 /** Every button in the stack, including those in folders */
 export async function stackButtons() {
   return (await stackConfig()).flatMap((config) => (config.type === "folder" ? config.contents : [config]));
-}
-
-export async function setStackConfig(config: ActionButtonStackConfig[]) {
-  const { useTvConfig } = await import("../../../src/store/tvConfig");
-  await act(async () => useTvConfig.getState().set("actionButtonStackConfig", config));
 }
 
 /** Open the Settings tab's action button settings (in its "UI" section) */
@@ -75,27 +64,12 @@ export async function settingsModal() {
 
 /** Choose an option in one of the modal's selects, by typing its name */
 export async function chooseOption(modal: HTMLElement, label: string, optionText: string) {
-  const combobox = within(modal).getByLabelText(label);
-  act(() => combobox.focus());
-  await userEvent.keyboard(optionText);
-  const listbox = await waitFor(() => {
-    const element = document.getElementById(combobox.getAttribute("aria-controls") ?? "");
-    if (!element) throw new Error(`${label} options not shown`);
-    return element;
-  });
-  click(await within(listbox).findByText(optionText));
+  await chooseSelectOption(within(modal).getByLabelText(label), optionText);
 }
 
 /** Choose a different icon than the current one in the modal's icon select (icons have no names to choose by) */
 export async function chooseAnotherIcon(modal: HTMLElement) {
-  const combobox = within(modal).getByLabelText("Action Button Icon");
-  act(() => combobox.focus());
-  await userEvent.keyboard("{ArrowDown}");
-  const listbox = await waitFor(() => {
-    const element = document.getElementById(combobox.getAttribute("aria-controls") ?? "");
-    if (!element) throw new Error("Icon options not shown");
-    return element;
-  });
+  const listbox = await openSelectMenu(within(modal).getByLabelText("Action Button Icon"));
   const otherOption = within(listbox)
     .getAllByRole("option")
     .find((option) => option.getAttribute("aria-selected") !== "true");

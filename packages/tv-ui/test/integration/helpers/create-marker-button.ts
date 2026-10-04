@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, expect } from "vitest";
-import { act, fireEvent, waitFor, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { fireEvent, waitFor, within } from "@testing-library/react";
 import type { MockStashServer } from "mock-stash";
 import { setupIntegrationTest, type BootedApp } from "./harness";
-import { currentSlide, pinActionButtons } from "./feed";
+import { currentSlide, pinActionButtons, click } from "./feed";
+import { sidePanel } from "../../helpers/actionButtons";
+import { chooseSelectOption, openSelectMenu } from "./selects";
 
 /**
  * Helpers for the create-marker action button's tests, which are split across files so they run in parallel. The
@@ -56,11 +57,6 @@ export function createMarkerButton(app: BootedApp, name: string | RegExp) {
   return within(currentSlide(app)).findByRole("button", { name });
 }
 
-// fireEvent rather than userEvent: see docs/testing.md § "Gotchas" (userEvent.click breaks with a MediaSlide mounted)
-export function click(element: HTMLElement) {
-  fireEvent.click(element);
-}
-
 /**
  * The marker(s) the current slide says are playing. Recomputed on the video's `timeupdate`, which jsdom never fires
  * on its own, so fire one first (jsdom's playback position stays at 0).
@@ -71,13 +67,6 @@ export function displayedPlayingMarker(app: BootedApp) {
   if (!video) throw new Error("Current slide has no video element");
   fireEvent(video, new Event("timeupdate"));
   return slide.querySelector(".currently-playing-marker")?.textContent ?? null;
-}
-
-/** The open action button side panel. */
-export function sidePanel() {
-  const panel = document.querySelector<HTMLElement>(".PopoverPanel");
-  if (!panel) throw new Error("Side panel not shown");
-  return panel;
 }
 
 export function markerForm() {
@@ -104,14 +93,7 @@ export async function chooseOption(field: "title" | "primary_tag_id", text: stri
     expect(element).toBeEnabled();
     return element;
   });
-  act(() => combobox.focus());
-  await userEvent.keyboard(text);
-  const listbox = await waitFor(() => {
-    const element = document.getElementById(combobox.getAttribute("aria-controls") ?? "");
-    if (!element) throw new Error(`${field} options not shown`);
-    return element;
-  });
-  click(await within(listbox).findByText(text, { exact: false }));
+  await chooseSelectOption(combobox, text, { exact: false });
 }
 
 /** The marker form's start time, as shown in its time field */
@@ -138,14 +120,7 @@ export function selectedMarkerChoice() {
 
 /** Open the add-or-edit dropdown's menu and return its listbox. */
 export async function openMarkerChoiceMenu() {
-  const combobox = markerChoiceSelect();
-  act(() => combobox.focus());
-  await userEvent.keyboard("{ArrowDown}");
-  return await waitFor(() => {
-    const listbox = document.getElementById(combobox.getAttribute("aria-controls") ?? "");
-    if (!listbox) throw new Error("Add-or-edit options not shown");
-    return listbox;
-  });
+  return await openSelectMenu(markerChoiceSelect());
 }
 
 export async function chooseMarker(label: string) {

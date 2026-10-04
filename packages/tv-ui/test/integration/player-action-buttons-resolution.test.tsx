@@ -9,9 +9,9 @@
 import { describe, expect, it } from "vitest";
 import { waitFor, within } from "@testing-library/react";
 import { bootApp, savedTvConfig, type BootedApp } from "./helpers/harness";
-import { bootWithTvConfig, currentSlide, failCurrentSource, fireLoadStart, pinActionButtons } from "./helpers/feed";
+import { bootWithTvConfig, currentSlide, failCurrentSource, fireLoadStart, pinActionButtons, click, tvConfig, actionButton } from "./helpers/feed";
 import { actionButtonRoot, displayedIconState, sidePanel } from "../helpers/actionButtons";
-import { setupPlayerActionButtonsTest, click, actionButton, tvConfig } from "./helpers/player-action-buttons";
+import { setupPlayerActionButtonsTest } from "./helpers/player-action-buttons";
 
 const integration = setupPlayerActionButtonsTest();
 

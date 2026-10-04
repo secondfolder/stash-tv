@@ -9,9 +9,9 @@
 import { describe, expect, it } from "vitest";
 import { waitFor, within } from "@testing-library/react";
 import { bootApp } from "./helpers/harness";
-import { currentSlide, displayedSideInfo, pinActionButtons, sceneIdOf, slides } from "./helpers/feed";
+import { currentSlide, displayedSideInfo, pinActionButtons, sceneIdOf, slides, bootMarkersFeed, click, actionButton } from "./helpers/feed";
 import { actionButtonRoot, displayedIconState, sidePanel } from "../helpers/actionButtons";
-import { setupSceneActionButtonsTest, firstScene, firstMarker, click, actionButton, serverScene, bootMarkersFeed } from "./helpers/scene-action-buttons";
+import { setupSceneActionButtonsTest, firstScene, firstMarker, serverScene } from "./helpers/scene-action-buttons";
 
 const integration = setupSceneActionButtonsTest();
 

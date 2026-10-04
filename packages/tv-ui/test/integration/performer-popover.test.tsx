@@ -9,15 +9,8 @@
 import { describe, expect, it } from "vitest";
 import { within } from "@testing-library/react";
 import { setupIntegrationTest } from "./helpers/harness";
-import {
-  bootShowingFields,
-  click,
-  feedDoesNotShow,
-  feedShows,
-  openEntityPopover,
-  showTemporaryEntityFilter,
-  temporaryChannelFilter,
-} from "./helpers/entity-popovers";
+import { bootWithPanelOpenShowing, openEntityPopover, showTemporaryEntityFilter, temporaryChannelFilter } from "./helpers/entity-popovers";
+import { feedShows, click, feedDoesNotShow } from "./helpers/feed";
 
 setupIntegrationTest();
 
@@ -26,7 +19,7 @@ const NOT_BOB_SCENE = "Foothill Flight";
 
 describe("Performer popover", () => {
   it("opens with the performer's card, their age in the scene, when a performer is clicked", async () => {
-    const app = await bootShowingFields(["performers"]);
+    const app = await bootWithPanelOpenShowing(["performers"]);
 
     const popover = await openEntityPopover(app, "Bob Bold");
 
@@ -39,7 +32,7 @@ describe("Performer popover", () => {
   });
 
   it("shows the performer's scenes in the feed, in a temporary channel", async () => {
-    const app = await bootShowingFields(["performers"]);
+    const app = await bootWithPanelOpenShowing(["performers"]);
 
     const popover = await openEntityPopover(app, "Bob Bold");
     click(within(popover).getByRole("button", { name: "Show scenes with this performer" }));
@@ -52,7 +45,7 @@ describe("Performer popover", () => {
   });
 
   it("adds the performer to, and removes them from, the temporary channel's performer filter", async () => {
-    const app = await bootShowingFields(["performers"]);
+    const app = await bootWithPanelOpenShowing(["performers"]);
     // "Alice Amaze" is in "Foothill Flight" (with "Carol Chase"), "Aurora Ascending" and "Blueprint Boulevard"
     await showTemporaryEntityFilter("performer", { id: "performer-alice", name: "Alice Amaze" });
     await feedShows(app, "Aurora Ascending");

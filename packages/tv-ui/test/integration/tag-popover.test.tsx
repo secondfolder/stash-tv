@@ -8,16 +8,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { setupIntegrationTest } from "./helpers/harness";
-import {
-  bootShowingFields,
-  click,
-  entityLink,
-  feedDoesNotShow,
-  feedShows,
-  openEntityPopover,
-  showTemporaryEntityFilter,
-  temporaryChannelFilter,
-} from "./helpers/entity-popovers";
+import { bootWithPanelOpenShowing, entityLink, openEntityPopover, showTemporaryEntityFilter, temporaryChannelFilter } from "./helpers/entity-popovers";
+import { feedShows, click, feedDoesNotShow } from "./helpers/feed";
 
 setupIntegrationTest();
 
@@ -30,7 +22,7 @@ afterEach(() => {
 
 describe("Tag popover", () => {
   it("opens with the tag's card when a tag is clicked", async () => {
-    const app = await bootShowingFields(["tags"]);
+    const app = await bootWithPanelOpenShowing(["tags"]);
 
     const popover = await openEntityPopover(app, "Beta");
 
@@ -42,7 +34,7 @@ describe("Tag popover", () => {
   });
 
   it("opens when a tag is hovered over, and closes once the pointer leaves", async () => {
-    const app = await bootShowingFields(["tags"]);
+    const app = await bootWithPanelOpenShowing(["tags"]);
 
     fireEvent.mouseEnter(entityLink(app, "Beta"));
     expect(await screen.findByRole("dialog", { name: "Beta" })).toBeInTheDocument();
@@ -54,7 +46,7 @@ describe("Tag popover", () => {
 
   it("opens links in the tag's card in Stash, in a new tab", async () => {
     const open = vi.spyOn(window, "open").mockReturnValue(null);
-    const app = await bootShowingFields(["tags"]);
+    const app = await bootWithPanelOpenShowing(["tags"]);
 
     const popover = await openEntityPopover(app, "Beta");
     click(await within(popover).findByRole("heading", { name: "Beta" }));
@@ -66,7 +58,7 @@ describe("Tag popover", () => {
 
   it("leaves buttons in links in the tag's card (its favourite button) to do what they do, not open Stash", async () => {
     const open = vi.spyOn(window, "open").mockReturnValue(null);
-    const app = await bootShowingFields(["tags"]);
+    const app = await bootWithPanelOpenShowing(["tags"]);
 
     const popover = await openEntityPopover(app, "Beta");
     await within(popover).findByRole("heading", { name: "Beta" });
@@ -81,7 +73,7 @@ describe("Tag popover", () => {
   });
 
   it("shows the tag's scenes in the feed, in a temporary channel", async () => {
-    const app = await bootShowingFields(["tags"]);
+    const app = await bootWithPanelOpenShowing(["tags"]);
 
     const popover = await openEntityPopover(app, "Beta");
     click(within(popover).getByRole("button", { name: "Show scenes with this tag" }));
@@ -94,7 +86,7 @@ describe("Tag popover", () => {
   });
 
   it("offers to add the tag to the temporary channel's tag filter, showing scenes with all of its tags", async () => {
-    const app = await bootShowingFields(["tags"]);
+    const app = await bootWithPanelOpenShowing(["tags"]);
     // "Alpha" is on "Aurora Ascending", "Drift Duration" and "Foothill Flight", the newest, which is also "Epsilon"
     await showTemporaryEntityFilter("tag", { id: "tag-alpha", name: "Alpha" });
     await feedShows(app, "Aurora Ascending");
@@ -110,7 +102,7 @@ describe("Tag popover", () => {
   });
 
   it("doesn't offer to add the tag without a temporary channel, or to a filter already requiring it", async () => {
-    const app = await bootShowingFields(["tags"]);
+    const app = await bootWithPanelOpenShowing(["tags"]);
 
     let popover = await openEntityPopover(app, "Beta");
     expect(within(popover).queryByRole("button", { name: "Add to channel filter" })).not.toBeInTheDocument();
@@ -125,7 +117,7 @@ describe("Tag popover", () => {
   });
 
   it("offers to remove the tag from the temporary channel's filter while it'd still filter by another", async () => {
-    const app = await bootShowingFields(["tags"]);
+    const app = await bootWithPanelOpenShowing(["tags"]);
     // "Foothill Flight" is the newest scene with "Alpha"
     await showTemporaryEntityFilter("tag", { id: "tag-alpha", name: "Alpha" });
     let popover = await openEntityPopover(app, "Epsilon");
@@ -145,7 +137,7 @@ describe("Tag popover", () => {
   });
 
   it("offers to add the tag to a temporary channel filtering by something else, requiring both", async () => {
-    const app = await bootShowingFields(["performers", "tags"]);
+    const app = await bootWithPanelOpenShowing(["performers", "tags"]);
 
     // "Bob Bold" is in "Grotto Glow" (tagged "Beta"), "Blueprint Boulevard" (also "Beta") and "Ember Evening" (not)
     let popover = await openEntityPopover(app, "Bob Bold");

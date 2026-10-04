@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
 import { setupIntegrationTest, bootApp, type BootedApp } from "./harness";
-import { bootWithTvConfig, displayedSideInfo, pinActionButtons, sceneIdOf, slides, setChannel } from "./feed";
+import { displayedSideInfo, pinActionButtons, sceneIdOf, slides } from "./feed";
 
 /**
  * Helpers for the keyboard rating shortcut tests, which are split across files so they run in parallel. Each test's
@@ -127,9 +127,4 @@ export async function bootWithRateButtonPinned() {
 /** The rating the current slide's rate button displays, or null when it shows none. */
 export function displayedRating(app: BootedApp) {
   return displayedSideInfo(app, "rate-scene");
-}
-
-export async function bootMarkersFeed() {
-  // Fixture filter "3" is "All Markers", sorted by scene
-  return await bootWithTvConfig((tvConfig) => setChannel(tvConfig, "3"), "Intro");
 }

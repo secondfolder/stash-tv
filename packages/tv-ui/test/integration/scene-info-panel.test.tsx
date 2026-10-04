@@ -10,8 +10,8 @@
 import { describe, expect, it } from "vitest";
 import { act, waitFor, within } from "@testing-library/react";
 import { bootApp } from "./helpers/harness";
-import { bootWithTvConfig, goToNextSlide } from "./helpers/feed";
-import { setupSceneInfoPanelTest, click, openPanel, panel, startEditing, save, shownLines, editorLines, SIMPLE_LAYOUT, bootWithSimpleLayout, shownFields, savedLayout, TITLE, PERFORMER, DATE, TAG } from "./helpers/scene-info-panel";
+import { bootWithTvConfig, goToNextSlide, click } from "./helpers/feed";
+import { setupSceneInfoPanelTest, openPanel, panel, startEditing, save, shownLines, editorLines, SIMPLE_LAYOUT, bootWithSimpleLayout, shownFields, savedLayout, TITLE, PERFORMER, DATE, TAG } from "./helpers/scene-info-panel";
 // From the module of its own, not the panel's config: that imports the fields, and with them the Stash API client,
 // which connects as it's imported, before the mock Stash server is set up
 import { defaultSceneInfoLayout } from "../../src/components/slide/SceneInfo/default-layout";

@@ -10,15 +10,8 @@
 import { describe, expect, it } from "vitest";
 import { within } from "@testing-library/react";
 import { setupIntegrationTest } from "./helpers/harness";
-import {
-  bootShowingFields,
-  click,
-  feedDoesNotShow,
-  feedShows,
-  openEntityPopover,
-  showTemporaryEntityFilter,
-  temporaryChannelFilter,
-} from "./helpers/entity-popovers";
+import { bootWithPanelOpenShowing, openEntityPopover, showTemporaryEntityFilter, temporaryChannelFilter } from "./helpers/entity-popovers";
+import { feedShows, click, feedDoesNotShow } from "./helpers/feed";
 
 setupIntegrationTest();
 
@@ -30,7 +23,7 @@ const gamma = { id: "tag-gamma", name: "Gamma" };
 
 describe("Studio popover", () => {
   it("shows the studio's scenes in the feed, in a temporary channel", async () => {
-    const app = await bootShowingFields(["studio"]);
+    const app = await bootWithPanelOpenShowing(["studio"]);
     await showTemporaryEntityFilter("tag", alpha, gamma);
     await feedShows(app, "Aurora Ascending");
 
@@ -45,7 +38,7 @@ describe("Studio popover", () => {
   });
 
   it("doesn't offer to add the studio to, or remove it from, the temporary channel's filter", async () => {
-    const app = await bootShowingFields(["studio"]);
+    const app = await bootWithPanelOpenShowing(["studio"]);
     await showTemporaryEntityFilter("studio", { id: "studio-prism", name: STUDIO });
     await feedShows(app, "Aurora Ascending");
     await feedDoesNotShow(app, "Grotto Glow");

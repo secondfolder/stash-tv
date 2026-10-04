@@ -1,8 +1,9 @@
-import { expect } from "vitest";
-import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { setupIntegrationTest, type BootedApp } from "./harness";
+import { setupIntegrationTest } from "./harness";
 import type { ChannelConfig } from "../../../src/components/channels/channel-config";
+import { click } from "./feed";
+import { chooseSelectOption, openSelectMenu } from "./selects";
 
 /**
  * Helpers for the channel settings tests, which are split across files so they run in parallel.
@@ -38,16 +39,6 @@ export const allMarkersChannel: ChannelConfig = {
   sources: [{ type: "all", entityType: "marker", randomise: false }],
 };
 
-// fireEvent rather than userEvent: see docs/testing.md § "Gotchas" (userEvent.click breaks with a MediaSlide mounted)
-export function click(element: HTMLElement) {
-  fireEvent.click(element);
-}
-
-export async function tvConfig() {
-  const { useTvConfig } = await import("../../../src/store/tvConfig");
-  return useTvConfig.getState();
-}
-
 export async function openChannelSettings() {
   const { useGlobalState } = await import("../../../src/store/globalState");
   await act(async () => useGlobalState.getState().set("showSettings", true));
@@ -79,36 +70,13 @@ export async function channelModal() {
 /** Choose what the channel in the modal shows: its media type, then the option with the given name */
 export async function chooseSource(modal: HTMLElement, mediaType: "Scenes" | "Markers", optionText: string) {
   click(within(modal).getByRole("button", { name: mediaType }));
-  const combobox = within(modal).getByLabelText("Show");
-  act(() => combobox.focus());
-  await userEvent.keyboard(optionText);
-  const listbox = await waitFor(() => {
-    const element = document.getElementById(combobox.getAttribute("aria-controls") ?? "");
-    if (!element) throw new Error("Source options not shown");
-    return element;
-  });
-  click(await within(listbox).findByText(optionText));
+  await chooseSelectOption(within(modal).getByLabelText("Show"), optionText);
 }
 
 /** The options in the modal's source dropdown */
 export async function sourceOptions(modal: HTMLElement) {
-  const combobox = within(modal).getByLabelText("Show");
-  act(() => combobox.focus());
-  await userEvent.keyboard("{ArrowDown}");
-  const listbox = await waitFor(() => {
-    const element = document.getElementById(combobox.getAttribute("aria-controls") ?? "");
-    if (!element) throw new Error("Source options not shown");
-    return element;
-  });
+  const listbox = await openSelectMenu(within(modal).getByLabelText("Show"));
   const options = within(listbox).getAllByRole("option").map((option) => option.textContent);
   await userEvent.keyboard("{Escape}");
   return options;
-}
-
-export async function feedShows(app: BootedApp, text: string) {
-  await waitFor(() => expect(app.rendered.container.querySelector(".VideoScroller")?.textContent).toContain(text));
-}
-
-export async function feedDoesNotShow(app: BootedApp, text: string) {
-  await waitFor(() => expect(app.rendered.container.querySelector(".VideoScroller")?.textContent).not.toContain(text));
 }

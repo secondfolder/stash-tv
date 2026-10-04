@@ -92,6 +92,11 @@ export function restoreServerMediaAfterEach(integration: ReturnType<typeof setup
   });
 }
 
+/** How many times the server has the scene marked as having made the user orgasm (its o-count) */
+export function serverOCount(integration: ReturnType<typeof setupIntegrationTest>, sceneId: string) {
+  return integration.server.store.scenes.get(sceneId)?.o_history.length;
+}
+
 /**
  * The tvConfig the app has saved to the server's plugin config (its Stash-persisted half). The app saves without
  * waiting for the write, so wait for a change to land here before checking it.

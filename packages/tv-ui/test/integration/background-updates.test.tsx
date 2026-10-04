@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
-import { setupIntegrationTest, bootApp, type BootedApp } from "./helpers/harness";
+import { setupIntegrationTest, bootApp, type BootedApp, serverOCount } from "./helpers/harness";
 import { currentSlide, displayedSideInfo, goToSlide, pinActionButtons, sceneIdOf } from "./helpers/feed";
 
 const integration = setupIntegrationTest();
@@ -49,10 +49,6 @@ async function simulateActivitySave(app: BootedApp, sceneId: string) {
   await act(() => new Promise((resolve) => setTimeout(resolve, 300)));
 }
 
-function serverOCount(sceneId: string) {
-  return integration.server.store.scenes.get(sceneId)?.o_history.length;
-}
-
 describe("Background cache updates", () => {
   // Stash's o-count mutation only patches fields of the cached scene, so it silently does nothing if the scene
   // entity was garbage-collected after an earlier eviction.
@@ -70,7 +66,7 @@ describe("Background cache updates", () => {
     // fireEvent rather than userEvent: see docs/testing.md § "Gotchas" (userEvent.click breaks with a MediaSlide mounted)
     fireEvent.click(oCounterButton);
 
-    await waitFor(() => expect(serverOCount(sceneId)).toBe(1));
+    await waitFor(() => expect(serverOCount(integration, sceneId)).toBe(1));
     await waitFor(() => expect(displayedSideInfo(app, "o-counter")).toBe("1"));
 
     await app.unmount();

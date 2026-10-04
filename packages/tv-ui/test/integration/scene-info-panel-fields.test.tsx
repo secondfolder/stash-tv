@@ -6,10 +6,11 @@
 
 import { describe, expect, it } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
-import { bootWithTvConfig, currentSlide, sceneIdOf } from "./helpers/feed";
-import { setupSceneInfoPanelTest, click, openPanel, startEditing, save, bootWithSimpleLayout, savedFieldOptions, bootShowingFields, field, openFieldOptions, saveFieldOptions, serverOCount, PERFORMER } from "./helpers/scene-info-panel";
+import { bootWithTvConfig, currentSlide, sceneIdOf, click } from "./helpers/feed";
+import { setupSceneInfoPanelTest, openPanel, startEditing, save, bootWithSimpleLayout, savedFieldOptions, bootShowingFields, field, openFieldOptions, saveFieldOptions, PERFORMER } from "./helpers/scene-info-panel";
+import { serverOCount } from "./helpers/harness";
 
-setupSceneInfoPanelTest();
+const integration = setupSceneInfoPanelTest();
 
 describe("scene info panel", () => {
   /** @see docs/scene-info-panel.md § "Field options" */
@@ -157,14 +158,14 @@ describe("scene info panel", () => {
     expect(button).toHaveTextContent("0");
 
     click(button);
-    await waitFor(() => expect(serverOCount(sceneId)).toBe(1));
+    await waitFor(() => expect(serverOCount(integration, sceneId)).toBe(1));
     const marked = await within(infoPanel).findByRole("button", { name: "Change O-count" });
     expect(marked).toHaveTextContent("1");
     expect(marked).toHaveClass("state-active");
 
     click(marked);
     click(await screen.findByRole("button", { name: "Increase O-count" }));
-    await waitFor(() => expect(serverOCount(sceneId)).toBe(2));
+    await waitFor(() => expect(serverOCount(integration, sceneId)).toBe(2));
 
     await app.unmount();
   });

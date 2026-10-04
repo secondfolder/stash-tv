@@ -8,7 +8,8 @@
 import { describe, expect, it } from "vitest";
 import { waitFor, within } from "@testing-library/react";
 import { bootApp, savedTvConfig } from "./helpers/harness";
-import { setupActionButtonSettingsTest, click, stackButtons, setStackConfig, openActionButtonSettings, addButton, settingsModal, chooseOption, slideButton } from "./helpers/action-button-settings";
+import { setupActionButtonSettingsTest, stackButtons, openActionButtonSettings, addButton, settingsModal, chooseOption, slideButton } from "./helpers/action-button-settings";
+import { setStackConfig, click } from "./helpers/feed";
 
 const integration = setupActionButtonSettingsTest();
 

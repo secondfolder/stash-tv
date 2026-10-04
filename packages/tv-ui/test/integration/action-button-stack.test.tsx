@@ -6,23 +6,13 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { act, fireEvent, waitFor, within } from "@testing-library/react";
+import { act, waitFor, within } from "@testing-library/react";
 import { setupIntegrationTest, bootApp, type BootedApp } from "./helpers/harness";
-import { currentSlide, pinActionButtons, pinUncheckedActionButton } from "./helpers/feed";
+import { currentSlide, pinActionButtons, pinUncheckedActionButton, setStackConfig, click } from "./helpers/feed";
 import { displayedIconState, isSidePanelOpen } from "../helpers/actionButtons";
 import type { ActionButtonStackConfig } from "../../src/components/action-buttons/ActionButtonStack";
 
 setupIntegrationTest();
-
-// fireEvent rather than userEvent: see docs/testing.md § "Gotchas" (userEvent.click breaks with a MediaSlide mounted)
-function click(element: HTMLElement) {
-  fireEvent.click(element);
-}
-
-async function setStackConfig(config: ActionButtonStackConfig[]) {
-  const { useTvConfig } = await import("../../src/store/tvConfig");
-  await act(async () => useTvConfig.getState().set("actionButtonStackConfig", config));
-}
 
 function slideButton(app: BootedApp, name: string | RegExp) {
   return within(currentSlide(app)).queryByRole("button", { name });

@@ -8,8 +8,8 @@
 import { describe, expect, it } from "vitest";
 import { act, within } from "@testing-library/react";
 import { bootApp, type BootedApp } from "./helpers/harness";
-import { currentSlide, pinActionButtons } from "./helpers/feed";
-import { setupPlayerActionButtonsTest, firstSceneId, click, actionButton, tvConfig } from "./helpers/player-action-buttons";
+import { currentSlide, pinActionButtons, click, tvConfig, actionButton } from "./helpers/feed";
+import { setupPlayerActionButtonsTest, firstSceneId } from "./helpers/player-action-buttons";
 
 const integration = setupPlayerActionButtonsTest();
 

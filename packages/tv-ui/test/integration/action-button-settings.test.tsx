@@ -11,7 +11,8 @@ import { describe, expect, it } from "vitest";
 import { waitFor, within } from "@testing-library/react";
 import { bootApp, savedTvConfig } from "./helpers/harness";
 import { actionButtonRoot, displayedIconState } from "../helpers/actionButtons";
-import { setupActionButtonSettingsTest, click, stackConfig, stackButtons, setStackConfig, openActionButtonSettings, addButton, editButton, settingsModal, chooseOption, chooseAnotherIcon, loadActionButtonIcons, isIconName, slideButton } from "./helpers/action-button-settings";
+import { setupActionButtonSettingsTest, stackConfig, stackButtons, openActionButtonSettings, addButton, editButton, settingsModal, chooseOption, chooseAnotherIcon, loadActionButtonIcons, isIconName, slideButton } from "./helpers/action-button-settings";
+import { setStackConfig, click } from "./helpers/feed";
 
 const integration = setupActionButtonSettingsTest();
 

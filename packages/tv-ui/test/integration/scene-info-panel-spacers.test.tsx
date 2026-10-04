@@ -6,8 +6,8 @@
 
 import { describe, expect, it } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
-import { bootWithTvConfig } from "./helpers/feed";
-import { setupSceneInfoPanelTest, click, openPanel, startEditing, save, bootWithSimpleLayout, savedLayout, savedFieldOptions, field, saveFieldOptions, DATE } from "./helpers/scene-info-panel";
+import { bootWithTvConfig, click } from "./helpers/feed";
+import { setupSceneInfoPanelTest, openPanel, startEditing, save, bootWithSimpleLayout, savedLayout, savedFieldOptions, field, saveFieldOptions, DATE } from "./helpers/scene-info-panel";
 
 setupSceneInfoPanelTest();
 

@@ -9,9 +9,9 @@
 import { describe, expect, it } from "vitest";
 import { waitFor, within } from "@testing-library/react";
 import { bootApp } from "./helpers/harness";
-import { currentSlide, displayedSideInfo, pinActionButtons } from "./helpers/feed";
+import { currentSlide, displayedSideInfo, pinActionButtons, bootMarkersFeed, click, actionButton } from "./helpers/feed";
 import { closeSidePanelByClickingOutside, sidePanel } from "../helpers/actionButtons";
-import { setupSceneActionButtonsTest, firstScene, click, actionButton, serverScene, bootMarkersFeed } from "./helpers/scene-action-buttons";
+import { setupSceneActionButtonsTest, firstScene, serverScene } from "./helpers/scene-action-buttons";
 
 setupSceneActionButtonsTest();
 
