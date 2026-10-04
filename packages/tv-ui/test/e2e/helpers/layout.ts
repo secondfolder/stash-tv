@@ -5,8 +5,8 @@ import { expect, type Locator } from '@playwright/test';
  * off-screen or hidden behind something (`toBeVisible` checks neither). Checks its middle, edges and corners, since
  * something can cover just part of it (e.g. buttons poking through one end of a dropdown option).
  */
-export async function expectUsableOnScreen(element: Locator) {
-  await expect(element).toBeInViewport({ ratio: 1 });
+export async function expectUsableOnScreen(element: Locator, { timeout }: { timeout?: number } = {}) {
+  await expect(element).toBeInViewport({ ratio: 1, timeout });
   const coveredAt = await element.evaluate((el) => {
     const rect = el.getBoundingClientRect();
     const inset = 2; // Stay off the very edge, which can belong to a neighbour

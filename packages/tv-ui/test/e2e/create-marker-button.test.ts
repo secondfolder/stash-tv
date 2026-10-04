@@ -32,20 +32,26 @@ async function createMarker(request: APIRequestContext, title: string, seconds: 
  * `scrollIntoViewIfNeeded`) could bring a menu that's wrongly clipped by its surroundings into view.
  */
 async function expectAllOptionsUsable(page: Page) {
-  // The open menu's options only: other selects (e.g. the player's) have options of their own, hidden or not
-  const options = page.locator('.react-select__menu').getByRole('option');
-  await expect(options.first()).toBeVisible();
-  for (const option of await options.all()) {
-    await option.evaluate((el) => {
-      const list = el.closest('.react-select__menu-list');
-      if (!list) return;
-      const optionRect = el.getBoundingClientRect();
-      const listRect = list.getBoundingClientRect();
-      // Rounded outwards: the browser rounds scrollTop, which could otherwise leave the option a fraction of a pixel short
-      if (optionRect.top < listRect.top) list.scrollTop -= Math.ceil(listRect.top - optionRect.top);
-      else if (optionRect.bottom > listRect.bottom) list.scrollTop += Math.ceil(optionRect.bottom - listRect.bottom);
-    });
-    await expectUsableOnScreen(option);
+  // The open menu's options, each found by its text rather than its place in the page: the form's other selects have
+  // menus of their own (hidden ones among them), which once shifted which option the nth was
+  const menu = page.locator('.react-select__menu').locator('visible=true');
+  await expect(menu).toHaveCount(1);
+  await expect(menu.getByRole('option').first()).toBeVisible();
+  const names = await menu.getByRole('option').allTextContents();
+  for (const name of names) {
+    const option = menu.getByRole('option').filter({ hasText: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) });
+    await expect(async () => {
+      await option.evaluate((el) => {
+        const list = el.closest('.react-select__menu-list');
+        if (!list) return;
+        const optionRect = el.getBoundingClientRect();
+        const listRect = list.getBoundingClientRect();
+        // Rounded outwards: the browser rounds scrollTop, which could otherwise leave the option a fraction of a pixel short
+        if (optionRect.top < listRect.top) list.scrollTop -= Math.ceil(listRect.top - optionRect.top);
+        else if (optionRect.bottom > listRect.bottom) list.scrollTop += Math.ceil(optionRect.bottom - listRect.bottom);
+      });
+      await expectUsableOnScreen(option, { timeout: 1_000 });
+    }).toPass({ timeout: 10_000 }); // Scrolled to again if a re-render moved it
   }
 }
 
@@ -320,17 +326,13 @@ test.describe('Create-marker side panel', () => {
       const primaryTagField = panel.locator('.form-group', { has: page.locator('label[for="primary_tag_id"]') });
       // Wait for its options to load, so the menu opens at full size rather than as a short "Loading..." message
       await expect(primaryTagField.locator('.react-select__loading-indicator')).toHaveCount(0);
-      // ⚠️ Fixed waits, not stoppedMoving(), here and after opening the menu: with less time either side of the click
-      // (e.g. waiting only until things stop moving), the menu sometimes ends up partly above the top of the window,
-      // about 1 run in 4 with the suite running in parallel. That looks like a race in placing the menu (react-select's
-      // placement and useFitDropdownMenus) that a user opening it very soon after the panel would also hit
-      await page.waitForTimeout(500); // and for the panel to finish animating into place
+      await stoppedMoving(panel); // and for the panel to finish animating into place
       const inputBox = (await primaryTagField.locator('.react-select__control').boundingBox())!;
       // A plain click where the input is, as a user would (no scrolling it into view first)
       await page.mouse.click(inputBox.x + inputBox.width / 2, inputBox.y + inputBox.height / 2);
       // Every tag (the fixtures' 5 and the extra ones), once their options have loaded
       await expect(primaryTagField.getByRole('option')).toHaveCount(5 + extraTagIds.length);
-      await page.waitForTimeout(500); // react-select may animate its scroll
+      await stoppedMoving(page.locator('.react-select__menu')); // react-select may animate its scroll
 
       expect(await page.evaluate(() => (window as Window & { pageScrolled?: boolean }).pageScrolled)).toBe(false);
       expect(await currentScene()).toBe(sceneBefore);
