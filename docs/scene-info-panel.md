@@ -134,4 +134,4 @@ The editor is a `LineLayoutEditor` (see [line layout editor](line-layout-editor.
 
 - A field a version of Stash TV doesn't know (e.g. saved by a newer one using the same Stash server) stays where it is in the layout, but isn't shown. In the editor it's an "Unknown field" pill that can be moved or removed.
 - No migration: users without the key get the default. The default's spacers have fixed ids (`default-1`…), unique only within the layout, which is all an instance's id needs.
-- ⚠️ Tests that edit the layout set up a simple one of their own (`SIMPLE_LAYOUT`, in the integration and e2e panel tests) rather than relying on the default, which is long and changes.
+- ⚠️ Tests that edit the layout set up a simple one of their own (`SIMPLE_LAYOUT`, in `test/helpers/sceneInfo.ts` for the unit and integration tests, and in the e2e panel tests) rather than relying on the default, which is long and changes.
