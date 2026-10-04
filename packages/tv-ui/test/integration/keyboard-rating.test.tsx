@@ -17,7 +17,7 @@ import { waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { bootApp } from "./helpers/harness";
 import { currentSlide, goToNextSlide, goToSlide, sceneIdOf, slides } from "./helpers/feed";
-import { setupKeyboardRatingTest, initialRatings, serverRating, otherRenderedSceneIds, bootWithRateButtonPinned, displayedRating } from "./helpers/keyboard-rating";
+import { setupKeyboardRatingTest, endRatingWindows, initialRatings, serverRating, otherRenderedSceneIds, bootWithRateButtonPinned, displayedRating } from "./helpers/keyboard-rating";
 
 setupKeyboardRatingTest();
 
@@ -88,8 +88,8 @@ describe("Keyboard rating shortcuts", () => {
     const currentSceneId = sceneIdOf(currentSlide(app));
     await userEvent.keyboard("r5");
     await waitFor(() => expect(serverRating(currentSceneId)).toBe(100));
-    // Let the first sequence's digit window close so `0` starts a fresh sequence
-    await new Promise((resolve) => setTimeout(resolve, 1100));
+    // Close the first sequence's digit window so `0` starts a fresh sequence
+    expect(endRatingWindows()).toBe(1);
 
     await userEvent.keyboard("r0");
 
