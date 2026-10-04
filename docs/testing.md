@@ -42,6 +42,11 @@ just an alias for `yarn --cwd packages/tv-ui test:e2e`:
   var, stash-ui's `getPlatformURL` forces port **9999** (Stash's default) in
   dev mode, so the app talks past the proxy to whatever runs on 9999 and the
   feed dies with `Error: Failed to fetch`.
+- ⚠️ Both are addressed as `127.0.0.1`, not `localhost`, and the dev server is
+  told to listen there (`DEV_HOST`). From Node (the tests' `request`
+  fixture), every request to the dev server at `localhost` took ~300ms to
+  connect, against ~4ms at `127.0.0.1`: a few such requests per test to set
+  up config, and 60 in some, added ~9 minutes to the suite.
 
 If either port is taken, the config prints a one-line note and uses the next
 free port (`test/e2e/helpers/ports.ts`). Servers are never reused: a stale or

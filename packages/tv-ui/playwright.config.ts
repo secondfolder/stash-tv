@@ -13,7 +13,10 @@ import { resolveE2ePort } from './test/e2e/helpers/ports';
 
 const mockStashPort = resolveE2ePort('E2E_MOCK_STASH_PORT', 4000, 'mock-stash');
 const devServerPort = resolveE2ePort('E2E_DEV_SERVER_PORT', 8888, 'the tv-ui dev server');
-const devServerUrl = `http://localhost:${devServerPort}`;
+// 127.0.0.1 rather than localhost: Node (which the tests' `request` fixture uses) took ~300ms to connect to `localhost`
+// for every request to the dev server, against ~4ms for 127.0.0.1, and tests make a few such requests each to set up.
+// The dev server is told to listen there (DEV_HOST below), and the app's API URL is the same origin.
+const devServerUrl = `http://127.0.0.1:${devServerPort}`;
 
 export default defineConfig({
   testDir: './test/e2e',
@@ -32,7 +35,7 @@ export default defineConfig({
   webServer: [
     {
       command: `MOCK_STASH_PORT=${mockStashPort} yarn --cwd ../../packages/mock-stash test:e2e-server`,
-      url: `http://localhost:${mockStashPort}/graphql`,
+      url: `http://127.0.0.1:${mockStashPort}/graphql`,
       stdout: 'ignore',
       stderr: 'pipe',
     },
@@ -41,7 +44,7 @@ export default defineConfig({
       // it, stash-ui's getPlatformURL forces port 9999 (Stash's default) in dev.
       // --strictPort: the port was just probed free, so fail rather than drift.
       command:
-        `STASH_ADDRESS=http://localhost:${mockStashPort} STASH_PROXY=true DEV_PORT=${devServerPort} VITE_APP_PLATFORM_URL=${devServerUrl} yarn dev --strictPort`,
+        `STASH_ADDRESS=http://127.0.0.1:${mockStashPort} STASH_PROXY=true DEV_HOST=127.0.0.1 DEV_PORT=${devServerPort} VITE_APP_PLATFORM_URL=${devServerUrl} yarn dev --strictPort`,
       url: devServerUrl,
       stdout: 'ignore',
       stderr: 'pipe',
