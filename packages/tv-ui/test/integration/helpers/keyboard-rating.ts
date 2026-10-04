@@ -15,9 +15,9 @@ let integration: ReturnType<typeof setupIntegrationTest>;
 /** Set up a test file for these tests against the mock server (call it at the top of the file) */
 export function setupKeyboardRatingTest() {
   integration = setupIntegrationTest();
-  let realSetTimeout: typeof setTimeout;
+  let realTimers: ReturnType<typeof holdRatingWindows>;
   beforeEach(() => {
-    realSetTimeout = recordRatingWindows();
+    realTimers = holdRatingWindows();
     initialRatings = new Map(
       [...integration.server.store.scenes.values()].map((scene) => [scene.id, scene.rating100])
     );
@@ -29,11 +29,11 @@ export function setupKeyboardRatingTest() {
       const scene = integration.server.store.scenes.get(id);
       if (scene) scene.rating100 = rating;
     }
-    // Stash's keybinds leave the digit keys bound for 1s after `r` and then unbind them on a timer. Mousetrap is a
-    // single (externalised) module shared by every boot, so end that window now rather than let a stale timer unbind
-    // keys belonging to the next test's app.
+    // Mousetrap is a single (externalised) module shared by every boot, so end any rating window this test's app left
+    // open, rather than leave it to unbind keys belonging to the next test's app.
     endRatingWindows();
-    globalThis.setTimeout = realSetTimeout;
+    globalThis.setTimeout = realTimers.setTimeout;
+    globalThis.clearTimeout = realTimers.clearTimeout;
   });
   return integration;
 }
@@ -42,41 +42,41 @@ export function setupKeyboardRatingTest() {
 export let initialRatings: Map<string, number | null>;
 
 /**
- * Stash's rating windows that are still open: the timers its keybinds start on each `r` to end the sequence 1s later
- * (`endSequence`), so that a test can end them straight away rather than wait for them in real time.
+ * Stash's open rating windows. Its keybinds open one on each `r`: the digit keys stay bound until a 1s timer ends the
+ * sequence (`endSequence`). In these tests a window stays open until the test ends it (`endRatingWindows()`), or
+ * teardown does, rather than running out in real time: on a busy machine the digits typed after `r` could otherwise
+ * arrive after it had, and a test spent a second waiting for one to close. Tests of a window running out freeze the
+ * clock instead (`freezeClock()`), whose fake timers stand in for these while it's frozen.
  */
-const openRatingWindows = new Map<ReturnType<typeof setTimeout>, () => void>();
+const openRatingWindows = new Map<object, () => void>();
 
-/** Record the rating windows Stash's keybinds open from now on, returning the `setTimeout` to restore afterwards */
-function recordRatingWindows() {
-  const realSetTimeout = globalThis.setTimeout;
-  function recordingSetTimeout(handler: TimerHandler, timeout?: number, ...args: unknown[]) {
+/** Hold Stash's rating windows open from now on, returning the timer functions to restore afterwards */
+function holdRatingWindows() {
+  const real = { setTimeout: globalThis.setTimeout, clearTimeout: globalThis.clearTimeout };
+  function holdingSetTimeout(handler: TimerHandler, timeout?: number, ...args: unknown[]) {
     if (typeof handler !== "function" || handler.name !== "endSequence") {
-      return realSetTimeout(handler, timeout, ...args);
+      return real.setTimeout(handler, timeout, ...args);
     }
-    const end = () => {
-      openRatingWindows.delete(timer);
-      handler(...args);
-    };
-    const timer = realSetTimeout(end, timeout);
-    openRatingWindows.set(timer, end);
-    return timer;
+    const ratingWindow = {};
+    openRatingWindows.set(ratingWindow, () => handler(...args));
+    return ratingWindow;
   }
-  // Node's `setTimeout` type has extras (e.g. `__promisify__`) that Stash's keybinds never use
-  globalThis.setTimeout = recordingSetTimeout as typeof setTimeout;
-  return realSetTimeout;
+  // Stash clears the open window's timer when `r` starts another sequence
+  function holdingClearTimeout(timer: Parameters<typeof clearTimeout>[0]) {
+    if (typeof timer === "object" && timer !== null && openRatingWindows.delete(timer)) return;
+    real.clearTimeout(timer);
+  }
+  // Node's timer types have extras (e.g. `__promisify__`) that Stash's keybinds never use
+  globalThis.setTimeout = holdingSetTimeout as typeof setTimeout;
+  globalThis.clearTimeout = holdingClearTimeout as typeof clearTimeout;
+  return real;
 }
 
-/**
- * End every open rating window now, as Stash does once its 1s runs out, rather than waiting for it in real time.
- * Returns how many were open.
- */
+/** End every open rating window now, as Stash does once its 1s runs out. Returns how many were open. */
 export function endRatingWindows() {
-  const open = [...openRatingWindows];
-  for (const [timer, end] of open) {
-    clearTimeout(timer);
-    end();
-  }
+  const open = [...openRatingWindows.values()];
+  openRatingWindows.clear();
+  for (const end of open) end();
   return open.length;
 }
 
