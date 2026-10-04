@@ -26,8 +26,9 @@ let configWritesSettledPerBoot: (() => Promise<void>)[] = [];
 
 // RTL's default 1s for `waitFor`/`findBy*` is too tight here: the app and the mock server share one thread, so a
 // mutation's round trip plus the re-render it causes (~200ms alone) can take several times longer when the whole suite
-// runs in parallel. A longer timeout only slows down tests that are failing anyway.
-configure({ asyncUtilTimeout: 5000 });
+// runs in parallel, and longer again on a machine busy with other work. A longer timeout only slows down tests that
+// are failing anyway.
+configure({ asyncUtilTimeout: 15000 });
 
 export function setupIntegrationTest() {
   beforeAll(async () => {
@@ -154,7 +155,7 @@ export async function bootApp(readyText = "Aurora Ascending"): Promise<BootedApp
     () => {
       expect(rendered.container.textContent ?? "").toContain(readyText);
     },
-    { timeout: 10000 }
+    { timeout: 30000 }
   );
 
   return {

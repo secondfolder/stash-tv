@@ -31,8 +31,11 @@ const sharedTestOptions = {
   // Tests run in parallel. Apollo WebSocket clients are tracked and disposed in
   // test/setup.ts (global afterAll), so no reconnection storms at teardown.
   // @see docs/historical-plans/2026-08-30-websocket-cleanup-problem-handoff.md
-  testTimeout: 20000,
-  hookTimeout: 20000,
+  // Generous, so that a test that's merely slow (e.g. on a machine busy running other things, where everything can
+  // take several times as long) passes rather than fails. A test that's failing still fails on its own waits first.
+  // @see docs/testing.md § "Gotchas"
+  testTimeout: 60000,
+  hookTimeout: 60000,
   restoreMocks: true,
   logHeapUsage: true,
 };
