@@ -1,41 +1,19 @@
 /**
- * Action buttons that drive the current slide's player through Stash's ScenePlayer: stream resolution and subtitles.
- * These run against the real Video.js player and Stash's source selector plugin.
+ * The resolution action button, which chooses the current slide's stream through Stash's ScenePlayer. These run
+ * against the real Video.js player and Stash's source selector plugin.
  *
  * @see docs/action-buttons.md § "Button Props & Runtime Config Validation"
  * @see docs/video-player.md § "Source Selection"
  */
 
 import { describe, expect, it } from "vitest";
-import { act, fireEvent, waitFor, within } from "@testing-library/react";
-import {
-  setupIntegrationTest,
-  bootApp,
-  restoreServerMediaAfterEach,
-  savedTvConfig,
-  type BootedApp,
-} from "./helpers/harness";
+import { waitFor, within } from "@testing-library/react";
+import { bootApp, savedTvConfig, type BootedApp } from "./helpers/harness";
 import { bootWithTvConfig, currentSlide, failCurrentSource, fireLoadStart, pinActionButtons } from "./helpers/feed";
 import { actionButtonRoot, displayedIconState, sidePanel } from "../helpers/actionButtons";
+import { setupPlayerActionButtonsTest, click, actionButton, tvConfig } from "./helpers/player-action-buttons";
 
-const integration = setupIntegrationTest();
-restoreServerMediaAfterEach(integration);
-
-const firstSceneId = "scene-7"; // The first slide of the default feed
-
-// fireEvent rather than userEvent: see docs/testing.md § "Gotchas" (userEvent.click breaks with a MediaSlide mounted)
-function click(element: HTMLElement) {
-  fireEvent.click(element);
-}
-
-function actionButton(app: BootedApp, name: string | RegExp) {
-  return within(currentSlide(app)).findByRole("button", { name });
-}
-
-async function tvConfig() {
-  const { useTvConfig } = await import("../../src/store/tvConfig");
-  return useTvConfig.getState();
-}
+const integration = setupPlayerActionButtonsTest();
 
 describe("Resolution button", () => {
   async function openStreamPanel(app: BootedApp) {
@@ -165,84 +143,6 @@ describe("Resolution button", () => {
 
     expect(preferredStreams()).toEqual([]);
     expect(sidePanel().querySelector(".comment")).toHaveTextContent("MKV");
-
-    await app.unmount();
-  });
-});
-
-describe("Subtitles button", () => {
-  function addEnglishCaptions(sceneId: string) {
-    const scene = integration.server.store.scenes.get(sceneId);
-    if (!scene) throw new Error(`No scene ${sceneId} on the server`);
-    scene.captions = [{ language_code: "en", caption_type: "vtt" }];
-  }
-
-  function setSubtitleLanguage(language: string) {
-    integration.server.store.pluginConfig = { "stash-tv": { subtitleLanguage: language } };
-  }
-
-  /** Boot with the subtitles button pinned, waiting on another pinned button so a missing one isn't missed */
-  async function bootWithSubtitlesButton() {
-    const app = await bootApp();
-    await pinActionButtons(["subtitles", "loop"]);
-    await actionButton(app, "Loop scene");
-    return app;
-  }
-
-  function subtitlesButton(app: BootedApp) {
-    return within(currentSlide(app)).queryByRole("button", { name: /subtitles/ });
-  }
-
-  it("shows subtitles when the scene has them in the chosen language", async () => {
-    addEnglishCaptions(firstSceneId);
-    setSubtitleLanguage("en");
-    const app = await bootWithSubtitlesButton();
-
-    click(await actionButton(app, "Show subtitles"));
-
-    expect((await tvConfig()).showSubtitles).toBe(true);
-    expect(await actionButton(app, "Hide subtitles")).toBeInTheDocument();
-
-    await app.unmount();
-  });
-
-  it("hides subtitles when they're shown", async () => {
-    addEnglishCaptions(firstSceneId);
-    setSubtitleLanguage("en");
-    const app = await bootWithSubtitlesButton();
-    await act(async () => (await tvConfig()).set("showSubtitles", true));
-
-    click(await actionButton(app, "Hide subtitles"));
-
-    expect((await tvConfig()).showSubtitles).toBe(false);
-
-    await app.unmount();
-  });
-
-  it("isn't shown when the scene has no subtitles", async () => {
-    setSubtitleLanguage("en");
-    const app = await bootWithSubtitlesButton();
-
-    expect(subtitlesButton(app)).not.toBeInTheDocument();
-
-    await app.unmount();
-  });
-
-  it("isn't shown when the scene has no subtitles in the chosen language", async () => {
-    addEnglishCaptions(firstSceneId);
-    setSubtitleLanguage("fr");
-    const app = await bootWithSubtitlesButton();
-
-    expect(subtitlesButton(app)).not.toBeInTheDocument();
-
-    await app.unmount();
-  });
-
-  it("isn't shown when no subtitle language is chosen", async () => {
-    addEnglishCaptions(firstSceneId);
-    const app = await bootWithSubtitlesButton();
-
-    expect(subtitlesButton(app)).not.toBeInTheDocument();
 
     await app.unmount();
   });
