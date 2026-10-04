@@ -233,6 +233,22 @@ describe("mutations the app uses", () => {
     expect(deleted.sceneDeleteO.count).toBe(2);
   });
 
+  it("sceneIncrementO / sceneDecrementO (Stash's older O-counter mutations)", async () => {
+    const oCount = async () => {
+      const response = await rawQuery('{ findScene(id: "scene-1") { o_counter } }');
+      return ((await response.json()) as { data: { findScene: { o_counter: number } } }).data.findScene.o_counter;
+    };
+    const before = await oCount();
+
+    const incremented = await rawQuery("mutation ($id: ID!) { sceneIncrementO(id: $id) }", { id: "scene-1" });
+    expect(((await incremented.json()) as { data: { sceneIncrementO: number } }).data.sceneIncrementO).toBe(before + 1);
+    expect(await oCount()).toBe(before + 1);
+
+    const decremented = await rawQuery("mutation ($id: ID!) { sceneDecrementO(id: $id) }", { id: "scene-1" });
+    expect(((await decremented.json()) as { data: { sceneDecrementO: number } }).data.sceneDecrementO).toBe(before);
+    expect(await oCount()).toBe(before);
+  });
+
   it("TagCreate adds a tag that queries then return", async () => {
     const created = await gql<{ tagCreate: { id: string; name: string } | null }>(GQL.TagCreateDocument, {
       input: { name: "Created Tag" },

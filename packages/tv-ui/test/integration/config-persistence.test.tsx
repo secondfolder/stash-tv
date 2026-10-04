@@ -2,10 +2,9 @@
  * Config persistence integration tests.
  *
  * Tests the hybrid storage system where config keys are split between
- * localStorage and Stash config via ConfigurePlugin mutation:
- * - A ConfigurePlugin mutation persists to the mock store and is served back
- * - Config set through the app's store is rehydrated on a fresh boot
- *   (cross-"device" persistence)
+ * localStorage and Stash config via ConfigurePlugin mutation: config set through
+ * the app's store is rehydrated on a fresh boot (cross-"device" persistence).
+ * (That mock-stash serves back what ConfigurePlugin saves is tested in mock-stash.)
  *
  * @see docs/state-and-config.md § "Hybrid Storage"
  */
@@ -17,33 +16,6 @@ import { setupIntegrationTest, bootApp } from "./helpers/harness";
 const integration = setupIntegrationTest();
 
 describe("Config persistence integration", () => {
-  it("ConfigurePlugin mutation persists to the mock store and is served back", async () => {
-    const app = await bootApp();
-    const GQL = await import("stash-ui/dist/src/core/generated-graphql");
-
-    await app.apolloClient.mutate({
-      mutation: GQL.ConfigurePluginDocument,
-      variables: {
-        plugin_id: "stash-tv",
-        input: {
-          volume: 75,
-          crtEffect: true,
-        },
-      },
-    });
-
-    // Read back through a different operation, from the server (not cache)
-    const { data } = await app.apolloClient.query({
-      query: GQL.ConfigurationDocument,
-      fetchPolicy: "network-only",
-    });
-    const stored = data.configuration.plugins["stash-tv"];
-    expect(stored.volume).toBe(75);
-    expect(stored.crtEffect).toBe(true);
-
-    await app.unmount();
-  });
-
   it("rehydrates config set through the app store on a fresh boot", async () => {
     // First boot: set a Stash-persisted config value through the app's store
     const first = await bootApp();
