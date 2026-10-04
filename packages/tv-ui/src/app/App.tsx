@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect } from "react";
 import FeedPage from "../pages/Feed";
 import { useTvConfig } from "../store/tvConfig";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
@@ -6,9 +6,7 @@ import {ConfigurationProvider} from "stash-ui/dist/src/hooks/Config";
 import { useViewportRotate } from "../hooks/useViewportRotate";
 import { useBrowserZoomResetOnViewportChange } from "../hooks/useBrowserZoomResetOnViewportChange";
 import { ErrorBoundary } from "stash-ui/dist/src/components/ErrorBoundary";
-import { IntlProvider, CustomFormats } from "react-intl";
-import englishMessages from "stash-ui/dist/src/locales/en-GB.json";
-import flattenMessages from "stash-ui/dist/src/utils/flattenMessages";
+import { AppIntlProvider } from "./AppIntlProvider";
 import {setupLogging} from "../helpers/logging";
 import FeedbackOverlay from "../components/FeedbackOverlay";
 import NewVersionNotice from "../components/NewVersionNotice";
@@ -42,20 +40,7 @@ const App = () => {
   useViewportRotate(forceLandscape);
   useBrowserZoomResetOnViewportChange();
 
-  // We only support English for now but we have to load IntlProvider so we don't break
-  // components imported from stash-ui that rely on it.
-  const defaultLocale = "en-GB";
-  const messages = useMemo(
-    () => flattenMessages((englishMessages as unknown) as Record<string, string>),
-    [englishMessages]
-  );
-  const language =
-    stashConfig.data?.configuration?.interface?.language ?? defaultLocale;
-  const intlFormats: CustomFormats = useMemo(() => ({
-    date: {
-      long: { year: "numeric", month: "long", day: "numeric" },
-    },
-  }), []);
+  const language = stashConfig.data?.configuration?.interface?.language ?? undefined;
 
   useDevConsoleHelpers()
   useGamepad({ forceLandscape })
@@ -63,11 +48,7 @@ const App = () => {
   if (!tvConfigLoaded) return null
 
   return (
-    <IntlProvider
-      locale={language}
-      messages={messages}
-      formats={intlFormats}
-    >
+    <AppIntlProvider locale={language}>
       <ErrorBoundary>
         <ConfigurationProvider
           configuration={modifiedStashConfig}
@@ -78,7 +59,7 @@ const App = () => {
           <FeedPage />
         </ConfigurationProvider>
       </ErrorBoundary>
-    </IntlProvider>
+    </AppIntlProvider>
   );
 };
 
