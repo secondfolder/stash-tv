@@ -1,4 +1,4 @@
-export { startMockStash } from "./server";
+export { startMockStash, MOCK_STASH_TENANT_COOKIE, MOCK_STASH_TENANT_HEADER } from "./server";
 export type { MockStashServer, StartMockStashOptions } from "./server";
 export { createDefaultFixtures, MEDIA_SPECS, MEDIA_DIR, mediaFileFor } from "./fixtures";
 export { createStore } from "./store";

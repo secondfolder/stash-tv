@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { print, type DocumentNode } from "graphql";
 import { createClient, type Client } from "graphql-ws";
 import WebSocket from "ws";
-import { startMockStash, type MockStashServer } from "../src/server";
+import { MOCK_STASH_TENANT_COOKIE, MOCK_STASH_TENANT_HEADER, startMockStash, type MockStashServer } from "../src/server";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 
 /** Raw query strings for exercising fields not exported as documents. */
@@ -361,5 +361,55 @@ describe("media routes", () => {
     expect(preview.status).toBe(200);
     expect(preview.headers.get("content-type")).toBe("video/webm");
     await preview.body?.cancel();
+  });
+});
+
+describe("tenants", () => {
+  /** Run a raw operation as the given tenant (or none), returning its data */
+  async function asTenant(tenant: string | undefined, query: string, variables?: Record<string, unknown>) {
+    const response = await fetch(server.httpUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...(tenant ? { [MOCK_STASH_TENANT_HEADER]: tenant } : {}) },
+      body: JSON.stringify({ query, variables }),
+    });
+    const body = (await response.json()) as { data?: Record<string, unknown>; errors?: unknown[] };
+    expect(body.errors).toBeUndefined();
+    return body.data;
+  }
+  const rateScene = (tenant: string | undefined, rating100: number) =>
+    asTenant(tenant, "mutation ($input: SceneUpdateInput!) { sceneUpdate(input: $input) { id } }", {
+      input: { id: "scene-7", rating100 },
+    });
+  const rating = async (tenant: string | undefined) =>
+    ((await asTenant(tenant, '{ findScene(id: "scene-7") { rating100 } }'))?.findScene as { rating100: number | null })
+      .rating100;
+
+  it("keeps each tenant's changes to itself, apart from the default store's", async () => {
+    const before = await rating(undefined);
+
+    await rateScene("tenant-a", 20);
+    await rateScene("tenant-b", 80);
+
+    expect(await rating("tenant-a")).toBe(20);
+    expect(await rating("tenant-b")).toBe(80);
+    expect(await rating(undefined)).toBe(before);
+    expect(server.store.scenes.get("scene-7")?.rating100).toBe(before);
+  });
+
+  it("takes a tenant named in a cookie, as a browser names it", async () => {
+    await rateScene("tenant-d", 40);
+
+    const response = await fetch(server.httpUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: `other=1; ${MOCK_STASH_TENANT_COOKIE}=tenant-d` },
+      body: JSON.stringify({ query: '{ findScene(id: "scene-7") { rating100 } }' }),
+    });
+    expect(((await response.json()) as { data: { findScene: { rating100: number } } }).data.findScene.rating100).toBe(40);
+  });
+
+  it("starts a new tenant from the fixtures", async () => {
+    await rateScene(undefined, 60);
+
+    expect(await rating("tenant-c")).toBeNull();
   });
 });

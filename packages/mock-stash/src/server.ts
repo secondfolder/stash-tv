@@ -10,6 +10,9 @@ import { ensureMediaFixtures } from "./generate-media";
 import { handleMediaRoute } from "./media";
 import { createContextFactory, type ContextHolder } from "./context";
 import type { Fixtures } from "./types";
+import { tenantOf } from "./tenant";
+
+export { MOCK_STASH_TENANT_COOKIE, MOCK_STASH_TENANT_HEADER } from "./tenant";
 
 export interface MockStashServer {
   /** Base URL of the server, e.g. `http://127.0.0.1:54321` (assigned port when unset). */
@@ -18,7 +21,7 @@ export interface MockStashServer {
   httpUrl: string;
   /** graphql-ws (WebSocket) subscription endpoint. */
   wsUrl: string;
-  /** The live store — mutate entities directly to arrange test scenarios. */
+  /** The live store — mutate entities directly to arrange test scenarios. (The default store: not a tenant's.) */
   store: MockStore;
   /** Count of GraphQL operations executed, by operation name (HTTP and WS). */
   getRequestCounts(): Readonly<Record<string, number>>;
@@ -50,9 +53,27 @@ export async function startMockStash(
   // `createDefaultFixtures` reads their sizes — so this must run first.
   ensureMediaFixtures();
 
-  const store = createStore(options.fixtures ?? createDefaultFixtures());
+  // Fresh fixtures for each store: a store keeps (and changes) the records it's given
+  const freshFixtures = () => (options.fixtures ? structuredClone(options.fixtures) : createDefaultFixtures());
+  const store = createStore(freshFixtures());
+  const tenantStores = new Map<string, MockStore>();
+  const storeFor = (tenant: string | undefined) => {
+    if (!tenant) return store;
+    let tenantStore = tenantStores.get(tenant);
+    if (!tenantStore) {
+      tenantStore = createStore(freshFixtures());
+      tenantStores.set(tenant, tenantStore);
+    }
+    return tenantStore;
+  };
+  const nodeHeaders = (headers: http.IncomingHttpHeaders) => ({
+    header: (name: string) => {
+      const value = headers[name];
+      return Array.isArray(value) ? value.join("; ") : value;
+    },
+  });
 
-  const holder: ContextHolder = { store, baseUrl: "" };
+  const holder: ContextHolder = { storeFor, baseUrl: "" };
   const contextFactory = createContextFactory(holder);
 
   // Instrument operation execution so tests can observe which GraphQL
@@ -69,7 +90,8 @@ export async function startMockStash(
     logging: false,
     maskedErrors: false,
     cors: { origin: "*" },
-    context: contextFactory,
+    context: ({ request }: { request: Request }) =>
+      contextFactory(tenantOf({ header: (name) => request.headers.get(name) })),
     plugins: [
       {
         onExecute({ args }: { args: { operationName?: string; variableValues?: unknown } }) {
@@ -94,7 +116,7 @@ export async function startMockStash(
       (url.pathname.startsWith("/scene/") || url.pathname.startsWith("/marker/")) &&
       req.method !== "POST"
     ) {
-      handleMediaRoute(req, res, store);
+      handleMediaRoute(req, res, storeFor(tenantOf(nodeHeaders(req.headers))));
       return;
     }
     yoga(req as never, res as never);
@@ -118,7 +140,7 @@ export async function startMockStash(
       schema,
       execute: enveloped.execute,
       subscribe: enveloped.subscribe,
-      context: contextFactory,
+      context: (ctx) => contextFactory(tenantOf(nodeHeaders(ctx.extra.request.headers))),
     },
     wss,
   );
