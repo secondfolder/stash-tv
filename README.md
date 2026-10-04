@@ -24,7 +24,7 @@ Reels](https://github.com/Valkyr-JS/StashReels) with some [performance improveme
 
 ## Installation
 
-1. Add the [secondfolder stash-plugins source](https://github.com/secondfolder/stash-plugins) to Stash if it hasn't been
+1. Add the [lewd.toys plugins source](https://github.com/secondfolder/stash-plugins) to Stash if it hasn't been
   added already.
 <ul>
 <li>
@@ -37,22 +37,22 @@ Under the **Available Plugins** section click **Add Source** and enter the follo
 
 **Name:**
 ```
-secondfolder's plugins (stable)
+lewd.toys (stable)
 ```
 **Source URL:**
 ```
-https://secondfolder.github.io/stash-plugins/stable/index.yml
+https://stashplugins.lewd.toys/stable/index.yml
 ```
 **Local Path:**
 ```
-secondfolder-stable
+lewd.toys/stable
 ```
 
 </details>
 </li>
 </ul>
 
-2. In **Settings** > **Plugins** find **Stash TV** under **Available Plugins** > **secondfolder's plugins (stable)**, select it then click **Install**.
+2. In **Settings** > **Plugins** find **Stash TV** under **Available Plugins** > **lewd.toys (stable)**, select it then click **Install**.
 
 ## Using Stash TV
 
