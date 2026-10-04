@@ -2,6 +2,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
+import svgr from 'vite-plugin-svgr'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -25,6 +26,7 @@ export default defineConfig({
     )
   },
   plugins: [
+    svgr(),
     viteStaticCopy({
       targets: [
         {

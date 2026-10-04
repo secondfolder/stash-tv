@@ -4,6 +4,7 @@ import { StashTvConfig } from "../tv-ui/src/hooks/useStashTvConfig"
 import { ConfigDataFragment, ConfigInterfaceResult } from "stash-ui/dist/src/core/generated-graphql.js";
 import type { CheckboxGroup } from "stash-ui/dist/src/components/Settings/SettingsInterfacePanel/CheckboxGroup";
 import { tvConfigStorageKey } from "../tv-ui/src/store/tvConfig";
+import StashTvLogo from "../tv-ui/src/assets/stash-tv-logo.svg?react";
 
 const { PluginApi } = window;
 const { React } = PluginApi;
@@ -157,10 +158,8 @@ const StashTVButtonInner = () => {
         className="minimal p-4 p-xl-2 d-flex d-xl-inline-block flex-column justify-content-between align-items-center btn btn-primary"
         target="_blank"
       >
-        <FontAwesomeIcon
-          className="fa-icon nav-menu-icon d-block d-xl-inline mb-2 mb-xl-0"
-          icon={PluginApi.libraries.FontAwesomeSolid.faTelevision}
-        />
+        {/* svg-inline--fa sizes and aligns it like the other nav icons, which are FontAwesome's */}
+        <StashTvLogo className="svg-inline--fa fa-icon nav-menu-icon d-block d-xl-inline mb-2 mb-xl-0" />
         <span>TV</span>
       </a>
     </div>
