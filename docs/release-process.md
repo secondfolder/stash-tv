@@ -22,10 +22,12 @@ Beyond the standard `feat` (minor) / `fix` + breaking (major/minor) behaviour, f
 ## Release Flow
 
 1. Commit merged to `main` triggers Semantic Release
-2. Version bumped in `package.json` (the `release` script then syncs it into `packages/tv-plugin/source.yml` via `yq`)
+2. Version bumped in `package.json` and `packages/tv-plugin/source.yml` (by `scripts/update-version-number.ts`, run in CI before the build)
 3. A version mismatch check runs in `prepareCmd` — the build fails if `package.json` doesn't match the release version
 4. Plugin built to `packages/tv-plugin/dist/`
 5. `scripts/deploy-to-stash-plugins.sh` deploys the built plugin to the `secondfolder/stash-plugins` repository (users install from there via Stash's plugin manager)
+
+⚠️ The two versions must match: the running app compares its build-time version (from `package.json`) with the version Stash reports for the installed plugin (from `source.yml`) to tell the user an update is available (see [app updates](app-updates.md)).
 
 CI works out the next version before building, with a Semantic Release dry run (`scripts/update-version-number.ts`). If no commit since the last release triggers one (e.g. only `test` commits), the job still builds and tests, skips the Release step, and notes "No publishable changes" in its summary rather than failing.
 

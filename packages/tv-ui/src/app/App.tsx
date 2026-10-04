@@ -11,6 +11,7 @@ import englishMessages from "stash-ui/dist/src/locales/en-GB.json";
 import flattenMessages from "stash-ui/dist/src/utils/flattenMessages";
 import {setupLogging} from "../helpers/logging";
 import FeedbackOverlay from "../components/FeedbackOverlay";
+import NewVersionNotice from "../components/NewVersionNotice";
 import { useDevConsoleHelpers } from "../hooks/useDevConsoleHelpers";
 import { useGlobalState } from "../store/globalState";
 import { useGamepad } from "../hooks/useGamepad";
@@ -70,6 +71,7 @@ const App = () => {
           loading={stashConfig.loading}
         >
           <FeedbackOverlay />
+          <NewVersionNotice />
           <FeedPage />
         </ConfigurationProvider>
       </ErrorBoundary>

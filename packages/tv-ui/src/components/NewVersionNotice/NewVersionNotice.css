@@ -1,0 +1,16 @@
+.NewVersionNotice {
+  position: fixed;
+  top: calc(var(--safe-inset-top) + 1rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1100;
+  width: max-content;
+  max-width: calc(100% - 2rem);
+
+  .body {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    justify-content: space-between;
+  }
+}
