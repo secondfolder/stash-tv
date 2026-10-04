@@ -2,6 +2,7 @@ import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import { MediaItem } from "../../../hooks/useMediaItems";
 import { useEffect, useMemo, useRef } from "react";
 import videojs, { VideoJsPlayerOptions, type VideoJsPlayer } from "video.js";
+import { addVideoJsHook } from "./global-additions";
 
 const mediaItemPlayerCounter: Record<string, number> = {}
 const beforeSetupHooks: Record<string, videojs.Hook.BeforeSetup[]> = {}
@@ -89,7 +90,7 @@ export function usePlayerManager({mediaItem}: {mediaItem: MediaItem}) {
 }
 
 // Merge in any option overrides set by this component
-videojs.hook('beforesetup', function(videoEl, options) {
+addVideoJsHook('player-manager', 'beforesetup', function(videoEl, options) {
   let playerId
   try {
     playerId = getPlayerIdForVideoJsPlayer(videoEl);
@@ -115,7 +116,7 @@ function isObject(value: unknown): value is object  {
   return !!value && typeof value === 'object';
 }
 
-videojs.hook('setup', function(player) {
+addVideoJsHook('player-manager', 'setup', function(player) {
   let playerId
   try {
     playerId = getPlayerIdForVideoJsPlayer(player.el());

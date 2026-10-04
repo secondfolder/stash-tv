@@ -1,4 +1,5 @@
-import videoJsNamespace, { VideoJsPlayer } from "video.js";
+import { VideoJsPlayer } from "video.js";
+import { addVideoJsHook } from "./global-additions";
 
 /**
  * Hack to allow removal of plugins.
@@ -15,15 +16,15 @@ import videoJsNamespace, { VideoJsPlayer } from "video.js";
  * removing them can cause errors. To get around this we only add stub implementations of the plugins we want to remove.
  */
 
-export function allowPluginRemoval(videojs: typeof videoJsNamespace) {
-    videojs.hook('beforesetup', function(videoEl: Element, options: any) {
+export function allowPluginRemoval() {
+    addVideoJsHook('allow-plugin-removal:clear', 'beforesetup', function(videoEl: Element, options: any) {
         return {
             _originalPlugins: options.plugins,
             plugins: "clear"
         };
     });
 
-    videojs.hook('beforesetup', function(videoEl: Element, options: any) {
+    addVideoJsHook('allow-plugin-removal:rebuild', 'beforesetup', function(videoEl: Element, options: any) {
         const pluginsToKeep: Record<string, unknown> = {}
         for (const [key, value] of Object.entries(options._originalPlugins)) {
             if (value) {
@@ -36,7 +37,7 @@ export function allowPluginRemoval(videojs: typeof videoJsNamespace) {
     });
 
     // Add plugin stubs so that ScenePlayer doesn't error when trying to use them
-    videojs.hook('setup', (player: VideoJsPlayer) => {
+    addVideoJsHook('allow-plugin-removal:stubs', 'setup', (player: VideoJsPlayer) => {
         const plugins = player.toJSON().plugins || {};
 
         if (!('vrMenu' in plugins)) {

@@ -4,6 +4,7 @@ import React, { ForwardedRef, forwardRef, useCallback, useEffect, useMemo, useRe
 import { default as cx } from "classnames";
 import videojs, { VideoJsPlayerOptions, type VideoJsPlayer } from "video.js";
 import { allowPluginRemoval } from "./video.js/allow-plugin-removal";
+import { addVideoJsHook } from "./video.js/global-additions";
 import { moveStreamToFront } from "./video.js/source-selector-access";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import { useTvConfig } from "../../store/tvConfig";
@@ -31,7 +32,7 @@ function wrapPlayerFunction<FunctionName extends Exclude<FunctionKeys<VideoJsPla
     }) as VideoJsPlayer[FunctionName];
 }
 
-videojs.hook('setup', (player) => {
+addVideoJsHook('scene-player', 'setup', (player) => {
     // Stop ScenePlayer from stealing focus on mount
     player.focus = () => {}
 
@@ -65,7 +66,7 @@ videojs.hook('setup', (player) => {
     // }) as {(originalCurrentTimeFunction: VideoJsPlayer['currentTime'], seconds: number): void; (originalCurrentTimeFunction: VideoJsPlayer['currentTime'], ): number;} )
 });
 
-videojs.hook('beforesetup', function(videoEl, options) {
+addVideoJsHook('scene-player', 'beforesetup', function(videoEl, options) {
     // Will be merged in with existing options
     return {
         userActions: {
@@ -100,7 +101,7 @@ videojs.hook('beforesetup', function(videoEl, options) {
     }
 });
 
-allowPluginRemoval(videojs);
+allowPluginRemoval();
 
 ScenePlayerOriginal.displayName = "ScenePlayerOriginal";
 

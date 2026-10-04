@@ -1,5 +1,6 @@
 import { getLogger } from "@logtape/logtape";
 import videojs, { VideoJsPlayer } from "video.js";
+import { addVideoJsHook, useVideoJsMiddleware } from "./global-additions";
 import UAParser from "ua-parser-js";
 import testVideo from '../../../assets/1x1_10bit.webm?url';
 
@@ -205,9 +206,9 @@ function pauseLoadingMiddleware(player: VideoJsPlayer) {
   }
 }
 
-videojs.use("*", pauseLoadingMiddleware);
+useVideoJsMiddleware("pause-loading", "*", pauseLoadingMiddleware);
 
-videojs.hooks('beforeerror', ((player: VideoJsPlayer, error: unknown) => {
+addVideoJsHook('pause-loading', 'beforeerror', (player: VideoJsPlayer, error: unknown) => {
   // Replacing the source with an empty string to force the browser to stop loading results in an error being
   // thrown since an empty string is not a valid source. Such an error isn't helpful and might make the user
   // think something is wrong so we suppress it.
@@ -221,8 +222,7 @@ videojs.hooks('beforeerror', ((player: VideoJsPlayer, error: unknown) => {
     return null
   }
   return error
-  // Videojs's hook arguments aren't typed so we need to cast
-}) as () => {});
+});
 
 function testFor10BitSupport() {
   // Firefox has a bug for drawImage() with 10-bit videos https://bugzilla.mozilla.org/show_bug.cgi?id=2021540
