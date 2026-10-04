@@ -55,7 +55,21 @@ ports are cached in `E2E_MOCK_STASH_PORT` / `E2E_DEV_SERVER_PORT` because
 Playwright re-evaluates its config in every worker. Run standalone,
 `test:e2e-server` does the same fallback itself.
 
-E2E tests set up server-side state through `test/e2e/helpers/stash.ts`: `graphql(request, query, variables)` runs an operation against mock-stash, `setTvConfig(request, state)` replaces the persisted tvConfig with the given settings, and `setActionButtons(request, config)` replaces just the action button stack (`null` restores the defaults for either; call it in `afterEach`). `expectUsableOnScreen(locator)` (`test/e2e/helpers/layout.ts`) checks an element is on screen with nothing covering it. ⚠️ It hit-tests the element's corners, which aren't part of an element with rounded corners (e.g. a pill): check something inside it instead.
+E2E tests run in parallel, 4 workers by default (`E2E_WORKERS=<n>` to change
+it), each test file's tests spread across them (`fullyParallel`). They share
+one mock-stash and one dev server, but each worker has mock-stash state of its
+own: a *tenant*, named in a `mock-stash-tenant` cookie on the page's requests
+and an `x-mock-stash-tenant` header on the `request` fixture's
+(`test/e2e/helpers/test.ts`; mock-stash makes each tenant a store from fresh
+fixtures the first time it's seen, see `packages/mock-stash/src/tenant.ts`).
+So a test can change the server as it likes without another worker seeing it,
+but tests in the same worker do, one after another: still undo what you change
+in `afterEach`. ⚠️ The page names its tenant in a cookie, not a header: the
+app's media comes straight from mock-stash, a different origin from the page,
+and a custom header on those requests needs CORS, which stopped every video
+playing. A cookie isn't tied to a port, so it reaches both servers.
+
+E2E tests set up server-side state through `test/e2e/helpers/stash.ts`: `graphql(request, query, variables)` runs an operation against mock-stash, `setTvConfig(request, state)` replaces the persisted tvConfig with the given settings, and `setActionButtons(request, config)` replaces just the action button stack (`null` restores the defaults for either; call it in `afterEach`). `createTags(request, names)` / `destroyTags(request, ids)` add and remove tags, each in one request. `expectUsableOnScreen(locator)` (`test/e2e/helpers/layout.ts`) checks an element is on screen with nothing covering it. ⚠️ It hit-tests the element's corners, which aren't part of an element with rounded corners (e.g. a pill): check something inside it instead.
 
 Every e2e test imports `test` and `expect` from `test/e2e/helpers/test.ts` rather than `@playwright/test`, for the fixtures every test needs (e.g. coverage, below). Things on the page are found with `test/e2e/helpers/feed.ts`: `currentSlide` / `slideAt` / `currentIndex`, `infoPanel(page)`, and `box(locator)` (its bounding box, failing if it isn't rendered).
 
@@ -258,13 +272,15 @@ describe("integration feature", () => {
 
 ⚠️ **A field's controls in the info panel editor take the pointer only while shown.** Its ×, + and options buttons show when the field's hovered over (or tapped), and until then the field underneath gets the pointer. Playwright checks what's under the pointer before moving the mouse there, so `button.click()` never hovers and waits until the test times out: hover over the field first (`clickFieldControl()` in `test/e2e/scene-info-panel.test.ts`), as a mouse user does.
 
-⚠️ **Dropdown e2e tests need realistic data and timing.** The mock has only 5 tags, so a tag menu is much shorter than on a real library, and Stash's tag selects load their options asynchronously, so a menu opened straight away is just "Loading...". Bugs that depend on menu size, like react-select scrolling the page to reveal a menu, only show up with enough options and once they've loaded: create extra tags with the mock's `tagCreate` (and `tagDestroy` them afterwards), and wait for the field's `.react-select__loading-indicator` to go before clicking (see the very-short-window test in `create-marker-button.test.ts`).
+⚠️ **Wait for an e2e animation to finish with `stoppedMoving(container)`, not a fixed time** (`test/e2e/helpers/layout.ts`). It waits until nothing in the container has moved, resized or faded for 10 frames in a row. A fixed wait is longer than needed when the machine's quiet, and too short when it's busy: several info panel tests failed once the suite ran in parallel. Watch the element that's actually animating: react-select's menu isn't in the panel it opens from, so waiting on the panel didn't wait for the menu's scroll. A fixed wait is still right for checking something *doesn't* happen for a while (e.g. that feedback stays hidden during a hold).
 
-⚠️ **E2E tests leave scenes' play positions in mock-stash.** The app saves a scene's resume time as it plays (Stash's save-activity mutation), and the e2e mock server outlives each test, so a later test's video starts where an earlier one left it. That broke looping tests, as a looping video's loop starts there. `bootFeed` sets `startPosition: 'beginning'`; set it too if you boot the feed another way.
+⚠️ **Dropdown e2e tests need realistic data and timing.** The mock has only 5 tags, so a tag menu is much shorter than on a real library, and Stash's tag selects load their options asynchronously, so a menu opened straight away is just "Loading...". Bugs that depend on menu size, like react-select scrolling the page to reveal a menu, only show up with enough options and once they've loaded: create extra tags with `createTags` (and `destroyTags` them afterwards), and wait for the field's `.react-select__loading-indicator` to go before clicking (see the very-short-window test in `create-marker-button.test.ts`).
+
+⚠️ **E2E tests leave scenes' play positions in mock-stash.** The app saves a scene's resume time as it plays, and each worker's mock-stash state outlives each test, so a later test's video starts where an earlier one left it. That broke looping tests, as a looping video's loop starts there, and info panel tests, whose video ended and moved the feed on to another scene. `setTvConfig` sets `startPosition: 'beginning'` unless told otherwise; set it too if you load the feed without it.
 
 ⚠️ **use-gesture ignores the first 3px of a drag** (its threshold for telling a drag from a tap), in the direction the drag first went, for the rest of the drag. `speedDrag` allows for it. Without that, drags landed just short of the speed aimed for. A drag can also pass through other speeds on the way, which matters at the end of a looping video, where any speed that plays it loops it round: pass `{ steps: 1 }` to jump straight there.
 
-⚠️ **E2E tests that need non-default config set it through the API.** tvConfig lives in Stash's plugin config, so send a `configurePlugin` mutation to `/graphql` (proxied to mock-stash) before `page.goto`, and reset it to `{}` afterwards: the mock server is shared by every e2e test. Include `showGuideOverlay: false`, or the first-run guide overlay covers the page and swallows every click.
+⚠️ **E2E tests that need non-default config set it through the API.** tvConfig lives in Stash's plugin config, so send a `configurePlugin` mutation to `/graphql` (proxied to mock-stash) before `page.goto`, and reset it to `{}` afterwards: the worker's later tests share its mock-stash state. Include `showGuideOverlay: false`, or the first-run guide overlay covers the page and swallows every click.
 
 ⚠️ **The iOS on-screen keyboard can only be reproduced in the iOS Simulator, with a person tapping.** Playwright's WebKit has no on-screen keyboard. What works:
 - In the Simulator app, untick I/O ▸ Keyboard ▸ Connect Hardware Keyboard, or the on-screen keyboard never appears.
@@ -306,6 +322,8 @@ Issues found in the 2026-09 test-suite review that were **not** fixed — pick t
 - **`EditTagsContents` unit tests mock `EditTagSelectionForm`** — a real-form integration test would cover the prop forwarding for free and exercise the actual editing flow.
 
 ### App-code smells surfaced by the review (fix in app code, not tests)
+
+- **A dropdown in the create-marker panel can open partly off screen if it's opened very soon after the panel.** In a very short window its menu should open above its input, on screen. When `create-marker-button.test.ts` › "opening a dropdown in the panel doesn't scroll the page" waited only until the panel and menu stopped moving, rather than half a second either side of the click, the menu ended up partly above the top of the window about 1 run in 4 (with the suite in parallel). Probably a race between react-select placing the menu and `useFitDropdownMenus` fitting it. The test keeps its fixed waits until that's fixed.
 
 - **Scan-complete cache reset doesn't exist in tv-ui.** `resetStore()` on `ScanComplete` lives on stash-ui's `createClient()` client, which the app doesn't use for its queries — a finished scan won't refresh the feed. The original integration test asserted this fiction and was deleted. If the behaviour is wanted, wire the subscription in tv-ui and restore the test (the mock-server request counting added during the review is still available).
 

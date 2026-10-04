@@ -1,7 +1,7 @@
 import { type APIRequestContext, type Page } from '@playwright/test';
 import { test, expect } from './helpers/test';
-import { graphql, setActionButtons } from './helpers/stash';
-import { expectUsableOnScreen } from './helpers/layout';
+import { createTags, destroyTags, graphql, setActionButtons } from './helpers/stash';
+import { expectUsableOnScreen, stoppedMoving } from './helpers/layout';
 import { currentSlide } from './helpers/feed';
 
 /**
@@ -32,7 +32,8 @@ async function createMarker(request: APIRequestContext, title: string, seconds: 
  * `scrollIntoViewIfNeeded`) could bring a menu that's wrongly clipped by its surroundings into view.
  */
 async function expectAllOptionsUsable(page: Page) {
-  const options = page.getByRole('option');
+  // The open menu's options only: other selects (e.g. the player's) have options of their own, hidden or not
+  const options = page.locator('.react-select__menu').getByRole('option');
   await expect(options.first()).toBeVisible();
   for (const option of await options.all()) {
     await option.evaluate((el) => {
@@ -91,8 +92,7 @@ test.describe('Create-marker side panel', () => {
 
   test("doesn't move the panel when a dropdown opens", async ({ page }) => {
     const panel = await openPanel(page);
-    // Let the panel's open animation finish
-    await page.waitForTimeout(500);
+    await stoppedMoving(panel); // Its open animation's finished
     const before = await panel.boundingBox();
 
     await panel.getByRole('combobox', { name: 'Add or edit a marker' }).click();
@@ -297,17 +297,10 @@ test.describe('Create-marker side panel', () => {
     // A realistic number of tags, so the tag dropdown's menu is as tall as react-select allows
     const extraTagIds: string[] = [];
     test.beforeEach(async ({ request }) => {
-      for (let i = 1; i <= 15; i++) {
-        const data = await graphql(request, 'mutation ($input: TagCreateInput!) { tagCreate(input: $input) { id } }', {
-          input: { name: `Extra tag ${i}` },
-        });
-        extraTagIds.push(data.tagCreate.id);
-      }
+      extraTagIds.push(...await createTags(request, Array.from({ length: 15 }, (_, i) => `Extra tag ${i + 1}`)));
     });
     test.afterEach(async ({ request }) => {
-      for (const id of extraTagIds.splice(0)) {
-        await graphql(request, 'mutation ($input: TagDestroyInput!) { tagDestroy(input: $input) }', { input: { id } });
-      }
+      await destroyTags(request, extraTagIds.splice(0));
     });
 
     // react-select scrolls whatever contains a dropdown to bring a newly opened menu into view, measuring the menu
@@ -327,11 +320,16 @@ test.describe('Create-marker side panel', () => {
       const primaryTagField = panel.locator('.form-group', { has: page.locator('label[for="primary_tag_id"]') });
       // Wait for its options to load, so the menu opens at full size rather than as a short "Loading..." message
       await expect(primaryTagField.locator('.react-select__loading-indicator')).toHaveCount(0);
+      // ⚠️ Fixed waits, not stoppedMoving(), here and after opening the menu: with less time either side of the click
+      // (e.g. waiting only until things stop moving), the menu sometimes ends up partly above the top of the window,
+      // about 1 run in 4 with the suite running in parallel. That looks like a race in placing the menu (react-select's
+      // placement and useFitDropdownMenus) that a user opening it very soon after the panel would also hit
       await page.waitForTimeout(500); // and for the panel to finish animating into place
       const inputBox = (await primaryTagField.locator('.react-select__control').boundingBox())!;
       // A plain click where the input is, as a user would (no scrolling it into view first)
       await page.mouse.click(inputBox.x + inputBox.width / 2, inputBox.y + inputBox.height / 2);
-      await expect(primaryTagField.getByRole('option').first()).toBeVisible();
+      // Every tag (the fixtures' 5 and the extra ones), once their options have loaded
+      await expect(primaryTagField.getByRole('option')).toHaveCount(5 + extraTagIds.length);
       await page.waitForTimeout(500); // react-select may animate its scroll
 
       expect(await page.evaluate(() => (window as Window & { pageScrolled?: boolean }).pageScrolled)).toBe(false);

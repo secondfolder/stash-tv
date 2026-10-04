@@ -20,10 +20,12 @@ const devServerUrl = `http://127.0.0.1:${devServerPort}`;
 
 export default defineConfig({
   testDir: './test/e2e',
-  fullyParallel: false, // Run sequentially to avoid port conflicts
+  // Each worker has mock-stash state of its own (see test/e2e/helpers/test.ts), so tests in a file can run in parallel
+  // too. The tests wait on videos and animations in real time far more than they use the CPU.
+  fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: 1, // Single worker to avoid port conflicts
+  workers: process.env.E2E_WORKERS ? Number(process.env.E2E_WORKERS) : 4,
   reporter: 'html',
   use: {
     baseURL: devServerUrl,

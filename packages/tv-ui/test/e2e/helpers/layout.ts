@@ -25,3 +25,31 @@ export async function expectUsableOnScreen(element: Locator) {
   });
   expect(coveredAt, 'parts of the element are covered by something else').toEqual([]);
 }
+
+/**
+ * Wait until nothing in `container` (it included) has moved, changed size or faded for `frames` animation frames in a
+ * row, e.g. for an animation to finish. Use this rather than waiting a fixed time, which a busy machine can outlast
+ * (and which is usually longer than needed). What's in it is looked for afresh each frame, so elements coming or going
+ * count as changes. Fails if it's still changing after `timeout` ms.
+ *
+ * ⚠️ Pick a container without anything that never stops changing, e.g. a playing video's progress bar.
+ */
+export async function stoppedMoving(container: Locator, { frames = 10, timeout = 10_000 } = {}) {
+  await container.evaluate((root, { frames, timeout }) => new Promise<void>((resolve, reject) => {
+    const started = performance.now();
+    let previous = '';
+    let still = 0;
+    const sample = () => {
+      const state = [root, ...root.querySelectorAll('*')].map((element) => {
+        const { x, y, width, height } = element.getBoundingClientRect();
+        return `${x.toFixed(1)} ${y.toFixed(1)} ${width.toFixed(1)} ${height.toFixed(1)} ${getComputedStyle(element).opacity}`;
+      }).join();
+      still = state === previous ? still + 1 : 0;
+      previous = state;
+      if (still >= frames) resolve();
+      else if (performance.now() - started > timeout) reject(new Error(`Still changing after ${timeout}ms`));
+      else requestAnimationFrame(sample);
+    };
+    requestAnimationFrame(sample);
+  }), { frames, timeout });
+}

@@ -445,8 +445,7 @@ test.describe('Gestures', () => {
 
     await pointer.down(await areaPoint(page, 'right'));
     await expectFeedback(page, '1.5x', 'play');
-    await page.waitForTimeout(300);
-    expect(await playbackRates(page)).toEqual({ 0: 1.5, 1: 1.25, 2: 1.25 });
+    await expect.poll(() => playbackRates(page)).toEqual({ 0: 1.5, 1: 1.25, 2: 1.25 });
 
     await pointer.up();
     await expectFeedbackGone(page);

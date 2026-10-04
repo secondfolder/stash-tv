@@ -18,13 +18,10 @@ export interface Point {
 /* --------------------------------- Booting -------------------------------- */
 
 /**
- * Load the feed with the given tvConfig, recording the feedback overlay, and wait for the first video to play.
- *
- * Videos start from the beginning rather than where they were last left: the app saves a scene's play position to
- * mock-stash as it plays, which outlives each test, and a looping video's loop starts there.
+ * Load the feed with the given tvConfig, recording the feedback overlay, and wait for the first video to play. (Videos
+ * start from the beginning, as `setTvConfig` sets them to.)
  */
 export async function bootFeed(page: Page, request: Parameters<typeof setTvConfig>[0], config: Record<string, unknown> = {}) {
-  config = { startPosition: 'beginning', ...config };
   // E2E_LOG_GESTURES=1 prints the app's gesture and seeking logs, to see what a failing test did
   if (process.env.E2E_LOG_GESTURES) {
     page.on('console', (message) => {

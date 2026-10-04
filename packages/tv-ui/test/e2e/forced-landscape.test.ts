@@ -12,7 +12,7 @@ test.describe('Forced landscape', () => {
   test.beforeEach(async ({ page }) => {
     // forceLandscape is a device setting, kept in localStorage rather than Stash's config
     await page.addInitScript(() => {
-      localStorage.setItem('app-state-local', JSON.stringify({ state: { forceLandscape: true }, version: 2 }));
+      localStorage.setItem('app-state-local', JSON.stringify({ state: { forceLandscape: true }, version: 3 }));
     });
   });
 

@@ -1,24 +1,14 @@
-import { type Locator, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
 import { test, expect } from './helpers/test';
 import { setTvConfig } from './helpers/stash';
-import { currentSlide } from './helpers/feed';
+import { box, currentSlide } from './helpers/feed';
+import { stoppedMoving } from './helpers/layout';
 
 /**
  * E2E tests: reordering channels in the Settings tab, which needs pointer events and layout.
  *
  * @see docs/channels.md § "Settings UI"
  */
-
-/** Where the element is once it's stopped moving (e.g. the settings panel sliding in) */
-async function settledBox(locator: Locator) {
-  let previous = await locator.boundingBox();
-  for (;;) {
-    await locator.page().waitForTimeout(100);
-    const box = await locator.boundingBox();
-    if (box && previous && box.x === previous.x && box.y === previous.y) return box;
-    previous = box;
-  }
-}
 
 /** The channels listed in the Settings tab, as their names */
 function listedChannels(page: Page) {
@@ -46,9 +36,9 @@ test("keeps the temporary channel last when a channel's dragged below it", async
   await expect(listedChannels(page)).toHaveText(['All scenes', 'All markers', 'Beta']);
 
   const handle = page.locator('.ChannelSettings .channel').filter({ hasText: 'All scenes' }).locator('.drag-handle svg');
-  const handleBox = await settledBox(handle);
-  const temporaryBox = await page.locator('.ChannelSettings .channel.temporary').boundingBox();
-  if (!handleBox || !temporaryBox) throw new Error('Channels not shown');
+  await stoppedMoving(page.locator('.ChannelSettings')); // The settings panel's finished sliding in
+  const handleBox = await box(handle);
+  const temporaryBox = await box(page.locator('.ChannelSettings .channel.temporary'));
   const x = handleBox.x + handleBox.width / 2;
   const startY = handleBox.y + handleBox.height / 2;
   const endY = temporaryBox.y + temporaryBox.height / 2;

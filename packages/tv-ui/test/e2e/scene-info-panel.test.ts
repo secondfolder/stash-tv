@@ -1,7 +1,7 @@
 import { type APIRequestContext, type Locator, type Page } from '@playwright/test';
 import { test, expect } from './helpers/test';
-import { graphql, setTvConfig } from './helpers/stash';
-import { expectUsableOnScreen } from './helpers/layout';
+import { createTags, destroyTags, graphql, setTvConfig } from './helpers/stash';
+import { expectUsableOnScreen, stoppedMoving } from './helpers/layout';
 import { currentSlide, infoPanel, box } from './helpers/feed';
 
 /**
@@ -43,9 +43,11 @@ async function clickEdit(page: Page) {
   await morphDone(page);
 }
 
+/** Open the panel and switch it to its editor, once it's finished growing into it */
 async function startEditing(page: Page) {
   await openInfoPanel(page);
   await clickEdit(page);
+  await stoppedMoving(infoPanel(page));
 }
 
 /** Save the editor's changes, back to the panel showing the fields */
@@ -150,7 +152,7 @@ async function recordSlidingFields(page: Page) {
 }
 
 async function slidFields(page: Page) {
-  await page.waitForTimeout(500);
+  await stoppedMoving(infoPanel(page));
   return await page.evaluate(() => [...(window as unknown as { slid: Set<string> }).slid].sort());
 }
 
@@ -182,7 +184,7 @@ async function layoutsOverTime(page: Page, milliseconds = 800) {
 async function resizeUntil(page: Page, widths: number[], height: number, holds: () => Promise<boolean>) {
   for (const width of widths) {
     await page.setViewportSize({ width, height });
-    await page.waitForTimeout(150);
+    await stoppedMoving(infoPanel(page));
     if (await holds()) return width;
   }
   throw new Error(`No width of ${widths[0]}–${widths.at(-1)} that the test's set up needs`);
@@ -222,7 +224,10 @@ async function recordSettling(page: Page) {
 }
 
 async function settlingFrames(page: Page) {
-  await page.waitForTimeout(800);
+  await page.waitForFunction(() => {
+    const { settling } = window as unknown as { settling: unknown[] };
+    return settling.length > 0 && !document.querySelector('[data-current-video="true"] .drag-overlay.settling');
+  });
   return await page.evaluate(() => (window as unknown as { settling: { x: number, y: number, angle: number, targetShown: boolean }[] }).settling);
 }
 
@@ -622,7 +627,7 @@ test.describe('Scene info panel', () => {
     await startDrag(page, pill(page, 'performers'), studio.x + 4, studio.y + studio.height / 2);
     await page.mouse.move(title.x + title.width - 4, title.y + title.height / 2, { steps: 10 });
     await page.mouse.move(studio.x + 4, studio.y + studio.height / 2, { steps: 10 });
-    await page.waitForTimeout(500);
+    await stoppedMoving(infoPanel(page));
 
     const maxOpacity = await page.evaluate(() => (window as unknown as { maxGhostOpacity: number }).maxGhostOpacity);
     expect(maxOpacity).toBeGreaterThan(0);
@@ -638,7 +643,7 @@ test.describe('Scene info panel', () => {
 
     await startDrag(page, pill(page, 'date'), pastEnd(studio), studio.y + studio.height / 2);
     await expect.poll(() => editorLayout(page)).toEqual([['studio', 'date'], [], ['performers']]);
-    await page.waitForTimeout(500); // Any sliding into place has finished
+    await stoppedMoving(infoPanel(page)); // Any sliding into place has finished
 
     expect((await box(pill(page, 'performers'))).y).toBeCloseTo(performersBefore.y, 0);
     await page.mouse.up();
@@ -715,7 +720,7 @@ test.describe('Scene info panel', () => {
       window.addEventListener('pointerup', () => requestAnimationFrame(sample), { once: true });
     });
     await page.mouse.up();
-    await page.waitForTimeout(700);
+    await stoppedMoving(infoPanel(page));
 
     await expect.poll(() => editorLayout(page)).toEqual([['studio', 'date'], ['title'], ['performers']]);
     expect(await page.evaluate(() => (window as unknown as { hidden: string[] }).hidden)).toEqual([]);
@@ -786,7 +791,6 @@ test.describe('Scene info panel', () => {
     expect((await box(pill(page, 'rating'))).y).toBeGreaterThan(title.y + title.height);
 
     await startDrag(page, pill(page, 'studio'), title.x + 6, title.y + title.height / 2);
-    await page.waitForTimeout(300);
 
     await expect.poll(() => editorLayout(page)).toEqual([['title', 'studio', ...fields.slice(2)]]);
     await page.mouse.up();
@@ -819,7 +823,7 @@ test.describe('Scene info panel', () => {
     await startDrag(page, pill(page, 'date'), studio.x + 6, y);
     await expect.poll(() => editorLayout(page)).toEqual([['date', 'studio', 'title', 'performers'], []]);
     // Across the field it took the place of (pushed along by its ghost) and off its far side
-    await page.waitForTimeout(500); // It's finished sliding along
+    await stoppedMoving(infoPanel(page)); // It's finished sliding along
     const pushedStudio = await box(pill(page, 'studio'));
     await page.mouse.move(pushedStudio.x + pushedStudio.width + 3, y, { steps: 8 });
 
@@ -868,7 +872,7 @@ test.describe('Scene info panel', () => {
     // Up onto the left of the field above, which the ghost pushes out from under the pointer
     await startDrag(page, pill(page, 'performers'), date.x + 6, y);
     await expect.poll(() => editorLayout(page)).toEqual([['performers', 'date'], []]);
-    await page.waitForTimeout(500); // It's finished sliding along
+    await stoppedMoving(infoPanel(page)); // It's finished sliding along
 
     // Back onto it, rightwards
     const pushedDate = await box(pill(page, 'date'));
@@ -969,7 +973,7 @@ test.describe('Scene info panel', () => {
     // The second field down onto the one wrapped onto the second row, which, once the dragged field's out of the first
     // row, fits back on it
     await startDrag(page, pill(page, 'title'), tags.x + tags.width / 2, tags.y + tags.height / 2);
-    await page.waitForTimeout(500);
+    await stoppedMoving(infoPanel(page));
 
     const settled = await layoutsOverTime(page);
     expect(settled).toEqual([JSON.stringify([['studio', 'performers', 'date', 'tags', 'title']])]);
@@ -995,7 +999,7 @@ test.describe('Scene info panel', () => {
 
     // Onto the line's second field
     await startDrag(page, pill(page, 'studio'), performers.x + 6, performers.y + performers.height / 2);
-    await page.waitForTimeout(500);
+    await stoppedMoving(infoPanel(page));
 
     // No ghost on the line, which doesn't wrap and doesn't move about, but a line just before the second field
     const settled = await layoutsOverTime(page);
@@ -1007,7 +1011,7 @@ test.describe('Scene info panel', () => {
 
     await page.mouse.up();
     await expect.poll(() => editorLayout(page)).toEqual([['title', 'studio', 'performers', 'date', 'tags']]);
-    await page.waitForTimeout(500); // Finished sliding into place (the panel grows upwards, so everything's moved)
+    await stoppedMoving(infoPanel(page)); // Finished sliding into place (the panel grows upwards, so everything's moved)
     const titleAfter = await box(pill(page, 'title'));
     expect((await box(pill(page, 'tags'))).y).toBeGreaterThan(titleAfter.y + titleAfter.height);
   });
@@ -1024,7 +1028,7 @@ test.describe('Scene info panel', () => {
     const title = await box(pill(page, 'title'));
 
     await startDrag(page, pill(page, 'urls'), pastEnd(title), title.y + title.height / 2);
-    await page.waitForTimeout(500);
+    await stoppedMoving(infoPanel(page));
 
     const unusedDuring = await box(unused);
     expect(unusedDuring.height).toBeCloseTo(unusedBefore.height, 0);
@@ -1050,13 +1054,13 @@ test.describe('Scene info panel', () => {
 
     const unused = await box(infoPanel(page).locator('.available-items'));
     await startDrag(page, pill(page, 'performers'), unused.x + unused.width / 2, unused.y + unused.height - 6);
-    await page.waitForTimeout(500);
+    await stoppedMoving(infoPanel(page));
 
     // The unused fields have grown to take it, and the panel's bottom hasn't moved
     expect((await box(infoPanel(page).locator('.available-items'))).height).toBeGreaterThan(unusedBefore.height);
     expect(await panelBottom()).toBeCloseTo(bottomBefore, 0);
     await page.mouse.up();
-    await page.waitForTimeout(500);
+    await stoppedMoving(infoPanel(page));
     expect(await panelBottom()).toBeCloseTo(bottomBefore, 0);
   });
 
@@ -1076,7 +1080,6 @@ test.describe('Scene info panel', () => {
 
   test('doesn\'t slide the fields in when moving to the next video while editing', async ({ page }) => {
     await startEditing(page);
-    await page.waitForTimeout(500); // The panel's finished growing into the editor
     await recordSlidingFields(page);
 
     await page.keyboard.press('ArrowDown');
@@ -1118,14 +1121,19 @@ test.describe('Scene info panel', () => {
         await page.setViewportSize({ width: 900, height });
         await startEditing(page);
         const draggedWidth = (await box(pill(page, dragged))).width + 20; // As it is on a line, with its ×
+        // Measured once the pills have finished sliding to where the new width puts them
+        const resize = async (width: number) => {
+          await page.setViewportSize({ width, height });
+          await stoppedMoving(infoPanel(page), { frames: 3 });
+        };
         let width = 900;
         while (await rowsOf(targetLine) < rowsBefore) {
           width -= 10;
-          await page.setViewportSize({ width, height });
+          await resize(width);
         }
         while (await rowsOf(targetLine) > rowsBefore) {
           width += 1;
-          await page.setViewportSize({ width, height });
+          await resize(width);
         }
 
         const results: string[] = [];
@@ -1139,12 +1147,12 @@ test.describe('Scene info panel', () => {
             if (before !== rowsBefore) continue;
             const field = await box(pill(page, onto === 'first' ? target[0] : target[target.length - 1]));
             await startDrag(page, pill(page, dragged), field.x + 6, field.y + field.height / 2);
-            await page.waitForTimeout(500);
+            await stoppedMoving(infoPanel(page));
             const settled = await layoutsOverTime(page, 600);
             const ghostOnLine = await infoPanel(page).locator('.layout-lines .field-pill.ghost').count();
             const insertionLine = await infoPanel(page).locator('.insertion-line').count();
             await page.mouse.up();
-            await page.waitForTimeout(400);
+            await stoppedMoving(infoPanel(page));
             const after = await rowsOf(0);
             const wraps = after > before;
             const ok = settled.length === 1 && (wraps ? insertionLine === 1 && ghostOnLine === 0 : insertionLine === 0 && ghostOnLine === 1);
@@ -1185,7 +1193,7 @@ test.describe('Scene info panel', () => {
       await startEditing(page);
       await infoPanel(page).getByRole('button', { name: 'Field value' }).click();
       await morphDone(page);
-      await page.waitForTimeout(500);
+      await stoppedMoving(infoPanel(page));
       const lines = infoPanel(page).locator('.layout-lines > .layout-line');
       const linesBox = await box(infoPanel(page).locator('.layout-lines'));
       const fullLine = await box(lines.first());
@@ -1198,7 +1206,7 @@ test.describe('Scene info panel', () => {
       for (const fy of [0.1, 0.5, 0.9]) {
         for (let fx = 0.05; fx < 1; fx += 0.15) {
           await page.mouse.move(linesBox.x + linesBox.width * fx, fullLine.y + fullLine.height * fy, { steps: 5 });
-          await page.waitForTimeout(300);
+          await stoppedMoving(infoPanel(page));
           ghostShown ||= await infoPanel(page).locator('.layout-lines .field-pill.ghost').count() > 0;
           const [line, next] = await Promise.all([box(lines.nth(0)), box(lines.nth(1))]);
           if (Math.abs(line.height - fullLine.height) > 1 || Math.abs(next.y - (fullLine.y + fullLine.height)) > 20) {
@@ -1242,7 +1250,6 @@ test.describe('Scene info panel', () => {
     // The unused fields below the lines, so the panel shrinks by the whole line
     await page.setViewportSize({ width: 600, height: 1000 });
     await startEditing(page);
-    await page.waitForTimeout(500);
     const panelBefore = await box(infoPanel(page));
     // Every frame from the click: whether the toolbar is outside the panel's contents while they clip what's outside them
     await page.evaluate(() => {
@@ -1268,7 +1275,7 @@ test.describe('Scene info panel', () => {
 
     // Removing the o-count removes its line
     await clickFieldControl(infoPanel(page).getByRole('button', { name: 'Remove O-count' }));
-    await page.waitForTimeout(700);
+    await stoppedMoving(infoPanel(page));
 
     expect((await box(infoPanel(page))).height).toBeLessThan(panelBefore.height - 10);
     const { clipped, frames } = await page.evaluate(() => {
@@ -1578,12 +1585,7 @@ test.describe('Scene info panel fields', () => {
   const sceneId = 'scene-7';
   const extraTagIds: string[] = [];
   test.beforeEach(async ({ request }) => {
-    for (let i = 1; i <= 30; i++) {
-      const data = await graphql(request, 'mutation ($input: TagCreateInput!) { tagCreate(input: $input) { id } }', {
-        input: { name: `Extra tag ${i}` },
-      });
-      extraTagIds.push(data.tagCreate.id);
-    }
+    extraTagIds.push(...await createTags(request, Array.from({ length: 30 }, (_, i) => `Extra tag ${i + 1}`)));
     await graphql(request, 'mutation ($input: SceneUpdateInput!) { sceneUpdate(input: $input) { id } }', {
       input: { id: sceneId, tag_ids: extraTagIds },
     });
@@ -1594,9 +1596,7 @@ test.describe('Scene info panel fields', () => {
     await graphql(request, 'mutation ($input: SceneUpdateInput!) { sceneUpdate(input: $input) { id } }', {
       input: { id: sceneId, tag_ids: ['tag-beta'] },
     });
-    for (const id of extraTagIds.splice(0)) {
-      await graphql(request, 'mutation ($input: TagDestroyInput!) { tagDestroy(input: $input) }', { input: { id } });
-    }
+    await destroyTags(request, extraTagIds.splice(0));
     await setTvConfig(request, null);
   });
 
@@ -1641,7 +1641,7 @@ test.describe('Scene info panel fields', () => {
 
     await showMore.click();
     await expect(tags).not.toHaveClass(/capped/);
-    expect((await visibleTagRows(page)).length).toBeGreaterThan(2);
+    await expect.poll(async () => (await visibleTagRows(page)).length).toBeGreaterThan(2);
     await expect(showMore).toHaveCount(0);
   });
 
@@ -1658,7 +1658,7 @@ test.describe('Scene info panel fields', () => {
     await expect(tags.locator('.tag-item')).toHaveCount(fitting + 1);
     await expect(tags).not.toHaveClass(/capped/);
     await expect(tags.getByRole('button')).toHaveCount(0);
-    expect(await visibleTagRows(page)).toHaveLength(3);
+    await expect.poll(() => visibleTagRows(page)).toHaveLength(3);
   });
 
   test('shows every tag when asked to', async ({ page }) => {
@@ -1672,7 +1672,7 @@ test.describe('Scene info panel fields', () => {
 
     const tags = infoPanel(page).locator('.field-tags');
     await expect(tags).not.toHaveClass(/capped/);
-    expect((await visibleTagRows(page)).length).toBeGreaterThan(2);
+    await expect.poll(async () => (await visibleTagRows(page)).length).toBeGreaterThan(2);
   });
 
   // 3 is too small a rating for a star (e.g. given as 0.3 out of 10 with the decimal system), so it shows as none
