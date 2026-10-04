@@ -60,6 +60,15 @@ async function saveEdits(page: Page) {
   await morphDone(page);
 }
 
+/**
+ * Click one of a field's controls (its ×, + or options button) as a mouse user would: they're shown, and take the
+ * pointer, only while the field's hovered over, so hover over it first.
+ */
+async function clickFieldControl(button: Locator) {
+  await button.locator('xpath=ancestor::*[contains(concat(" ", normalize-space(@class), " "), " layout-item ")][1]').hover();
+  await button.click();
+}
+
 function pill(page: Page, field: string) {
   return infoPanel(page).locator(`.field-pill[data-field="${field}"]`);
 }
@@ -259,9 +268,11 @@ test.describe('Scene info panel', () => {
     await expectUsableOnScreen(infoPanel(page).getByRole('button', { name: 'Save' }));
     const lastAvailable = infoPanel(page).getByRole('button', { name: 'Add URLs' });
     await lastAvailable.scrollIntoViewIfNeeded();
-    // Its controls' drag handle rather than the pill, whose rounded corners aren't part of it (its controls, which
-    // the pointer can reach when they're hidden, are over its name)
-    await expectUsableOnScreen(infoPanel(page).locator('.available-items .field-pill[data-field="urls"] .drag-handle'));
+    // Its controls' drag handle rather than the pill, whose rounded corners aren't part of it. The controls are over
+    // its name, and take the pointer only while they're shown, when it's hovered over
+    const lastAvailablePill = infoPanel(page).locator('.available-items .field-pill[data-field="urls"]');
+    await lastAvailablePill.hover();
+    await expectUsableOnScreen(lastAvailablePill.locator('.drag-handle'));
     // Scrolling the panel mustn't have scrolled the feed on to another video
     await expectUsableOnScreen(infoPanel(page).getByRole('button', { name: 'Save' }));
   });
@@ -763,7 +774,7 @@ test.describe('Scene info panel', () => {
     await startEditing(page);
     await recordSlidingFields(page);
 
-    await infoPanel(page).getByRole('button', { name: 'Add Tags' }).click();
+    await clickFieldControl(infoPanel(page).getByRole('button', { name: 'Add Tags' }));
 
     expect(await slidFields(page)).toContain('tags');
   });
@@ -772,7 +783,7 @@ test.describe('Scene info panel', () => {
     await startEditing(page);
     await recordSlidingFields(page);
 
-    await infoPanel(page).getByRole('button', { name: 'Remove Title' }).click();
+    await clickFieldControl(infoPanel(page).getByRole('button', { name: 'Remove Title' }));
 
     expect(await slidFields(page)).toContain('title');
   });
@@ -833,13 +844,13 @@ test.describe('Scene info panel', () => {
     await startEditing(page);
     const before = await box(infoPanel(page));
 
-    await infoPanel(page).getByRole('button', { name: 'Add Tags' }).click();
+    await clickFieldControl(infoPanel(page).getByRole('button', { name: 'Add Tags' }));
     const after = await box(infoPanel(page));
     expect(after.y + after.height).toBeCloseTo(before.y + before.height, 0);
     expect(after.y).toBeLessThan(before.y);
 
     for (const name of ['Details', 'Groups', 'Studio code', 'Director', 'Rating', 'Duration', 'Resolution', 'Play count', 'O-count', 'File path', 'URLs']) {
-      await infoPanel(page).getByRole('button', { name: `Add ${name}` }).click();
+      await clickFieldControl(infoPanel(page).getByRole('button', { name: `Add ${name}` }));
     }
     const full = await box(infoPanel(page));
     expect(full.y).toBeGreaterThanOrEqual(0);
@@ -1268,7 +1279,7 @@ test.describe('Scene info panel', () => {
     });
 
     // Removing the o-count removes its line
-    await infoPanel(page).getByRole('button', { name: 'Remove O-count' }).click();
+    await clickFieldControl(infoPanel(page).getByRole('button', { name: 'Remove O-count' }));
     await page.waitForTimeout(700);
 
     expect((await box(infoPanel(page))).height).toBeLessThan(panelBefore.height - 10);
@@ -1664,7 +1675,7 @@ test.describe('Scene info panel fields', () => {
 
   test('shows every tag when asked to', async ({ page }) => {
     await startEditing(page);
-    await pill(page, 'tags').getByRole('button', { name: 'Tags options' }).click();
+    await clickFieldControl(pill(page, 'tags').getByRole('button', { name: 'Tags options' }));
     const dialog = page.getByRole('dialog');
     await dialog.getByText('Always show every tag').click();
     await dialog.getByRole('button', { name: 'Save' }).click();

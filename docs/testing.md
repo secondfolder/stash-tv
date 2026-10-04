@@ -249,6 +249,8 @@ describe("integration feature", () => {
 
 ⚠️ **jsdom tests don't load stylesheets**, so anything CSS decides, such as which elements are hidden, also needs an e2e test (e.g. the folder preview's 4-icon limit in `test/e2e/action-button-stack.test.ts`).
 
+⚠️ **A field's controls in the info panel editor take the pointer only while shown.** Its ×, + and options buttons show when the field's hovered over (or tapped), and until then the field underneath gets the pointer. Playwright checks what's under the pointer before moving the mouse there, so `button.click()` never hovers and waits until the test times out: hover over the field first (`clickFieldControl()` in `test/e2e/scene-info-panel.test.ts`), as a mouse user does.
+
 ⚠️ **Dropdown e2e tests need realistic data and timing.** The mock has only 5 tags, so a tag menu is much shorter than on a real library, and Stash's tag selects load their options asynchronously, so a menu opened straight away is just "Loading...". Bugs that depend on menu size, like react-select scrolling the page to reveal a menu, only show up with enough options and once they've loaded: create extra tags with the mock's `tagCreate` (and `tagDestroy` them afterwards), and wait for the field's `.react-select__loading-indicator` to go before clicking (see the very-short-window test in `create-marker-button.test.ts`).
 
 ⚠️ **E2E tests leave scenes' play positions in mock-stash.** The app saves a scene's resume time as it plays (Stash's save-activity mutation), and the e2e mock server outlives each test, so a later test's video starts where an earlier one left it. That broke looping tests, as a looping video's loop starts there. `bootFeed` sets `startPosition: 'beginning'`; set it too if you boot the feed another way.
