@@ -27,14 +27,17 @@ const App = () => {
 
   const stashConfig = GQL.useConfigurationQuery();
 
-  const modifiedStashConfig = {
-    ...stashConfig.data?.configuration,
+  // Undefined until Stash's configuration has loaded (as Stash's own app provides it), so components fall back to
+  // Stash's defaults. A partial configuration would crash those that read a section of it, like `general`
+  const loadedStashConfig = stashConfig.data?.configuration;
+  const modifiedStashConfig = loadedStashConfig && {
+    ...loadedStashConfig,
     interface: {
-      ...stashConfig.data?.configuration?.interface,
+      ...loadedStashConfig.interface,
       // Stash TV has it's own autoplay setting so we don't want to have that overridden by Stash settings
       autostartVideo: false,
     }
-  } as GQL.ConfigurationQuery["configuration"];
+  };
 
   useViewportRotate(forceLandscape);
   useBrowserZoomResetOnViewportChange();

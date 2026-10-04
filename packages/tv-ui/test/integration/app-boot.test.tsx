@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { setupIntegrationTest, bootApp } from "./helpers/harness";
 
 /**
@@ -28,6 +28,21 @@ describe("App boots against the mock Stash API", () => {
     expect(body.data.findScenes.count).toBe(8);
 
     // Apollo clients are not stopped — see the harness NOTE
+    await app.unmount();
+  });
+
+  it("shows the feed when Stash's configuration can't be loaded", async () => {
+    // As if Stash didn't answer: tvConfig falls back to its defaults, and the feed to Stash's default settings
+    const realFetch = globalThis.fetch;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) =>
+      typeof init?.body === "string" && init.body.includes('"operationName":"Configuration"')
+        ? Promise.reject(new TypeError("fetch failed"))
+        : realFetch(input, init)
+    );
+
+    const app = await bootApp();
+
+    expect(app.rendered.container.querySelector(".FeedPage")).toBeTruthy();
     await app.unmount();
   });
 });
