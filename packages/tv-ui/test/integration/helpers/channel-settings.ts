@@ -45,6 +45,16 @@ export async function openChannelSettings() {
   await screen.findByText("Channels");
 }
 
+/**
+ * The Settings tab's "Channel on Startup" select. Looked for within its form group: a label query over the whole booted
+ * app takes seconds (see docs/testing.md § "Gotchas")
+ */
+export function startupChannelSelect() {
+  const group = screen.getByText("Channel on Startup").closest<HTMLElement>(".form-group");
+  if (!group) throw new Error("Channel on Startup isn't in a form group");
+  return within(group).getByLabelText("Channel on Startup");
+}
+
 /** The channels listed in the Settings tab, as their names */
 export function listedChannels() {
   return [...document.querySelectorAll<HTMLElement>(".ChannelSettings .channel .channel-name")]

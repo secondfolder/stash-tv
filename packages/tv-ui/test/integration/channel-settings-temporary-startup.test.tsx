@@ -5,13 +5,13 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { act, screen, waitFor, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { act, waitFor, within } from "@testing-library/react";
 import { bootApp, savedTvConfig } from "./helpers/harness";
+import { chooseSelectOption } from "./helpers/selects";
 import { bootWithTvConfig, feedShows, click, tvConfig, feedDoesNotShow } from "./helpers/feed";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import type { ChannelConfig } from "../../src/components/channels/channel-config";
-import { setupChannelSettingsTest, ALPHA_SCENE, MARKER, alphaChannel, allMarkersChannel, openChannelSettings, listedChannels, channelItem } from "./helpers/channel-settings";
+import { setupChannelSettingsTest, startupChannelSelect, ALPHA_SCENE, MARKER, alphaChannel, allMarkersChannel, openChannelSettings, listedChannels, channelItem } from "./helpers/channel-settings";
 
 const integration = setupChannelSettingsTest();
 
@@ -116,10 +116,7 @@ describe("Channel on startup", () => {
     const app = await bootApp();
     await openChannelSettings();
 
-    const combobox = screen.getByLabelText("Channel on Startup");
-    act(() => combobox.focus());
-    await userEvent.keyboard("First");
-    click(await screen.findByText("First in list"));
+    await chooseSelectOption(startupChannelSelect(), "First in list");
 
     await waitFor(() => expect(savedTvConfig(integration).startupChannel).toBe("first"));
 

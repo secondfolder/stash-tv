@@ -229,6 +229,8 @@ describe("integration feature", () => {
 
 ⚠️ **Keep integration test files short, about 10 tests or 15s each.** Vitest runs files in parallel but a file's tests one after another, so a run takes as long as its slowest file: one 26-test file took 54s while the rest of the suite had finished. Split a long file by its `describe` blocks, moving the helpers they share into `test/integration/helpers/<feature>.ts`, with a `setup…Test()` for the hooks every file needs (e.g. `setupSceneInfoPanelTest()` in `helpers/scene-info-panel.ts`).
 
+⚠️ **Don't query a booted app's whole page by label.** `ByLabelText` works out the labels of every element it searches, and in jsdom each of those lookups scans the document, so its cost grows with the square of the page's size: `screen.getByLabelText("Channel on Startup")` took 5s with the feed and Settings tab rendered. Query within the dialog or form group the field is in (`ByText` is cheap enough to find that by, as `startupChannelSelect()` in `helpers/channel-settings.ts` does). One test spent 11s of a parallel run this way, which a busy machine pushed past the test timeout.
+
 ⚠️ **RTL's async timeout is 5s in integration tests** (`configure` in `harness.tsx`). The app and the mock server share one thread, so a round trip that takes ~200ms alone can take several times that when the whole suite runs in parallel. The 1s default made `create-marker-button` › "shows the new marker on the scene" flaky.
 
 ⚠️ **jsdom never fires `loadstart`.** Media loading is stubbed, so after a stream switch (or on a newly current slide) nothing tells `useSceneStreamSelection` which stream is playing. Call `fireLoadStart(app)` the way a browser would fire it.
