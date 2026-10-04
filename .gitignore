@@ -7,3 +7,4 @@ node_modules
 *storybook.log
 
 .DS_Store
+dist-release

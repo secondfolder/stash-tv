@@ -24,11 +24,18 @@ export default {
       },
     ],
     "@semantic-release/release-notes-generator",
-    "@semantic-release/github",
+    [
+      "@semantic-release/github",
+      {
+        // Hosting the plugin zip as a release asset means GitHub tracks how many times each version is downloaded
+        assets: [{ path: "dist-release/stash-tv-*.zip" }],
+      },
+    ],
     [
       "@semantic-release/exec",
       {
-        prepareCmd: "if [ \"$(jq -r '.version' package.json)\" != \"${nextRelease.version}\" ]; then echo 'Error: release version mismatch' >&2; exit 1; fi;",
+        // prepare runs (for all plugins) before publish so the zip exists by the time it's uploaded to the release
+        prepareCmd: "if [ \"$(jq -r '.version' package.json)\" != \"${nextRelease.version}\" ]; then echo 'Error: release version mismatch' >&2; exit 1; fi; ./scripts/package-plugin.sh ${nextRelease.version}",
         successCmd: "./scripts/deploy-to-stash-plugins.sh ${nextRelease.version}",
       },
     ],
