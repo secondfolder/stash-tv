@@ -1,29 +1,17 @@
 /**
- * The `?` key opens the keyboard shortcut list from anywhere in the feed, like
- * Stash's `?` for its manual.
+ * The keyboard shortcut list opens from the settings. (`?` opening it is unit tested, in
+ * test/unit/hooks/useShortcutListKey.test.tsx.)
  *
  * @see docs/keyboard-shortcuts.md § "Help text"
  */
 
 import { describe, expect, it } from "vitest";
 import { fireEvent, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { setupIntegrationTest, bootApp } from "./helpers/harness";
 
 setupIntegrationTest();
 
 describe("Keyboard shortcuts help", () => {
-  it("opens the keyboard shortcut list when ? is pressed", async () => {
-    const app = await bootApp();
-    expect(screen.queryByRole("dialog", { name: "Keyboard Shortcuts" })).not.toBeInTheDocument();
-
-    await userEvent.keyboard("?");
-
-    expect(await screen.findByRole("dialog", { name: "Keyboard Shortcuts" })).toBeInTheDocument();
-
-    await app.unmount();
-  });
-
   it("opens the keyboard shortcut list from the settings button", async () => {
     const app = await bootApp();
 

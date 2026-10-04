@@ -12,6 +12,7 @@ import { ErrorMessage } from "stash-ui/dist/src/components/Shared/ErrorMessage";
 import cx from "classnames";
 import { SettingsActionButton } from "../../components/action-buttons/buttons/SettingsActionButton";
 import { useGlobalState } from "../../store/globalState";
+import { useShortcutListKey } from "../../hooks/useShortcutListKey";
 
 interface FeedPageProps {
   className?: string;
@@ -61,22 +62,7 @@ const FeedPage: React.FC<FeedPageProps> = memo(({className}) => {
   }, [fullscreen]);
 
   /* --------------------------- Keyboard shortcuts --------------------------- */
-  // `?` opens the shortcut list, like Stash's `?` for its manual
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        e.key !== "?"
-        || e.ctrlKey || e.metaKey || e.altKey
-        || e.target instanceof HTMLInputElement
-        || e.target instanceof HTMLTextAreaElement
-      ) return;
-      setGlobalState("keyboardShortcutsOpen", true);
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [setGlobalState]);
+  useShortcutListKey();
 
   /* -------------------------------- component ------------------------------- */
 
