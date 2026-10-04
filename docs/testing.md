@@ -13,7 +13,7 @@ How the automated test suites work, the standards tests must follow, and the got
 | Plugin | `packages/tv-plugin/test/unit/` | Vitest (node env) | `yarn --cwd packages/tv-plugin test` |
 | E2E | `packages/tv-ui/test/e2e/` | Playwright + Chromium | `yarn test:e2e` |
 
-`yarn test` at the repo root runs repo + mock-stash + tv-ui + tv-plugin.
+`yarn test` at the repo root runs repo + mock-stash + tv-ui + tv-plugin. CI runs it, then the E2E tests (`yarn test:e2e` on 2 workers, the runner having 4 cores; ~6–7 minutes), and uploads Playwright's report and failures' screenshots, videos and traces as the `e2e-report` artifact if anything fails. A failing E2E test blocks a release.
 
 From `packages/tv-ui` (or with `yarn --cwd packages/tv-ui`):
 

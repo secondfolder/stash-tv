@@ -67,6 +67,28 @@ jobs:
         working-directory: stash-tv
         run: yarn test
 
+      - name: Install browser for E2E tests
+        working-directory: stash-tv/packages/tv-ui
+        run: npx playwright install --with-deps chromium
+
+      # Playwright starts mock-stash and the dev server itself (see packages/tv-ui/playwright.config.ts)
+      - name: Run E2E tests
+        working-directory: stash-tv
+        env:
+          # The runner has 4 cores, and each worker runs a browser playing video
+          E2E_WORKERS: 2
+        run: yarn test:e2e
+
+      - name: Upload E2E report on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-report
+          path: |
+            stash-tv/packages/tv-ui/playwright-report
+            stash-tv/packages/tv-ui/test-results
+          if-no-files-found: ignore
+
       - name: Release
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main') && steps.version.outputs.release == 'true'
         working-directory: stash-tv
