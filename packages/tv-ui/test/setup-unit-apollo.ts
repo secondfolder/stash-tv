@@ -34,12 +34,19 @@ vi.mock("../src/hooks/getApolloClient", () => ({
   })),
 }));
 
+// No tags, as for an empty library: what Stash's tag selects (e.g. in action button settings) load their options with
+const noTags = () => Promise.resolve({ data: { findTags: { count: 0, tags: [] } } });
+
 // Also mock the stash-ui StashService client used directly by some reused
-// components — same reasoning, no real connections from unit tests.
+// components — same reasoning, no real connections from unit tests. Its own
+// query helpers use its real client, not `getClient()`, so those the reused
+// components call are mocked too.
 vi.mock("stash-ui/dist/src/core/StashService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("stash-ui/dist/src/core/StashService")>();
   return {
     ...actual,
+    queryFindTagsForSelect: vi.fn(noTags),
+    queryFindTagsByIDForSelect: vi.fn(noTags),
     getClient: vi.fn(() => ({
       query: vi.fn(() => Promise.resolve(emptyConfigResult())),
       mutate: vi.fn(() => Promise.resolve({ data: {} })),

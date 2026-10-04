@@ -1,20 +1,57 @@
 /**
- * Action button settings forms. Buttons with options (quick tag, edit tags, volume, change channel, create marker) open a settings
- * form when added from the Settings tab, and again from the button's edit control in the Settings tab's list.
- *
- * The create marker button's settings are tested in a file of their own, so they run in parallel.
+ * Action button settings forms where a tag is chosen from Stash's: quick tag, edit tags, and create marker with
+ * defaults. The rest of the forms (and choosing no tag) is unit tested, in
+ * test/unit/components/actionButtonSettings.test.tsx.
  *
  * @see docs/action-buttons.md § "Settings Integration"
  */
 
 import { describe, expect, it } from "vitest";
 import { waitFor, within } from "@testing-library/react";
-import { bootApp, savedTvConfig } from "./helpers/harness";
+import { bootApp, savedTvConfig, setupIntegrationTest, type BootedApp } from "./helpers/harness";
 import { actionButtonRoot, displayedIconState } from "../helpers/actionButtons";
-import { setupActionButtonSettingsTest, stackConfig, stackButtons, openActionButtonSettings, addButton, editButton, settingsModal, chooseOption, chooseAnotherIcon, loadActionButtonIcons, isIconName, slideButton } from "./helpers/action-button-settings";
-import { setStackConfig, click } from "./helpers/feed";
+import {
+  addButton,
+  editButton,
+  openActionButtonSettings,
+  settingsModal,
+  settingsModalClosed,
+  stackButtons,
+  stackConfig,
+} from "../helpers/actionButtonSettings";
+import { click, currentSlide, setStackConfig } from "./helpers/feed";
+import { chooseSelectOption, openSelectMenu } from "./helpers/selects";
+import type { ActionButtonIconName } from "../../src/components/action-buttons/icons";
 
-const integration = setupActionButtonSettingsTest();
+const integration = setupIntegrationTest();
+
+/** Choose an option in one of the modal's selects, by typing its name */
+async function chooseOption(modal: HTMLElement, label: string, optionText: string) {
+  await chooseSelectOption(within(modal).getByLabelText(label), optionText);
+}
+
+/** Choose a different icon than the current one in the modal's icon select (icons have no names to choose by) */
+async function chooseAnotherIcon(modal: HTMLElement) {
+  const listbox = await openSelectMenu(within(modal).getByLabelText("Action Button Icon"));
+  const otherOption = within(listbox)
+    .getAllByRole("option")
+    .find((option) => option.getAttribute("aria-selected") !== "true");
+  if (!otherOption) throw new Error("No other icon to choose");
+  click(otherOption);
+}
+
+// Imported after boot: see docs/testing.md § "Gotchas" (importing app code at the top of an integration test)
+async function loadActionButtonIcons() {
+  return (await import("../../src/components/action-buttons/icons")).actionButtonIcons;
+}
+
+function isIconName(name: unknown, icons: Record<ActionButtonIconName, unknown>): name is ActionButtonIconName {
+  return typeof name === "string" && name in icons;
+}
+
+function slideButton(app: BootedApp, name: string) {
+  return within(currentSlide(app)).findByRole("button", { name });
+}
 
 describe("Quick tag settings", () => {
   it("adds a quick tag button for the chosen tag and icon", async () => {
@@ -28,7 +65,7 @@ describe("Quick tag settings", () => {
     await chooseAnotherIcon(modal);
     click(within(modal).getByRole("button", { name: "Add" }));
 
-    await waitFor(() => expect(document.querySelector(".ActionButtonSettingsModal")).toBeNull());
+    await settingsModalClosed();
     const added = (await stackButtons()).find((button) => button.buttonType === "quick-tag");
     expect(added).toMatchObject({ tagId: "tag-delta" });
     const iconId = added && "iconId" in added ? added.iconId : undefined;
@@ -38,22 +75,6 @@ describe("Quick tag settings", () => {
     const button = await slideButton(app, 'Add "Delta" to scene/marker');
     expect(await displayedIconState(actionButtonRoot(button), icons[iconId].states)).toBe("inactive");
     await waitFor(() => expect(JSON.stringify(savedTvConfig(integration))).toContain("tag-delta"));
-
-    await app.unmount();
-  });
-
-  it("won't add a quick tag button without a tag", async () => {
-    const app = await bootApp();
-    await openActionButtonSettings();
-    const buttonCountBefore = (await stackButtons()).length;
-
-    addButton("Add tag to scene/marker");
-    const modal = await settingsModal();
-    click(within(modal).getByRole("button", { name: "Add" }));
-
-    await waitFor(() => expect(modal).toHaveTextContent("tagId is a required field"));
-    expect(document.querySelector(".ActionButtonSettingsModal")).not.toBeNull();
-    expect(await stackButtons()).toHaveLength(buttonCountBefore);
 
     await app.unmount();
   });
@@ -70,7 +91,7 @@ describe("Quick tag settings", () => {
     await chooseOption(modal, "Tag to add (required)", "Delta");
     click(within(modal).getByRole("button", { name: "Save" }));
 
-    await waitFor(() => expect(document.querySelector(".ActionButtonSettingsModal")).toBeNull());
+    await settingsModalClosed();
     expect(await stackConfig()).toEqual([expect.objectContaining({ id: "quick", tagId: "tag-delta" })]);
     await waitFor(() => expect(JSON.stringify(savedTvConfig(integration))).toContain("tag-delta"));
 
@@ -87,7 +108,7 @@ describe("Quick tag settings", () => {
     await chooseOption(modal, "Tag to add (required)", "Delta");
     click(within(modal).getByRole("button", { name: "Cancel" }));
 
-    await waitFor(() => expect(document.querySelector(".ActionButtonSettingsModal")).toBeNull());
+    await settingsModalClosed();
     expect(await stackConfig()).toEqual(stackBefore);
 
     await app.unmount();
@@ -106,7 +127,7 @@ describe("Edit tags settings", () => {
     await chooseOption(modal, "Pinned Tags (optional)", "Delta");
     click(within(modal).getByRole("button", { name: "Save" }));
 
-    await waitFor(() => expect(document.querySelector(".ActionButtonSettingsModal")).toBeNull());
+    await settingsModalClosed();
     const editTagsButtons = (await stackButtons()).filter((button) => button.buttonType === "edit-tags");
     expect(editTagsButtons).toEqual([expect.objectContaining({ pinnedTagIds: ["tag-delta"] })]);
     await waitFor(() => expect(JSON.stringify(savedTvConfig(integration))).toContain("tag-delta"));
@@ -115,41 +136,24 @@ describe("Edit tags settings", () => {
   });
 });
 
-describe("Volume settings", () => {
-  it("turns on full volume control", async () => {
+describe("Create marker settings", () => {
+  it("adds a create marker button with the chosen defaults", async () => {
     const app = await bootApp();
     await openActionButtonSettings();
 
-    editButton("Volume");
+    addButton("Add/edit scene marker");
     const modal = await settingsModal();
-    click(within(modal).getByLabelText("Full volume control"));
-    click(within(modal).getByRole("button", { name: "Save" }));
+    click(within(modal).getByLabelText("Create with defaults"));
+    await chooseOption(modal, "Primary Tag (required)", "Delta");
+    await chooseOption(modal, "Tags (optional)", "Epsilon");
+    click(within(modal).getByRole("button", { name: "Add" }));
 
-    await waitFor(() => expect(document.querySelector(".ActionButtonSettingsModal")).toBeNull());
-    expect((await stackButtons()).filter((button) => button.buttonType === "volume")).toEqual([
-      expect.objectContaining({ fullControl: true }),
+    await settingsModalClosed();
+    expect((await stackButtons()).filter((button) => button.buttonType === "create-marker")).toEqual([
+      expect.objectContaining({ markerDefaults: expect.objectContaining({ primaryTagId: "tag-delta", tagIds: ["tag-epsilon"] }) }),
     ]);
-    await waitFor(() => expect(JSON.stringify(savedTvConfig(integration))).toContain('"fullControl":true'));
-
-    await app.unmount();
-  });
-});
-
-describe("Change channel settings", () => {
-  it("switches the default change channel button to cycling through channels", async () => {
-    const app = await bootApp();
-    await openActionButtonSettings();
-
-    editButton("Change channel");
-    const modal = await settingsModal();
-    click(within(modal).getByLabelText("Cycle through channels"));
-    click(within(modal).getByRole("button", { name: "Save" }));
-
-    await waitFor(() => expect(document.querySelector(".ActionButtonSettingsModal")).toBeNull());
-    expect((await stackButtons()).filter((button) => button.buttonType === "change-channel")).toEqual([
-      expect.objectContaining({ cycle: true }),
-    ]);
-    await waitFor(() => expect(JSON.stringify(savedTvConfig(integration))).toContain('"cycle":true'));
+    expect(await slideButton(app, 'Add/edit "Delta" markers')).toBeInTheDocument();
+    await waitFor(() => expect(JSON.stringify(savedTvConfig(integration))).toContain("tag-epsilon"));
 
     await app.unmount();
   });
