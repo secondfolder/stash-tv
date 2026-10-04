@@ -1,25 +1,30 @@
 import { act, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { expect } from "vitest";
+import { expect, vi } from "vitest";
 import { bootApp, type BootedApp } from "./harness";
 import type { useTvConfig } from "../../../src/store/tvConfig";
 import type { ActionButtonConfig } from "../../../src/components/action-buttons/buttons";
 import type { ChannelSource } from "../../../src/components/channels/channel-config";
 
 /**
- * Boot once to change persisted tvConfig, then boot fresh so the app starts with it (as it would after a reload).
- * `readyText` is passed to the second `bootApp()`.
+ * Change persisted tvConfig, then boot fresh so the app starts with it (as it would after a reload). `readyText` is
+ * passed to `bootApp()`.
+ *
+ * The config is changed through a fresh copy of the tvConfig store, without rendering the app: the store loads its
+ * saved state as it's imported, and saves changes through the app's own storage, so they land on the server as the
+ * app would save them. Rendering the feed is most of what a boot costs, so this saves one.
  */
 export async function bootWithTvConfig(
   configure: (tvConfig: ReturnType<typeof useTvConfig.getState>) => void,
   readyText?: string
 ) {
-  const first = await bootApp();
+  vi.resetModules();
   const { useTvConfig } = await import("../../../src/store/tvConfig");
-  await act(async () => {
-    configure(useTvConfig.getState());
-  });
-  await first.unmount();
+  const { useGlobalState } = await import("../../../src/store/globalState");
+  const { stashConfigWritesSettled } = await import("../../../src/helpers/stash-config-storage");
+  await waitFor(() => expect(useGlobalState.getState().tvConfigLoaded).toBe(true));
+  configure(useTvConfig.getState());
+  await stashConfigWritesSettled();
   return await bootApp(readyText);
 }
 

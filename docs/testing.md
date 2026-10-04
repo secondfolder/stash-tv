@@ -78,7 +78,7 @@ writes.
 
 Feed-level helpers live in `test/integration/helpers/feed.ts`:
 - `slides` / `currentSlide` / `sceneIdOf` / `goToNextSlide` / `goToSlide`: find and move between rendered slides
-- `bootWithTvConfig(configure, readyText?)`: boot, change persisted tvConfig, then boot fresh (e.g. a different filter or page size)
+- `bootWithTvConfig(configure, readyText?)`: change persisted tvConfig, then boot with it (e.g. a different filter or page size). It changes the config through a fresh copy of the tvConfig store without rendering the app: the store loads saved config as it's imported and saves through the app's own storage, and rendering the feed is most of what a boot costs
 - `pinActionButtons([...])` and `displayedSideInfo(app, buttonType)`: most action buttons sit in a closed folder by default, so pin the ones whose displayed state you assert on. Pass a button type, or a button's options for buttons that need them (e.g. `{ buttonType: "create-marker", iconId: "bookmark", markerDefaults: … }`)
 
 - `pinUncheckedActionButton(options)`: pin one button whose config skips type checking, to test how buttons handle bad saved config (e.g. an unknown `buttonType`, a quick tag with no `tagId`)
