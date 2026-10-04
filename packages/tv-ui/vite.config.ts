@@ -1,4 +1,4 @@
-import { defineConfig, loadEnv, ProxyOptions, UserConfig } from "vite";
+import { defineConfig, loadEnv, ProxyOptions, UserConfig, type PluginOption } from "vite";
 import svgr from 'vite-plugin-svgr';
 import pkg from "../../package.json" with { type: "json" };
 import { ClientRequest, ServerResponse } from "http";
@@ -121,6 +121,9 @@ export default defineConfig(({mode}) => {
       } : {})
     },
     envPrefix: ["VITE_", "STASH_ADDRESS"],
-    plugins: [svgr()]
+    // The assertion is only for types: vite-plugin-svgr is typed against the copy of `vite` it resolves (the repo
+    // root's), whose plugin types don't match this package's copy, though the plugin works with both (as in
+    // vitest.config.ts)
+    plugins: [svgr() as PluginOption]
   } satisfies UserConfig
 })
