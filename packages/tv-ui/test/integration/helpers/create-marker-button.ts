@@ -4,7 +4,7 @@ import type { MockStashServer } from "mock-stash";
 import { setupIntegrationTest, type BootedApp } from "./harness";
 import { currentSlide, pinActionButtons, click } from "./feed";
 import { sidePanel } from "../../helpers/actionButtons";
-import { chooseSelectOption, openSelectMenu } from "./selects";
+import { chooseSelectOption, openSelectMenu } from "../../helpers/selects";
 
 /**
  * Helpers for the create-marker action button's tests, which are split across files so they run in parallel. The

@@ -2,8 +2,9 @@
  * Channel settings. The Settings tab lists the user's channels: adding or editing one opens a modal to choose its
  * source, clicking one switches the feed to it, and "Channel on Startup" picks which one shows on load.
  *
- * Adding channels and choosing their sources. Editing, switching and deleting them, the temporary channel and the
- * channel on startup are tested in files of their own, so they run in parallel.
+ * Adding channels and choosing their sources from Stash's saved filters. Editing, switching and deleting them, the
+ * temporary channel and the channel on startup are tested in files of their own, so they run in parallel, and what
+ * doesn't need Stash's saved filters or the feed is unit tested (test/unit/components/channelSettings.test.tsx).
  *
  * @see docs/channels.md
  */
@@ -12,23 +13,12 @@ import { describe, expect, it, onTestFinished } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import { bootApp, savedTvConfig } from "./helpers/harness";
 import { bootWithTvConfig, feedShows, click, tvConfig, feedDoesNotShow } from "./helpers/feed";
-import { setupChannelSettingsTest, ALPHA_SCENE, NON_ALPHA_SCENE, defaultChannel, alphaChannel, allMarkersChannel, openChannelSettings, listedChannels, channelItem, channelModal, chooseSource, sourceOptions } from "./helpers/channel-settings";
+import { setupChannelSettingsTest, ALPHA_SCENE, NON_ALPHA_SCENE, alphaChannel, chooseSource, sourceOptions } from "./helpers/channel-settings";
+import { defaultChannel, allMarkersChannel, openChannelSettings, listedChannels, channelItem, channelModal } from "../helpers/channelSettings";
 
 const integration = setupChannelSettingsTest();
 
 describe("Channel settings", () => {
-  it("starts new users with a single \"All scenes\" channel that can't be deleted", async () => {
-    const app = await bootApp();
-    await openChannelSettings();
-
-    expect(listedChannels()).toEqual(["All scenes"]);
-    const item = channelItem("All scenes");
-    expect(within(item).getByRole("button", { name: "All scenes" })).toHaveAttribute("aria-current", "true");
-    expect(within(item).queryByRole("button", { name: "Delete channel" })).not.toBeInTheDocument();
-
-    await app.unmount();
-  });
-
   it("prefixes the names of saved filter channels with their type", async () => {
     const app = await bootWithTvConfig((config) => {
       config.set("channels", [defaultChannel, alphaChannel, allMarkersChannel, {
@@ -131,17 +121,4 @@ describe("Channel settings", () => {
     await app.unmount();
   });
 
-  it("won't add a channel without a source", async () => {
-    const app = await bootApp();
-    await openChannelSettings();
-
-    click(screen.getByText("Add channel"));
-    const modal = await channelModal();
-    click(within(modal).getByRole("button", { name: "Add" }));
-
-    await within(modal).findByText("Choose a filter");
-    expect((await tvConfig()).channels).toEqual([defaultChannel]);
-
-    await app.unmount();
-  });
 });

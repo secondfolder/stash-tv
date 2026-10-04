@@ -8,7 +8,8 @@ import { describe, expect, it } from "vitest";
 import { waitFor, within } from "@testing-library/react";
 import { savedTvConfig } from "./helpers/harness";
 import { bootWithTvConfig, feedShows, click, tvConfig } from "./helpers/feed";
-import { setupChannelSettingsTest, ALPHA_SCENE, MARKER, alphaChannel, allMarkersChannel, openChannelSettings, listedChannels, channelItem, channelModal, chooseSource } from "./helpers/channel-settings";
+import { setupChannelSettingsTest, ALPHA_SCENE, MARKER, alphaChannel, chooseSource } from "./helpers/channel-settings";
+import { allMarkersChannel, openChannelSettings, listedChannels, channelItem, channelModal } from "../helpers/channelSettings";
 
 const integration = setupChannelSettingsTest();
 

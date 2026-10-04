@@ -1,17 +1,19 @@
 /**
- * The temporary channel, and which channel shows on startup.
+ * The temporary channel's media in the feed, and which channel the feed shows on startup. The rest of the channel
+ * settings (where they don't need Stash's saved filters or the feed) is unit tested, in
+ * test/unit/components/channelSettings.test.tsx.
  *
  * @see docs/channels.md
  */
 
 import { describe, expect, it } from "vitest";
 import { act, waitFor, within } from "@testing-library/react";
-import { bootApp, savedTvConfig } from "./helpers/harness";
-import { chooseSelectOption } from "./helpers/selects";
+import { savedTvConfig } from "./helpers/harness";
 import { bootWithTvConfig, feedShows, click, tvConfig, feedDoesNotShow } from "./helpers/feed";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import type { ChannelConfig } from "../../src/components/channels/channel-config";
-import { setupChannelSettingsTest, startupChannelSelect, ALPHA_SCENE, MARKER, alphaChannel, allMarkersChannel, openChannelSettings, listedChannels, channelItem } from "./helpers/channel-settings";
+import { setupChannelSettingsTest, ALPHA_SCENE, MARKER, alphaChannel } from "./helpers/channel-settings";
+import { allMarkersChannel, openChannelSettings, channelItem } from "../helpers/channelSettings";
 
 const integration = setupChannelSettingsTest();
 
@@ -39,23 +41,6 @@ describe("Temporary channel", () => {
     await act(async () => config.set("channels", channels => [...channels, deltaChannel]));
   }
 
-  it("is listed last, marked temporary, and can't be edited or moved", async () => {
-    const app = await bootWithTvConfig((config) => {
-      config.set("channels", [alphaChannel, allMarkersChannel]);
-      config.set("lastViewedChannelId", "alpha");
-    }, ALPHA_SCENE);
-    await addTemporaryChannel();
-    await openChannelSettings();
-
-    await waitFor(() => expect(listedChannels()).toEqual(["Alpha Scenes", "All markers", "Tagged Delta"]));
-    const item = channelItem("Tagged Delta");
-    expect(within(item).getByText("Temporary")).toBeInTheDocument();
-    expect(within(item).queryByRole("button", { name: "Edit channel" })).not.toBeInTheDocument();
-    expect(item.querySelector(".drag-handle")).toHaveClass("disable");
-
-    await app.unmount();
-  });
-
   it("shows its filter's media, without becoming the last viewed channel or being saved", async () => {
     const app = await bootWithTvConfig((config) => {
       config.set("channels", [alphaChannel]);
@@ -74,22 +59,6 @@ describe("Temporary channel", () => {
     await app.unmount();
   });
 
-  it("can be deleted even when it's the only other channel, though the last saved one can't", async () => {
-    const app = await bootWithTvConfig((config) => {
-      config.set("channels", [alphaChannel]);
-      config.set("lastViewedChannelId", "alpha");
-    }, ALPHA_SCENE);
-    await addTemporaryChannel();
-    await openChannelSettings();
-
-    await waitFor(() => expect(listedChannels()).toEqual(["Alpha Scenes", "Tagged Delta"]));
-    expect(within(channelItem("Alpha Scenes")).queryByRole("button", { name: "Delete channel" })).not.toBeInTheDocument();
-    click(within(channelItem("Tagged Delta")).getByRole("button", { name: "Delete channel" }));
-
-    await waitFor(() => expect(listedChannels()).toEqual(["Alpha Scenes"]));
-
-    await app.unmount();
-  });
 });
 
 describe("Channel on startup", () => {
@@ -112,14 +81,4 @@ describe("Channel on startup", () => {
     await app.unmount();
   });
 
-  it("is chosen in the Settings tab", async () => {
-    const app = await bootApp();
-    await openChannelSettings();
-
-    await chooseSelectOption(startupChannelSelect(), "First in list");
-
-    await waitFor(() => expect(savedTvConfig(integration).startupChannel).toBe("first"));
-
-    await app.unmount();
-  });
 });

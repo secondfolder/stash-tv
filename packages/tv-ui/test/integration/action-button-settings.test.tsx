@@ -20,7 +20,7 @@ import {
   stackConfig,
 } from "../helpers/actionButtonSettings";
 import { click, currentSlide, setStackConfig } from "./helpers/feed";
-import { chooseSelectOption, openSelectMenu } from "./helpers/selects";
+import { chooseSelectOption, openSelectMenu } from "../helpers/selects";
 import type { ActionButtonIconName } from "../../src/components/action-buttons/icons";
 
 const integration = setupIntegrationTest();

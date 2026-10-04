@@ -1,6 +1,5 @@
-import { act, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { click } from "./feed";
 
 /**
  * Driving the react-select dropdowns that Stash's forms (and ours, built on them) use. A select's input is its
@@ -26,5 +25,5 @@ export function openSelectMenu(combobox: HTMLElement) {
 /** Choose a select's option by typing its name */
 export async function chooseSelectOption(combobox: HTMLElement, optionText: string, { exact = true } = {}) {
   const listbox = await typeIntoSelect(combobox, optionText);
-  click(await within(listbox).findByText(optionText, { exact }));
+  fireEvent.click(await within(listbox).findByText(optionText, { exact }));
 }
