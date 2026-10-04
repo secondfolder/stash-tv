@@ -61,7 +61,7 @@ jobs:
         working-directory: stash-tv
         run: |
           yarn tsc --version
-          yarn tsc --noEmit
+          yarn typecheck
 
       - name: Run tests
         working-directory: stash-tv

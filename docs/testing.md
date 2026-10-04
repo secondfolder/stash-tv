@@ -178,7 +178,7 @@ describe("integration feature", () => {
 
 ⚠️ **Running tests doesn't typecheck them.** There is no pre-commit hook in this repo (no husky/lint-staged; commitlint covers commit messages in CI only), and **vitest does not typecheck** — esbuild strips types. Type errors have landed in `main` test files this way. Run `yarn typecheck` from the repo root as part of any test change. It checks the root tsconfig (tv-ui, tv-plugin, mock-stash) and `packages/repo`'s own tsconfig.
 
-⚠️ **A bare `tsc` covers only one tsconfig.** `packages/repo` has its own `tsconfig.json`, which the root one doesn't include. Running `tsc` there skips everything else, and running it at the root skips `packages/repo`. `yarn typecheck` runs both.
+⚠️ **A bare `tsc` covers only one tsconfig.** `packages/repo` has its own `tsconfig.json`, which the root one doesn't include. Running `tsc` there skips everything else, and running it at the root skips `packages/repo`. `yarn typecheck` runs both, and so does CI.
 
 ⚠️ **jest-dom matcher typing can disagree between CLI and editor.** jest-dom v5 (pinned for React 17) ships only Jest-style types via `@types/testing-library__jest-dom`, which augments the global `jest.Matchers` namespace. Vitest's `Assertion` extends `jest.Matchers`, so the CLI resolves matchers via auto-included `@types` — but the editor's TS server doesn't reliably apply that augmentation, producing phantom "Property 'toHaveStyle' does not exist" errors that `tsc --noEmit` doesn't report. The explicit bridge in `tv-ui/types/jest-dom-matchers.d.ts` declares the matchers directly on vitest's `Assertion` so both agree. If you add more matcher libraries, extend that bridge.
 
@@ -277,7 +277,6 @@ Issues found in the 2026-09 test-suite review that were **not** fixed — pick t
 ### Enforcement (highest leverage)
 
 - **No lint enforcement of the standards.** The `any`/`as`-cast/`fireEvent` drift the review found would be caught by a minimal ESLint config (`@typescript-eslint/no-explicit-any`, `no-unnecessary-type-assertion`, RTL-specific rules) scoped to test files. Until then, the standards are manual.
-- **CI doesn't typecheck `packages/repo`.** CI's TypeScript check runs `tsc --noEmit` against the root tsconfig, which covers tv-ui (tests included), tv-plugin and mock-stash but not `packages/repo`. Switching that step to `yarn typecheck` would close the gap.
 - **No coverage thresholds.** Coverage is scoped to `src/**` (stories excluded) but nothing prevents regressions. Consider `coverage.thresholds` once the numbers stabilise.
 
 ### Known coverage holes (from the v8 report)
