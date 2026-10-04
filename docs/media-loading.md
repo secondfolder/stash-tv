@@ -102,7 +102,7 @@ Users can define custom JavaScript functions to filter/transform media items (po
 
 - [media-loading.test.tsx](packages/tv-ui/test/integration/media-loading.test.tsx) — first page loads and renders
 - [background-updates.test.tsx](packages/tv-ui/test/integration/background-updates.test.tsx) — live data on later-page slides after Stash's evictions, no refetch on eviction, unsaved tag edits and the player surviving background updates
-- [create-marker-button.test.tsx](packages/tv-ui/test/integration/create-marker-button.test.tsx) — a marker created, edited or deleted from a slide shows on it straight away (Stash evicts the scene's markers)
+- [create-marker-button.test.tsx](packages/tv-ui/test/integration/create-marker-button.test.tsx) and [create-marker-button-defaults.test.tsx](packages/tv-ui/test/integration/create-marker-button-defaults.test.tsx) — a marker created, edited or deleted from a slide shows on it straight away (Stash evicts the scene's markers)
 - [delete-media-item.test.tsx](packages/tv-ui/test/integration/delete-media-item.test.tsx) — deleting moves on to the next item and keeps every remaining item reachable across a shifted page boundary, and doesn't refetch the deleted scene
 - [keyboard-rating.test.tsx](packages/tv-ui/test/integration/keyboard-rating.test.tsx) — includes a rating shown on a slide from page 2
 - [stream-rewriting.test.tsx](packages/tv-ui/test/integration/stream-rewriting.test.tsx) — preview-only rewrite
