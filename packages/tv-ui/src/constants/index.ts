@@ -23,6 +23,15 @@ export const PLUGIN_CONFIG_PROPERTY = {
 
 export const PLUGIN_NAMESPACE = "stash-tv" as const;
 
+/**
+ * The URL params Stash describes a scene page's queue with: a filter's (sort, search, criteria and page), or
+ * hand-picked scenes' ids. The plugin opens Stash TV with them to show the queue (see `getStashQueue`).
+ */
+export const STASH_QUEUE_PARAMS = ["qsort", "qsortd", "qfq", "qfc", "qfp", "qs"];
+
+/** The URL param the plugin passes the scene Stash was playing from the queue in, for the feed to start at */
+export const STASH_QUEUE_SCENE_PARAM = "scene";
+
 export const proxyPrefix = "/stash";
 
 /** Values a playback position option's `label` or `shortLabel` can be built

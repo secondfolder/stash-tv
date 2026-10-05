@@ -38,7 +38,7 @@ const VideoScroller: React.FC<VideoScrollerProps> = memo(() => {
   /* ------------------------ Handle loading new videos ----------------------- */
 
 
-  const { mediaItems, loadMoreMediaItems, removeMediaItem } = useMediaItems();
+  const { mediaItems, loadMoreMediaItems, removeMediaItem, startIndex, clearFeedStart } = useMediaItems();
 
   const estimateSizeTesterElement = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -210,6 +210,14 @@ const VideoScroller: React.FC<VideoScrollerProps> = memo(() => {
     },
     [rowVirtualizer]
   );
+
+  // Move to the item the feed starts at (e.g. the scene Stash was playing from a queue), once it's loaded
+  useEffect(() => {
+    if (startIndex === undefined) return;
+    scrollToIndex(startIndex, { behavior: "instant" });
+    setCurrentIndex(startIndex);
+    clearFeedStart();
+  }, [startIndex]);
 
   useEffect(() => {
     logger.debug(`currentIndex changed to ${currentIndex}`);

@@ -61,6 +61,19 @@ A channel showing a filter that isn't saved anywhere, for showing something for 
 - **It never becomes the last viewed channel.** `setActiveChannel()` doesn't record it in `lastViewedChannelId`, so on the next load the last channel the user chose before it is shown.
 - `showTemporaryFilter(filter)` (from `useMediaItemFilters()`) replaces the temporary channel, if there is one, with one showing the given filter, and switches the feed to it. Its id is always `TEMPORARY_CHANNEL_ID`, so replacing it while it's showing keeps it the active channel and just reloads the feed (its target key, `getSourceTargetKey()`, includes the whole filter).
 - Its name is the filter's `name`, with the `Scenes: ` / `Markers: ` prefix of a saved filter.
+- Its filter can also have `scene_ids`, limiting it to those scenes, for what a Stash filter can't express (a Stash scene filter's `id` criterion takes a single id). They're passed to `findScenes` as `ids`. ⚠️ Given `ids`, Stash returns those scenes in the order given and ignores the filter's sort and paging: every page is the whole list. So a hand-picked queue keeps its order (as Stash's own queue does), and the feed gets it all from its first page (it skips what it already has and stops at the total, so that's harmless). Randomising such a filter has no effect.
+
+### Opening Stash's queue
+
+The plugin adds a Stash TV logo button to the controls of the Queue tab on Stash's scene page, left of the previous/next/random buttons. It opens Stash TV in a new tab showing that queue as the temporary channel ("Scenes: Queue"), at the scene Stash was playing.
+
+- **Stash's queue is in its URL**, and the button passes it on: Stash TV's link plus the scene page's queue params (`STASH_QUEUE_PARAMS` in `src/constants`, built by `getQueueTvLink()` in the plugin), read when it's clicked so it follows the queue as the user moves through it. Its other params (`t`, `autoplay`, `continue`) are left out. The scene playing (from the page's path, `/scenes/<id>`) is added as `scene` (`STASH_QUEUE_SCENE_PARAM`).
+- **Two kinds of queue**, both read with Stash's own `SceneQueue.fromQueryParameters` (`getStashQueue()` in `src/components/channels/stash-queue.ts`):
+  - played from a scene list: a filter (`qsort`, `qsortd`, `qfq`, `qfc`), which becomes the temporary filter. Its page (`qfp`) is dropped, as the feed paginates itself: it starts at the top of the queue.
+  - hand-picked scenes ("Play selected"): repeated `qs` ids, which become the temporary filter's `scene_ids`.
+- **Starts at the scene playing**, with the scenes before it still there to go back to. `getStashQueue()` returns it as a feed start (see [media loading](media-loading.md) § "Starting at an item"), expected within the first `page × 40` scenes: Stash's scene page shows its queue 40 scenes at a time, and the scene playing is on the page its URL names (`qfp`). For hand-picked scenes, it's within all of them. A queue sorted randomly gets a different order in Stash TV, so the scene usually isn't found and the feed starts at the top.
+- **Read once, on startup.** If the URL has a queue, `useMediaItemFilters` shows it (`showTemporaryFilter()`) instead of the startup channel, then takes the queue's params off the URL (`history.replaceState`), so reloading shows the startup channel as usual.
+- ⚠️ Stash's `QueueViewer` isn't patchable (it isn't wrapped in `PatchComponent`), so the plugin patches `ScenePage` to render a `QueueTvButton` beside it. That watches the page with a `MutationObserver`, as the Queue tab can be rendered later and re-rendered, and keeps a `<span>` of its own first in `#queue-viewer .queue-controls > div:last-child`, rendering the button into it with a portal.
 
 ### Filtering by an entity
 

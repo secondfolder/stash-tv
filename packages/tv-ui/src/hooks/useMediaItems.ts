@@ -34,6 +34,15 @@ const logger = getLogger(["stash-tv", "useMediaItems"]);
  */
 type FeedSource = { key: string; filter: SearchableMediaItemFilter; pageSize: number }
 
+/**
+ * An item for the feed to start at, the next time it loads (e.g. the scene Stash was playing from a queue opened in
+ * Stash TV). Its first fetch gets the first `withinFirst` items, where the item is expected to be, rather than just a
+ * page, so it's loaded in one go. Then it's dropped, whether the item was found or not.
+ *
+ * @see docs/media-loading.md § "Starting at an item"
+ */
+export type FeedStart = { itemId: string; withinFirst: number }
+
 type FeedState = {
   source: FeedSource | undefined;
   refs: MediaItemRef[];
@@ -45,6 +54,7 @@ type FeedState = {
   fetchInFlight: boolean;
   loading: boolean;
   error: Error | undefined;
+  start: FeedStart | undefined;
 }
 
 const initialFeedState: FeedState = {
@@ -55,6 +65,7 @@ const initialFeedState: FeedState = {
   fetchInFlight: false,
   loading: false,
   error: undefined,
+  start: undefined,
 }
 
 // Module-level so the components calling useMediaItems() (FeedPage, SettingsTab, VideoScroller) share one feed
@@ -84,7 +95,7 @@ async function fetchPage(client: ApolloClient<object>, filter: SearchableMediaIt
   if (filter.entityType === "scene") {
     const { data } = await client.query<GQL.FindFullScenesQuery, GQL.FindFullScenesQueryVariables>({
       query: GQL.FindFullScenesDocument,
-      variables: { filter: pageFilter, scene_filter: filter.entityFilter },
+      variables: { filter: pageFilter, scene_filter: filter.entityFilter, ids: filter.ids },
       fetchPolicy: "network-only",
     })
     return { items: data.findScenes.scenes.map(sceneMediaItem), skippedIds: [], total: data.findScenes.count }
@@ -108,22 +119,36 @@ async function fetchPage(client: ApolloClient<object>, filter: SearchableMediaIt
 
 function resetFeed(client: ApolloClient<object>, source: FeedSource) {
   for (const ref of useFeedStore.getState().refs) release(client, ref.cacheId)
-  useFeedStore.setState({ ...initialFeedState, skippedIds: new Set(), source, loading: true })
+  // The start is kept: it's set before the feed it's for loads
+  useFeedStore.setState(state => ({ ...initialFeedState, skippedIds: new Set(), source, loading: true, start: state.start }))
+}
+
+/** Start the feed at the given item the next time it loads (see `FeedStart`) */
+export function startFeedAt(start: FeedStart) {
+  useFeedStore.setState({ start })
+}
+
+/** Forget the feed's start, once it's been moved to */
+function clearFeedStart() {
+  useFeedStore.setState({ start: undefined })
 }
 
 async function loadNextPage(client: ApolloClient<object>) {
-  const { source, refs, skippedIds, total, fetchInFlight } = useFeedStore.getState()
+  const { source, refs, skippedIds, total, fetchInFlight, start } = useFeedStore.getState()
   if (!source || fetchInFlight) return;
   // Loaded items are the start of the server's list (minus deleted ones, which the server no longer counts either), so
   // this is the position of the first item not loaded yet -- even after a delete shifted every later item back one.
   // When it isn't on a page boundary the page overlaps what's loaded, and the overlap is skipped below.
   const offset = refs.length + skippedIds.size
   if (total !== undefined && offset >= total) return;
-  const page = Math.floor(offset / source.pageSize) + 1
-  logger.debug("Fetch media page {*}", {page})
+  // The first fetch for a start gets every item up to where it's expected, in whole pages so later pages line up
+  const startFetch = start !== undefined && offset === 0
+  const perPage = startFetch ? Math.max(1, Math.ceil(start.withinFirst / source.pageSize)) * source.pageSize : source.pageSize
+  const page = Math.floor(offset / perPage) + 1
+  logger.debug("Fetch media page {*}", {page, perPage})
   useFeedStore.setState({ fetchInFlight: true })
   try {
-    const result = await fetchPage(client, source.filter, page, source.pageSize)
+    const result = await fetchPage(client, source.filter, page, perPage)
     const state = useFeedStore.getState()
     if (state.source !== source) return; // The filter changed while this was in flight
     const loadedIds = new Set([...state.refs.map(ref => ref.id), ...state.skippedIds])
@@ -134,8 +159,12 @@ async function loadNextPage(client: ApolloClient<object>) {
       retain(client, cacheId)
       newRefs.push({ id: item.id, entityType: item.entityType, cacheId })
     }
+    const refs = [...state.refs, ...newRefs]
+    // A start that isn't where it was expected is dropped, so a later load doesn't jump there unexpectedly
+    const startFound = !startFetch || refs.some(ref => ref.id === start.itemId)
     useFeedStore.setState({
-      refs: [...state.refs, ...newRefs],
+      refs,
+      ...(startFound ? {} : { start: undefined }),
       skippedIds: new Set([...state.skippedIds, ...result.skippedIds]),
       total: result.total,
       fetchInFlight: false,
@@ -179,6 +208,7 @@ export function useMediaItems() {
   const refs = useFeedStore(state => state.refs)
   const loading = useFeedStore(state => state.loading)
   const error = useFeedStore(state => state.error)
+  const start = useFeedStore(state => state.start)
 
   useEffect(() => {
     if (!lastLoadedCurrentMediaItemFilter) return;
@@ -225,6 +255,9 @@ export function useMediaItems() {
     }
   }, [client, showDevOptions, refs, mediaItems])
 
+  // Where the feed should move to, once its start is loaded
+  const startIndex = start ? mediaItems.findIndex(ref => ref.id === start.itemId) : -1
+
   const [ neverLoaded, setNeverLoaded ] = useState(true)
   useEffect(() => {
     mediaItems.length && setNeverLoaded(false)
@@ -243,5 +276,8 @@ export function useMediaItems() {
     mediaItemsLoading: loading,
     mediaItemsNeverLoaded: neverLoaded,
     waitingForMediaItemsFilter: !lastLoadedCurrentMediaItemFilter,
+    /** The index of the item the feed should start at, once it's loaded (see `FeedStart`) */
+    startIndex: startIndex >= 0 ? startIndex : undefined,
+    clearFeedStart,
   }
 }

@@ -1,5 +1,5 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { PLUGIN_NAMESPACE } from "../tv-ui/src/constants";
+import { PLUGIN_NAMESPACE, STASH_QUEUE_PARAMS, STASH_QUEUE_SCENE_PARAM } from "../tv-ui/src/constants";
 import { StashTvConfig } from "../tv-ui/src/hooks/useStashTvConfig"
 import { ConfigDataFragment, ConfigInterfaceResult } from "stash-ui/dist/src/core/generated-graphql.js";
 import type { CheckboxGroup } from "stash-ui/dist/src/components/Settings/SettingsInterfacePanel/CheckboxGroup";
@@ -10,6 +10,8 @@ const { PluginApi } = window;
 const { React } = PluginApi;
 
 const graphqlClient = PluginApi.utils.StashService.getClient()
+
+const appLink = "/plugin/" + PLUGIN_NAMESPACE + "/assets/app/";
 
 // Run setup if first time the plugin is loaded
 updateTvConfig(
@@ -145,16 +147,14 @@ PluginApi.patch.before(
 );
 
 const StashTVButtonInner = () => {
-  const link = "/plugin/" + PLUGIN_NAMESPACE + "/assets/app/";
-
   return (
     <div
-      data-rb-event-key={link}
+      data-rb-event-key={appLink}
       className="col-4 col-sm-3 col-md-2 col-lg-auto nav-link"
       id="StashTVButton"
     >
       <a
-        href={link}
+        href={appLink}
         className="minimal p-4 p-xl-2 d-flex d-xl-inline-block flex-column justify-content-between align-items-center btn btn-primary"
         target="_blank"
       >
@@ -163,6 +163,70 @@ const StashTVButtonInner = () => {
         <span>TV</span>
       </a>
     </div>
+  );
+};
+
+// Add a button opening the scene page's queue in Stash TV to the queue's controls. The queue viewer isn't patchable
+// itself, so the button is put in its controls once they're rendered.
+PluginApi.patch.instead(
+  "ScenePage",
+  function (props, _, Original) {
+    return [
+      <Original {...props} />,
+      <QueueTvButton />,
+    ];
+  }
+);
+
+/**
+ * Stash TV's link showing the queue described by the scene page URL's search params, starting at the scene the page is
+ * playing (see `getStashQueue`)
+ */
+export function getQueueTvLink({ pathname, search }: Pick<Location, "pathname" | "search">) {
+  const sceneParams = new URLSearchParams(search);
+  const queueParams = new URLSearchParams();
+  for (const [key, value] of sceneParams) {
+    if (STASH_QUEUE_PARAMS.includes(key)) queueParams.append(key, value);
+  }
+  const sceneId = pathname.match(/\/scenes\/(\d+)/)?.[1];
+  if (sceneId) queueParams.set(STASH_QUEUE_SCENE_PARAM, sceneId);
+  return appLink + "?" + queueParams;
+}
+
+const QueueTvButton = () => {
+  const [container, setContainer] = React.useState<HTMLElement | null>(null);
+
+  // The queue's tab, and the queue viewer, can render after the page does, and be re-rendered, so watch for them.
+  // Our button goes in a container of its own, first in the controls on the right (Stash only adds its own buttons
+  // after or between each other's, so it stays first).
+  React.useEffect(() => {
+    const ourContainer = document.createElement("span");
+    ourContainer.className = "stash-tv-queue-button";
+    const placeContainer = () => {
+      const controls = document.querySelector("#queue-viewer .queue-controls > div:last-child");
+      if (controls && controls.firstChild !== ourContainer) controls.prepend(ourContainer);
+    };
+    placeContainer();
+    setContainer(ourContainer);
+    const observer = new MutationObserver(placeContainer);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => {
+      observer.disconnect();
+      ourContainer.remove();
+    };
+  }, []);
+
+  if (!container) return null;
+  return PluginApi.ReactDOM.createPortal(
+    <PluginApi.libraries.Bootstrap.Button
+      className="minimal"
+      variant="secondary"
+      title="Open queue in Stash TV"
+      onClick={() => window.open(getQueueTvLink(window.location), "_blank")}
+    >
+      <StashTvLogo className="svg-inline--fa fa-icon" />
+    </PluginApi.libraries.Bootstrap.Button>,
+    container
   );
 };
 

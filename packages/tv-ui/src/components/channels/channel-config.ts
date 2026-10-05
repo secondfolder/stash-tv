@@ -40,7 +40,10 @@ export type TemporaryFilterSource = SharedSourceFields & {
   filter: TemporaryFilter
 }
 
-export type TemporaryFilter = Pick<GQL.SavedFilter, "mode" | "name" | "find_filter" | "object_filter">
+export type TemporaryFilter = Pick<GQL.SavedFilter, "mode" | "name" | "find_filter" | "object_filter"> & {
+  /** Only these scenes, for what a Stash filter can't express (e.g. a queue of hand-picked scenes) */
+  scene_ids?: string[]
+}
 
 export type ChannelSource = StashSavedFilterSource | AllMediaSource | TemporaryFilterSource
 

@@ -137,7 +137,7 @@ The project uses a monorepo structure with Yarn workspaces containing three pack
 - **Technology:** Vite, static asset copy plugin
 - **Responsibilities:**
   - Bundles tv-ui as a UMD library (`stash-tv.umd.js`)
-  - Provides plugin injection UI into Stash's native interface
+  - Provides plugin injection UI into Stash's native interface: the nav bar's TV link, and a button in a scene page's queue controls opening the queue in Stash TV ([channels](docs/channels.md) § "Opening Stash's queue")
   - Handles plugin settings and configuration in Stash
   - Manages plugin initialization and setup
   - Copies source.yml metadata as plugin manifest

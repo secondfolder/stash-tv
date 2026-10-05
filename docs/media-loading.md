@@ -54,6 +54,14 @@ The feed is keyed by a hash of the filter's contents plus the page size, not by 
 
 Markers whose start time is past the end of their scene are skipped (`markerIsPlayable`). Their IDs are kept in `skippedIds` because they still occupy positions in the server's list.
 
+### Starting at an item
+
+The feed can be told to start at an item rather than its top (`startFeedAt({ itemId, withinFirst })`), e.g. the scene Stash was playing when its queue was opened in Stash TV (see [channels](channels.md) § "Opening Stash's queue"). It's set before the feed it's for loads, so `resetFeed` keeps it.
+
+- **Loaded in one fetch.** The item could be far down the list, and fetching a page at a time to find it would take many requests. So the first fetch after a start is set gets the first `withinFirst` items (rounded up to whole pages, so later pages still line up), where the caller expects the item to be.
+- **Moved to once loaded.** `useMediaItems()` returns its `startIndex` once it's in the list. `VideoScroller` then scrolls there and makes it current, and clears the start (`clearFeedStart()`). The items before it stay loaded, so the user can go back up.
+- **One-shot.** If the first fetch doesn't contain the item (e.g. it's been deleted, or the list is sorted randomly), the start is dropped and the feed stays at its top, so a later load never jumps unexpectedly.
+
 ### The `MediaItem` type
 
 `MediaItem` (defined in `src/helpers/mediaItem.ts`, re-exported from `useMediaItems.ts`) is a discriminated union. Narrow it before accessing `entity`:
@@ -101,6 +109,7 @@ Users can define custom JavaScript functions to filter/transform media items (po
 ## Testing Media Loading
 
 - [media-loading.test.tsx](packages/tv-ui/test/integration/media-loading.test.tsx) — first page loads and renders
+- [stash-queue.test.tsx](packages/tv-ui/test/integration/stash-queue.test.tsx) — a feed started at an item past the first page moves to it, keeping the items before it
 - [background-updates.test.tsx](packages/tv-ui/test/integration/background-updates.test.tsx) — live data on later-page slides after Stash's evictions, no refetch on eviction, unsaved tag edits and the player surviving background updates
 - [create-marker-button.test.tsx](packages/tv-ui/test/integration/create-marker-button.test.tsx) and [create-marker-button-defaults.test.tsx](packages/tv-ui/test/integration/create-marker-button-defaults.test.tsx) — a marker created, edited or deleted from a slide shows on it straight away (Stash evicts the scene's markers)
 - [delete-media-item.test.tsx](packages/tv-ui/test/integration/delete-media-item.test.tsx) — deleting moves on to the next item and keeps every remaining item reachable across a shifted page boundary, and doesn't refetch the deleted scene

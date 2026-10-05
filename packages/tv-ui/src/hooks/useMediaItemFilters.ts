@@ -20,6 +20,8 @@ import {
   TemporaryFilter,
   withTemporaryChannel,
 } from "../components/channels/channel-config";
+import { getStashQueue, removeStashQueueParamsFromUrl } from "../components/channels/stash-queue";
+import { startFeedAt } from "./useMediaItems";
 
 /** In Stash a filter has a different format when it's saved vs when it's used in a search. The stash codebase doesn't
  * seem to do a great job of naming these different formats to make that clear. When a filter is saved it usually just
@@ -35,7 +37,8 @@ import {
  * for specifically a media item filter).
  */
 
-type SavedMediaItemFilter = GQL.SavedFilter
+/** A temporary filter can also be limited to particular scenes (see `TemporaryFilter`) */
+type SavedMediaItemFilter = GQL.SavedFilter & Pick<TemporaryFilter, "scene_ids">
 
 export type SearchableMediaItemFilter = {
   savedFilter?: SavedMediaItemFilter,
@@ -44,6 +47,8 @@ export type SearchableMediaItemFilter = {
   {
     entityFilter: GQL.FindFullScenesQueryVariables["scene_filter"]
     entityType: "scene"
+    /** Only these scenes */
+    ids?: string[]
   } |
   {
     entityFilter: GQL.FindSceneMarkersForTvQueryVariables["scene_marker_filter"]
@@ -180,6 +185,14 @@ export function useMediaItemFilters() {
   useEffect(() => {
     if (!isResponsibleForLoading) return;
     if (activeChannelId === undefined) {
+      // Opened with a queue from Stash's scene page: show it rather than the startup channel, at the scene Stash was playing
+      const stashQueue = getStashQueue(new URLSearchParams(window.location.search))
+      if (stashQueue) {
+        if (stashQueue.start) startFeedAt(stashQueue.start)
+        showTemporaryFilter(stashQueue.filter)
+        removeStashQueueParamsFromUrl()
+        return
+      }
       useGlobalFilterState.setState({
         activeChannelId: getStartupChannel(channels, startupChannel, lastViewedChannelId)?.id ?? null
       })
@@ -326,6 +339,7 @@ export function useMediaItemFilters() {
         ...sharedProps,
         entityFilter: getSceneFilter(),
         entityType: "scene",
+        ids: savedFilter.scene_ids,
       }
     } else if (savedFilter.mode === GQL.FilterMode.SceneMarkers) {
       return {
