@@ -60,3 +60,15 @@ export const END_POSITION_OPTIONS = [
   { value: 'fixed-length', label: ({formattedDuration}: PlaybackPositionLabelContext) => `Play for ${formattedDuration}`, shortLabel: ({formattedDuration}: PlaybackPositionLabelContext) => `After ${formattedDuration}` },
   { value: 'random-length', label: 'Play for random length of time', shortLabel: 'Random end' },
 ] as const;
+
+/** The UI controls (and the panels they open) that keep the UI showing while a mouse rests over them, and whose click
+ * is swallowed when the press that made it woke the UI (see `useUiAutoHide`) */
+export const UI_CONTROLS_SELECTOR = [
+  ".hide-on-ui-hide",
+  ".dim-on-ui-hide",
+  ".vjs-control-bar",
+  ".SceneInfo.active",
+  ".folder-contents-popover",
+  ".PopoverPanel",
+  ".EntityPopover",
+].join(", ");

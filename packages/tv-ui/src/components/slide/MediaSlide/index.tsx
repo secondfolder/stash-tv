@@ -15,6 +15,7 @@ import { useTvConfig } from "../../../store/tvConfig";
 import CrtEffect from "../../CrtEffect";
 import { defaultMarkerLength, MediaItem, MediaItemRef } from "../../../hooks/useMediaItems";
 import { useLiveMediaItem } from "../../../hooks/useLiveMediaItem";
+import { useUiVisible } from "../../../hooks/useUiVisible";
 import { useKeyboardRating } from "../../../hooks/rating/useKeyboardRating";
 import { getSceneStreamsKey } from '../../../helpers/getSceneStreamsKey';
 import { createPortal } from "react-dom";
@@ -95,10 +96,10 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
     minPlayLength,
     maxPlayLength,
     showGuideOverlay,
-    uiVisible,
     leftHandedUi,
     set: setTvConfig,
   } = useTvConfig();
+  const { shown: uiShown, uiIdle } = useUiVisible(props.mediaItem.id);
 
   const mediaSlideElementRef = useRef<HTMLDivElement>(null)
 
@@ -743,7 +744,7 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
       }}
     >
       <div
-        className={cx("MediaSlide", {'current-video': isCurrentVideo, 'cover': !letterboxing, 'hide-controls': !uiVisible, 'left-handed': leftHandedUi}, props.className)}
+        className={cx("MediaSlide", {'current-video': isCurrentVideo, 'cover': !letterboxing, 'hide-controls': !uiShown, 'ui-idle': uiIdle, 'left-handed': leftHandedUi}, props.className)}
         data-testid="MediaSlide--container"
         data-index={props.index}
         data-scene-id={scene.id}

@@ -170,12 +170,12 @@ Semantic Release, Commitlint, Yarn Workspaces.
 Three Zustand stores, each exposing the same typed `set` / `get` / `setToDefault` / `getDefault` API. Always mutate through these — never `useStore.setState`, which bypasses type safety and, for tvConfig, the persistence routing. 🚫 Never modify state before `tvConfigLoaded` is true. Full details (hybrid storage, adding config options): [state & config](docs/state-and-config.md)
 
 - `tvConfig.ts` — persisted user preferences/plugin settings (hybrid Stash-config + localStorage storage)
-- `globalState.ts` — transient UI state (settings panel, fullscreen, keyboard shortcuts modal, `tvConfigLoaded`)
+- `globalState.ts` — transient UI state (settings panel, fullscreen, keyboard shortcuts modal, the current slide's media item, which slide's UI is auto-hidden, `tvConfigLoaded`)
 - `mediaItemState.tsx` — per-slide UI state provided via context (e.g. open action-button folder, o-counter display). Feed pagination is a separate store inside `useMediaItems` (see [media loading](docs/media-loading.md))
 
 ### Key Hooks (`src/hooks/`)
 
-`useMediaItems()` (the feed's list of item references and pagination) and `useLiveMediaItem()` (a slide's live data from the Apollo cache) — see [media loading](docs/media-loading.md), `useMediaItemFilters()` (resolves the active channel to a filter — see [channels](docs/channels.md)), `getApolloClient()` (singleton Apollo client for the Stash API), `useStashTvConfig()`, `useGamepad()`, `useViewportRotate()`, `useBrowserZoomResetOnViewportChange()`, `useResizeObserver()` (re-measure when elements resize: use it rather than hand-rolling a `ResizeObserver` effect), `useSeeking()` (seek a slide's video at a speed until stopped, with feedback: shared by gestures and the arrow keys, see [video player](docs/video-player.md) § "Gestures"), `useMorphTransition()` (animate a change to what's shown, each `data-morph-key` element sliding and morphing into its counterpart: used for the scene info panel's editor)
+`useMediaItems()` (the feed's list of item references and pagination) and `useLiveMediaItem()` (a slide's live data from the Apollo cache) — see [media loading](docs/media-loading.md), `useMediaItemFilters()` (resolves the active channel to a filter — see [channels](docs/channels.md)), `getApolloClient()` (singleton Apollo client for the Stash API), `useStashTvConfig()`, `useGamepad()`, `useViewportRotate()`, `useBrowserZoomResetOnViewportChange()`, `useResizeObserver()` (re-measure when elements resize: use it rather than hand-rolling a `ResizeObserver` effect), `useSeeking()` (seek a slide's video at a speed until stopped, with feedback: shared by gestures and the arrow keys, see [video player](docs/video-player.md) § "Gestures"), `useUiVisible()` (whether the UI is shown: read its `shown` to hide anything with the UI) and `useUiAutoHide()` (fades the UI out after mouse inactivity), see [state & config](docs/state-and-config.md) § "UI visibility & auto-hide", `useMorphTransition()` (animate a change to what's shown, each `data-morph-key` element sliding and morphing into its counterpart: used for the scene info panel's editor)
 
 ### Component Hierarchy
 
@@ -245,6 +245,7 @@ Settings & UI Overlays:
 - **Custom media modifier functions** — user-defined JS (stored as a string, parsed via `getFunctionFromString()`) applied to the media list before display
 - **Keyboard shortcuts** — ⚠️ any change that adds, removes or rebinds a shortcut must also update the help text in `KeyboardShortcutsInfo.md` (see [keyboard shortcuts](docs/keyboard-shortcuts.md))
 - **New version notice** — when the app is brought back to the foreground it checks the version installed in Stash and offers to reload into it, since iOS home-screen apps otherwise keep running a cached build ([app updates](docs/app-updates.md))
+- **UI auto-hide** — with a mouse, the current slide's UI and the cursor fade out after a few seconds idle and come back on any interaction, as well as hiding on the `ui-visibility` button ([state & config](docs/state-and-config.md) § "UI visibility & auto-hide")
 - **Gamepad/controller support** (`useGamepad()`), **CRT TV effect** (CSS/shader-based, configurable strength), **forced landscape rotation** (`useViewportRotate()`)
 
 ---

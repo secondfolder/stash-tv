@@ -108,7 +108,7 @@ A button's side panel is a `PopoverPanel` (`src/components/PopoverPanel/`, with 
 
 ⚠️ Unknown props (e.g. `data-testid`) are **not** forwarded to the DOM by `ActionButtonBase` — it doesn't spread rest props. Don't rely on them for tests.
 
-Convention: buttons add the `hide-on-ui-hide` CSS class so they hide along with the other UI controls.
+Convention: buttons add the `hide-on-ui-hide` CSS class so they hide along with the other UI controls: when the user hides the UI, and when it fades out after a mouse user goes idle (see [state & config](state-and-config.md) § "UI visibility & auto-hide"). Hiding anything else with the UI goes through `useUiVisible().shown`.
 
 ## Cycle-Option Buttons
 

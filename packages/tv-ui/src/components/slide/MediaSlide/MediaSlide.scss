@@ -253,6 +253,15 @@
     }
   }
 
+  // The UI faded out after a mouse user went idle takes the cursor with it (see useUiAutoHide), and fades out slowly
+  // so it isn't distracting. It comes back at the usual speed, as ui-idle goes when it does
+  &.ui-idle {
+    --ui-toggle-transition-duration: 1s;
+  }
+  &.ui-idle, &.ui-idle * {
+    cursor: none;
+  }
+
   .SceneInfo:not(.active) {
     opacity: 0;
     visibility: hidden;

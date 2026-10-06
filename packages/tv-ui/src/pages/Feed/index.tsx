@@ -13,6 +13,7 @@ import cx from "classnames";
 import { SettingsActionButton } from "../../components/action-buttons/buttons/SettingsActionButton";
 import { useGlobalState } from "../../store/globalState";
 import { useShortcutListKey } from "../../hooks/useShortcutListKey";
+import { useUiAutoHide } from "../../hooks/useUiAutoHide";
 
 interface FeedPageProps {
   className?: string;
@@ -63,6 +64,9 @@ const FeedPage: React.FC<FeedPageProps> = memo(({className}) => {
 
   /* --------------------------- Keyboard shortcuts --------------------------- */
   useShortcutListKey();
+
+  /* ------------------------------ UI auto-hide ------------------------------ */
+  useUiAutoHide();
 
   /* -------------------------------- component ------------------------------- */
 

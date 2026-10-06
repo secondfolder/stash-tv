@@ -20,6 +20,8 @@ type TvConfig = {
   letterboxing: boolean;
   looping: boolean;
   uiVisible: boolean;
+  /** Seconds a mouse user must be idle before the UI fades out (see `useUiAutoHide`). 0 turns it off */
+  uiAutoHideDelay: number;
   crtEffect: boolean;
   crtEffectStrength: number;
   scenePreviewOnly: boolean;
@@ -76,6 +78,7 @@ const defaults = {
   forceLandscape: false,
   looping: false,
   uiVisible: true,
+  uiAutoHideDelay: 3,
   crtEffect: false,
   crtEffectStrength: 1,
   scenePreviewOnly: false,

@@ -60,6 +60,7 @@ const SettingsTab = memo(() => {
     maxPlayLength,
     maxMedia,
     leftHandedUi,
+    uiAutoHideDelay,
     actionButtonStackConfig,
     mediaItemsModifierFunction,
     renderedMediaItemsBuffer,
@@ -139,6 +140,11 @@ const SettingsTab = memo(() => {
   }
 
   const { startPositionOptions, endPositionOptions } = usePlaybackPositionOptions()
+
+  const uiAutoHideDelayOptions = [0, 1, 2, 3, 5, 10].map(seconds => ({
+    value: seconds,
+    label: seconds ? `After ${seconds} second${seconds === 1 ? "" : "s"}` : "Off",
+  }));
 
   const logLevelOptions = useMemo(() => (
     Object.entries(
@@ -571,6 +577,20 @@ const SettingsTab = memo(() => {
               onChange={event => setTvConfig("leftHandedUi", event.target.checked)}
             />
             <Form.Text className="text-muted">Flip the user interface for left-handed use.</Form.Text>
+          </Form.Group>
+          <Form.Group>
+            <label htmlFor="ui-auto-hide-delay">
+              Auto-hide UI
+            </label>
+            <Select<typeof uiAutoHideDelayOptions[number]>
+              inputId="ui-auto-hide-delay"
+              value={uiAutoHideDelayOptions.find(option => option.value === uiAutoHideDelay) ?? null}
+              onChange={(newValue: typeof uiAutoHideDelayOptions[number] | null) => newValue && setTvConfig("uiAutoHideDelay", newValue.value)}
+              options={uiAutoHideDelayOptions}
+            />
+            <Form.Text className="text-muted">
+              When using a mouse, fade out the UI after this long without any interaction.
+            </Form.Text>
           </Form.Group>
           <Form.Group>
             <label>Action Buttons</label>

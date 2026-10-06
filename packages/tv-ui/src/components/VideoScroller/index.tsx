@@ -11,6 +11,7 @@ import { useWindowSize } from "../../hooks/useWindowSize";
 import hashObject from 'object-hash';
 import { getLogger } from "@logtape/logtape";
 import { useCurrentOpenPopover } from "../PopoverPanel";
+import { useGlobalState } from "../../store/globalState";
 
 interface VideoScrollerProps {}
 
@@ -225,6 +226,13 @@ const VideoScroller: React.FC<VideoScrollerProps> = memo(() => {
       loadMoreMediaItems();
     }
   }, [currentIndex, mediaItems.length]);
+
+  // Shared so things outside the slides (e.g. the UI auto-hide) know which slide is current
+  const currentMediaItemId = mediaItems[currentIndex]?.id ?? null;
+  useEffect(() => {
+    useGlobalState.getState().set("currentMediaItemId", currentMediaItemId);
+  }, [currentMediaItemId]);
+  useEffect(() => () => useGlobalState.getState().set("currentMediaItemId", null), []);
 
   const [keysDown] = useState<Set<string>>(new Set());
   useEffect(() => {

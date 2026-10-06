@@ -16,6 +16,7 @@ import { setMaxSizeModifier } from "../../../helpers/popper-modifiers/setMaxSize
 import { useMediaItemState } from "../../../store/mediaItemState";
 import { ChevronRight } from "react-bootstrap-icons";
 import { animateFolderIcons } from "./folderIconAnimation";
+import { useUiVisible } from "../../../hooks/useUiVisible";
 
 const logger = getLogger(["stash-tv", "ActionButtonStack"]);
 
@@ -38,10 +39,10 @@ export type Props = {
 
 export function ActionButtonStack({mediaItem, sceneInfoOpen, setSceneInfoOpen, playerRef, onMediaItemDeleted}: Props) {
   const {
-    uiVisible,
     leftHandedUi,
     actionButtonStackConfig,
   } = useTvConfig();
+  const { shown: uiShown } = useUiVisible(mediaItem.id);
 
   const scene = mediaItem.entityType === "scene" ? mediaItem.entity : mediaItem.entity.scene;
 
@@ -78,6 +79,7 @@ export function ActionButtonStack({mediaItem, sceneInfoOpen, setSceneInfoOpen, p
           folderConfig={config}
           renderActionButton={renderActionButton}
           playerRef={playerRef}
+          uiShown={uiShown}
         />
       )
     }
@@ -86,7 +88,7 @@ export function ActionButtonStack({mediaItem, sceneInfoOpen, setSceneInfoOpen, p
 
   return (
     <div
-      className={cx("ActionButtonStack", {'active': uiVisible, 'left-handed': leftHandedUi})}
+      className={cx("ActionButtonStack", {'active': uiShown, 'left-handed': leftHandedUi})}
       data-testid="MediaSlide--toggleableUi"
     >
       <div className={cx("stack", ...stackScrollClasses)} ref={stackElmRef}>
@@ -112,13 +114,16 @@ export function ActionButtonStack({mediaItem, sceneInfoOpen, setSceneInfoOpen, p
 const Folder = ({
   folderConfig,
   renderActionButton,
-  playerRef
+  playerRef,
+  uiShown,
 }: {
   folderConfig: ActionButtonStackFolderConfig,
   renderActionButton: (buttonConfig: ActionButtonConfig) => ReactNode,
   playerRef: React.RefObject<VideoJsPlayer>,
+  /** Whether the slide's UI is shown (`useUiVisible().shown`) */
+  uiShown: boolean,
 }): JSX.Element => {
-  const { leftHandedUi, uiVisible } = useTvConfig();
+  const { leftHandedUi } = useTvConfig();
   const preventOverflowModifier = usePreventOverflowModifier({
     boundary: playerRef.current?.el(),
   })
@@ -222,7 +227,7 @@ const Folder = ({
       }}
     >
       <Popover
-        className={cx("folder-contents-popover", { 'left-handed': leftHandedUi, hide: !uiVisible, 'icons-animating': iconsAnimating }, stackScrollClasses)}
+        className={cx("folder-contents-popover", { 'left-handed': leftHandedUi, hide: !uiShown, 'icons-animating': iconsAnimating }, stackScrollClasses)}
         id={id}
       >
         {renderFolderButtons(false)}

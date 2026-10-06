@@ -18,6 +18,14 @@ type GlobalState = {
   /** What the scene info panel's editor's pills show. Shared, like the draft, so it's kept moving to another slide */
   sceneInfoEditorPillContent: SceneInfoEditorPillContent;
   keyboardShortcutsOpen: boolean;
+  /** The media item of the feed's current slide, set by `VideoScroller` */
+  currentMediaItemId: string | null;
+  /**
+   * The media item whose slide's UI is faded out because a mouse user went idle while it was current (see
+   * `useUiAutoHide`), or null. Separate from tvConfig's `uiVisible`, the user's own choice: what's shown is
+   * `useUiVisible().shown`
+   */
+  uiIdleMediaItemId: string | null;
   tvConfigLoaded: boolean;
 }
 
@@ -35,6 +43,8 @@ const defaults = {
   sceneInfoDraft: null,
   sceneInfoEditorPillContent: "names",
   keyboardShortcutsOpen: false,
+  currentMediaItemId: null,
+  uiIdleMediaItemId: null,
   tvConfigLoaded: false,
 } satisfies GlobalState;
 

@@ -9,7 +9,7 @@
 | Store | Persistence | Purpose |
 |---|---|---|
 | `tvConfig.ts` | Hybrid (Stash plugin config + localStorage) | User preferences & plugin settings: volume, subtitles, playback rate, CRT effect, UI layout, the scene info panel's layout, page size, channels, dev options |
-| `globalState.ts` | None (transient) | UI toggles: settings panel, scene info, fullscreen, `tvConfigLoaded` flag |
+| `globalState.ts` | None (transient) | UI toggles: settings panel, scene info, fullscreen, the current slide's media item (`currentMediaItemId`), which slide's UI is auto-hidden (`uiIdleMediaItemId`), `tvConfigLoaded` flag |
 | `mediaItemState.tsx` | None (one store per slide, via context) | Per-slide UI state: open action-button folder, the o-count the slide was shown with, the slide's element. ⚠️ `MediaItemStateContextProvider`'s `initialValues` are only read on mount: they're the slide's starting values, and the o-counter button relies on `preIncrementOCounterValue` not following the live count |
 | Accumulator store (in `useMediaItems`) | None | Feed pagination state — see [media loading](media-loading.md) |
 
@@ -58,6 +58,25 @@ useTvConfig.setState({ volume: 0.5 });
 4. Create a UI control in the settings panel (`src/components/settings/`)
 5. Access via `useTvConfig()` in components
 6. Add tests for the new config option (see [Testing](docs/testing.md))
+
+## UI visibility & auto-hide
+
+Two things decide whether the UI (everything marked `hide-on-ui-hide` / `dim-on-ui-hide`, the Video.js control bar, the action button stack's folders) shows:
+
+- `tvConfig.uiVisible`: the user's own choice, toggled by the `ui-visibility` action button and persisted. The button's state follows this alone.
+- `globalState.uiIdleMediaItemId`: transient, set by `useUiAutoHide()` (called once by `FeedPage`) to the current slide's media item (`globalState.currentMediaItemId`, kept up to date by `VideoScroller`) when a mouse user has been idle on it for `tvConfig.uiAutoHideDelay` seconds (default 3; 0 turns it off). Set in Settings → UI → **Auto-hide UI**.
+
+⚠️ Anything that shows or hides UI reads `useUiVisible(mediaItemId).shown` (`uiVisible` and not that slide being the idle one; without an id, the current slide), never `uiVisible` directly, or it won't fade with the rest. `MediaSlide` adds `hide-controls` from it, plus `ui-idle` while auto-hidden, which hides the cursor too and makes the fade out slower (1s, against 0.15s when the user hides the UI). The UI comes back at the usual speed, since `ui-idle` is removed as it does.
+
+How auto-hide behaves:
+
+- **Mouse only.** A `pointermove` or `pointerdown` from a mouse starts the timer; touch or pen input stops it and shows the UI. Touch use never auto-hides. A `pointermove` where the pointer didn't move is ignored: browsers send them when what's under the pointer changes, like the UI fading.
+- **Per slide.** Only the slide that was current when the timer ran out is hidden, so a slide that becomes current (e.g. the feed moving on when a video ends) starts with its UI shown instead of fading it in, and the timer starts again for it. A slide change doesn't show the previous slide's UI: it would fade back in as it scrolls away.
+- **Any interaction shows it again:** moving the mouse, a press, a key, the scroll wheel. Each restarts the timer.
+- **It doesn't hide** while the mouse rests over a control or panel (`UI_CONTROLS_SELECTOR` in `src/constants`), while the current video is paused, or while Settings, the keyboard shortcuts, the guide, a Bootstrap modal (`body.modal-open`) or the scene info panel's editor is open. Action-button side panels, open folders and the scene info panel itself don't stop it (only resting the mouse on them). These are checked when the timer runs out rather than watched: each blocker goes away through an interaction (which shows the UI and restarts the timer) or the video playing (which restarts the timer).
+- **A press that wakes the UI only wakes it.** Its click is swallowed if it lands on a control, so tapping the dimmed Show/Hide UI button while auto-hidden (e.g. a touch after using the mouse) doesn't hide the UI for good. Clicks on the video still play and pause it.
+
+Tests: `test/unit/hooks/useUiAutoHide.test.tsx`, and `test/e2e/ui-auto-hide.test.ts` for the CSS (fading and the cursor).
 
 ## Migrations
 

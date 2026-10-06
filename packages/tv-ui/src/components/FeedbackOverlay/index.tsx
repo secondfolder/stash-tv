@@ -4,7 +4,7 @@ import "./FeedbackOverlay.css";
 import cx from "classnames";
 import { usePrevious } from "react-use";
 import { getLogger } from "@logtape/logtape";
-import { useTvConfig } from "../../store/tvConfig";
+import { useUiVisible } from "../../hooks/useUiVisible";
 
 const defaultDisplayDuration = 1000; // milliseconds
 
@@ -46,7 +46,7 @@ export const useFeedback = create<{
 }))
 
 const FeedbackOverlay = memo(() => {
-  const { uiVisible } = useTvConfig()
+  const { shown: uiShown } = useUiVisible()
   const { contents, icon, fade } = useFeedback()
   const previousContents = usePrevious(contents)
   const previousIcon = usePrevious(icon)
@@ -54,7 +54,7 @@ const FeedbackOverlay = memo(() => {
   const displayedContents = !contents ? previousContents : contents
   const displayedIcon = !contents ? previousIcon : icon
   if (!displayedContents || (!contents && !fade)) return null
-  return <div className={cx("FeedbackOverlay", { "fade-out": !contents && fade, "muted": !uiVisible })}>
+  return <div className={cx("FeedbackOverlay", { "fade-out": !contents && fade, "muted": !uiShown })}>
     <div className="contents-container">
       {displayedIcon}
       {displayedContents}
