@@ -1,5 +1,5 @@
-import React, { useContext } from "react";
-import { ConfigurationContext } from "stash-ui/dist/src/hooks/Config";
+import React from "react";
+import { useConfigurationContext } from "stash-ui/dist/src/hooks/Config";
 import { defaultRatingSystemOptions, RatingSystemType } from "stash-ui/dist/src/utils/rating";
 import { RatingSystem } from "stash-ui/wrappers/components/shared/RatingSystem";
 import { formatRating } from "../../../../helpers/rating";
@@ -16,7 +16,7 @@ const schema = {
 };
 
 function RatingField({ scene, options, preview, rightAligned }: SceneInfoFieldProps<OptionsOf<typeof schema>>) {
-  const { configuration: stashConfig } = useContext(ConfigurationContext);
+  const { configuration: stashConfig } = useConfigurationContext();
   const ratingSystemType = (stashConfig?.ui.ratingSystemOptions ?? defaultRatingSystemOptions).type;
   const setRating = useSetRating(scene);
   // As a control, shown without a rating too, so one can be given

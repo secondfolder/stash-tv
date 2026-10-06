@@ -1,13 +1,13 @@
 
 import { useApolloClient, type ApolloClient, type NormalizedCacheObject } from "@apollo/client";
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import { ListFilterModel } from "stash-ui/dist/src/models/list-filter/filter";
 import { useTvConfig } from "../store/tvConfig";
 import { useWindowSize } from "./useWindowSize";
 import { create } from "zustand";
 import { useConditionalMemo } from "./useMemoConditional";
-import { ConfigurationContext } from "stash-ui/dist/src/hooks/Config";
+import { useConfigurationContext } from "stash-ui/dist/src/hooks/Config";
 import { useFindSavedFilters } from "stash-ui/dist/src/core/StashService";
 import {
   ChannelConfig,
@@ -42,10 +42,10 @@ type SavedMediaItemFilter = GQL.SavedFilter & Pick<TemporaryFilter, "scene_ids">
 
 export type SearchableMediaItemFilter = {
   savedFilter?: SavedMediaItemFilter,
-  generalFilter: GQL.FindFullScenesQueryVariables["filter"],
+  generalFilter: GQL.FindFullScenesForTvQueryVariables["filter"],
 } & (
   {
-    entityFilter: GQL.FindFullScenesQueryVariables["scene_filter"]
+    entityFilter: GQL.FindFullScenesForTvQueryVariables["scene_filter"]
     entityType: "scene"
     /** Only these scenes */
     ids?: string[]
@@ -128,8 +128,7 @@ export function useMediaItemFilters() {
         } = {}
       } = {}
     } = {},
-    loading: stashConfigurationLoading
-  } = useContext(ConfigurationContext)
+  } = useConfigurationContext()
 
   const {
     data: { findSavedFilters: availableSavedSceneFilters = []} = {},
@@ -141,7 +140,7 @@ export function useMediaItemFilters() {
     loading: loadingAvailableSavedMarkerFilters,
   } = useFindSavedFilters(GQL.FilterMode.SceneMarkers);
 
-  const loadingDataRequiredBeforeLoadingCurrentFilter = stashConfigurationLoading || loadingAvailableSavedSceneFilters || loadingAvailableSavedMarkerFilters;
+  const loadingDataRequiredBeforeLoadingCurrentFilter = loadingAvailableSavedSceneFilters || loadingAvailableSavedMarkerFilters;
 
   const {
     onlyShowMatchingOrientation,
@@ -297,7 +296,7 @@ export function useMediaItemFilters() {
       return updatedFilter;
     }
 
-    function addSceneFiltersMods(sceneFilter: GQL.FindFullScenesQueryVariables["scene_filter"]) {
+    function addSceneFiltersMods(sceneFilter: GQL.FindFullScenesForTvQueryVariables["scene_filter"]) {
       if (limitOrientation) {
         sceneFilter = sceneFilter || {};
         sceneFilter.orientation = {

@@ -20,6 +20,8 @@ if [ ! -e "$STASH_REPO_DIR/.git" ]; then
   setup_reason="Stash submodule not initialised"
 elif [ ! -d "$STASH_REPO_DIR/ui/v2.5/node_modules" ]; then
   setup_reason="Stash UI dependencies not installed"
+elif [ ! -d "$RELEASE_SCHEMA_DIR" ]; then
+  setup_reason="latest Stash release's schema not extracted"
 elif [ ! -f "$SETUP_STAMP" ]; then
   setup_reason="no record of a previous setup"
 elif [ "$(setup_fingerprint)" != "$(sed -n 1p "$SETUP_STAMP")" ]; then

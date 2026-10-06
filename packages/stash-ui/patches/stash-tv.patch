@@ -1,10 +1,10 @@
 diff --git a/ui/v2.5/graphql/stash-tv.graphql b/ui/v2.5/graphql/stash-tv.graphql
 new file mode 100644
-index 00000000..ac806bbb
+index 00000000..828583fc
 --- /dev/null
 +++ b/ui/v2.5/graphql/stash-tv.graphql
 @@ -0,0 +1,53 @@
-+query FindFullScenes(
++query FindFullScenesForTv(
 +  $filter: FindFilterType
 +  $scene_filter: SceneFilterType
 +  $ids: [ID!]
@@ -58,7 +58,7 @@ index 00000000..ac806bbb
 +  }
 +}
 diff --git a/ui/v2.5/src/components/Shared/FilterSelect.tsx b/ui/v2.5/src/components/Shared/FilterSelect.tsx
-index 732b1cff..327a0620 100644
+index 0516db2e..6c198bf2 100644
 --- a/ui/v2.5/src/components/Shared/FilterSelect.tsx
 +++ b/ui/v2.5/src/components/Shared/FilterSelect.tsx
 @@ -53,9 +53,18 @@ const getSelectedItems = <T,>(
@@ -79,8 +79,8 @@ index 732b1cff..327a0620 100644
 +  );
    const {
      selectedOptions,
-     isLoading,
-@@ -90,6 +99,7 @@ const SelectComponent = <T, IsMulti extends boolean>(
+     isDisabled = false,
+@@ -89,6 +98,7 @@ const SelectComponent = <T, IsMulti extends boolean>(
      value: selectedOptions ?? null,
      className: cx("react-select", props.className),
      classNamePrefix: "react-select",
@@ -89,7 +89,7 @@ index 732b1cff..327a0620 100644
      placeholder: isDisabled ? "" : placeholder,
      components: {
 diff --git a/ui/v2.5/src/components/Shared/Select.tsx b/ui/v2.5/src/components/Shared/Select.tsx
-index 4ae547cf..1d8b8812 100644
+index a8ead510..6cfda886 100644
 --- a/ui/v2.5/src/components/Shared/Select.tsx
 +++ b/ui/v2.5/src/components/Shared/Select.tsx
 @@ -28,6 +28,7 @@ import { StudioIDSelect } from "../Studios/StudioSelect";
@@ -108,9 +108,9 @@ index 4ae547cf..1d8b8812 100644
 +    MenuShouldScrollIntoViewContext
 +  );
    const values = items.filter((item) => initialIds?.indexOf(item.value) !== -1);
-   const defaultValue = (isMulti ? values : values[0] ?? null) as OnChangeValue<
-     Option,
-@@ -230,6 +234,7 @@ const SelectComponent = <T extends boolean>({
+   const defaultValue = (
+     isMulti ? values : (values[0] ?? null)
+@@ -229,6 +233,7 @@ const SelectComponent = <T extends boolean>({
      styles,
      closeMenuOnSelect,
      menuPortalTarget,
@@ -119,7 +119,7 @@ index 4ae547cf..1d8b8812 100644
        ...components,
        MenuList: LimitedSelectMenu,
 diff --git a/ui/v2.5/src/hooks/keybinds.ts b/ui/v2.5/src/hooks/keybinds.ts
-index ac6ab4dd..c684a39b 100644
+index c863bbff..b64bcddc 100644
 --- a/ui/v2.5/src/hooks/keybinds.ts
 +++ b/ui/v2.5/src/hooks/keybinds.ts
 @@ -2,6 +2,11 @@ import Mousetrap from "mousetrap";
@@ -203,3 +203,33 @@ index ac6ab4dd..c684a39b 100644
        if (!ratingSystem || ratingSystem === RatingSystemType.Stars) {
          return handleStarRatingKeybinds();
        } else {
+diff --git a/ui/v2.5/src/utils/form.tsx b/ui/v2.5/src/utils/form.tsx
+index 08b4f5ed..5af3af9f 100644
+--- a/ui/v2.5/src/utils/form.tsx
++++ b/ui/v2.5/src/utils/form.tsx
+@@ -88,6 +88,13 @@ interface IProps {
+   fieldProps?: ColProps;
+ }
+ 
++// Moved out of formikUtils by Stash TV: formikUtils' return type uses it, so emitting declarations
++// fails while it's declared inside the function
++interface IStringListProps extends IProps {
++  // defaults to true if not provided
++  orderable?: boolean;
++}
++
+ export function formikUtils<V extends FormikValues>(
+   intl: IntlShape,
+   formik: Formik<V>,
+@@ -308,11 +315,6 @@ export function formikUtils<V extends FormikValues>(
+     }
+   }
+ 
+-  interface IStringListProps extends IProps {
+-    // defaults to true if not provided
+-    orderable?: boolean;
+-  }
+-
+   function renderStringListField(
+     field: Field,
+     messageID: string = field,

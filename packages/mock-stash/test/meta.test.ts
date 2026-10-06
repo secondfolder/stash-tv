@@ -64,26 +64,26 @@ describe("queries the app uses", () => {
     expect(Array.isArray(data.configuration.interface.menuItems)).toBe(true);
   });
 
-  it("FindFullScenes — page 1", async () => {
+  it("FindFullScenesForTv — page 1", async () => {
     const data = await gql<{ findScenes: { count: number; scenes: { id: string; title: string | null }[] } }>(
-      GQL.FindFullScenesDocument,
+      GQL.FindFullScenesForTvDocument,
       { filter: { q: "", page: 1, per_page: 5, sort: "date", direction: "DESC" } },
     );
     expect(data.findScenes.count).toBe(8);
     expect(data.findScenes.scenes).toHaveLength(5);
   });
 
-  it("FindFullScenes — page 2", async () => {
+  it("FindFullScenesForTv — page 2", async () => {
     const data = await gql<{ findScenes: { scenes: { id: string }[] } }>(
-      GQL.FindFullScenesDocument,
+      GQL.FindFullScenesForTvDocument,
       { filter: { q: "", page: 2, per_page: 5, sort: "date", direction: "DESC" } },
     );
     expect(data.findScenes.scenes).toHaveLength(3);
   });
 
-  it("FindFullScenes — orientation scene_filter", async () => {
+  it("FindFullScenesForTv — orientation scene_filter", async () => {
     const data = await gql<{ findScenes: { count: number; scenes: { id: string }[] } }>(
-      GQL.FindFullScenesDocument,
+      GQL.FindFullScenesForTvDocument,
       {
         filter: { q: "", per_page: -1, sort: "date", direction: "DESC" },
         scene_filter: { orientation: { value: ["PORTRAIT", "SQUARE"] } },
@@ -95,9 +95,9 @@ describe("queries the app uses", () => {
     );
   });
 
-  it("FindFullScenes — studios scene_filter, leaving out scenes without a studio", async () => {
+  it("FindFullScenesForTv — studios scene_filter, leaving out scenes without a studio", async () => {
     const data = await gql<{ findScenes: { scenes: { id: string }[] } }>(
-      GQL.FindFullScenesDocument,
+      GQL.FindFullScenesForTvDocument,
       {
         filter: { q: "", per_page: -1, sort: "date", direction: "DESC" },
         scene_filter: { studios: { value: ["studio-prism"], modifier: "INCLUDES", depth: -1 } },
@@ -106,7 +106,7 @@ describe("queries the app uses", () => {
     expect(data.findScenes.scenes.map((s) => s.id).sort()).toEqual(["scene-1", "scene-2"]);
   });
 
-  it("FindFullScenes — studios scene_filter includes sub-studios' scenes", async () => {
+  it("FindFullScenesForTv — studios scene_filter includes sub-studios' scenes", async () => {
     const { studios, scenes } = server.store;
     const scene3 = scenes.get("scene-3");
     const prism = studios.get("studio-prism");
@@ -115,7 +115,7 @@ describe("queries the app uses", () => {
     scenes.set("scene-3", { ...scene3, studio_id: "studio-sub" });
     try {
       const data = await gql<{ findScenes: { scenes: { id: string }[] } }>(
-        GQL.FindFullScenesDocument,
+        GQL.FindFullScenesForTvDocument,
         {
           filter: { q: "", per_page: -1, sort: "date", direction: "DESC" },
           scene_filter: { studios: { value: ["studio-prism"], modifier: "INCLUDES", depth: -1 } },
@@ -304,7 +304,7 @@ describe("mutations the app uses", () => {
     expect(destroyed.scenesDestroy).toBe(true);
 
     const after = await gql<{ findScenes: { count: number } }>(
-      GQL.FindFullScenesDocument,
+      GQL.FindFullScenesForTvDocument,
       { filter: { per_page: -1 } },
     );
     expect(after.findScenes.count).toBe(7);

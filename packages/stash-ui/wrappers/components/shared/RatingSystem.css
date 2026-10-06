@@ -31,9 +31,12 @@
   display: inline-flex;
   align-items: center;
 
-  /* Without a rating, nothing beside the stars: not "Clear", nor the rating a hovered star would give */
+  /* Without a rating, nothing beside the stars: not "Clear", nor the rating a hovered star would give. Stash shows no
+  rating while the current rating's star is hovered: older versions leave its .star-rating-number out, newer ones leave
+  it empty (hidden, as its margin would still take up space) */
   &.not-set .star-rating-number,
-  &:has(.rating-stars .star-rating-number) .clear {
+  .rating-stars .star-rating-number:empty,
+  &:has(.rating-stars .star-rating-number:not(:empty)) .clear {
     display: none;
   }
 

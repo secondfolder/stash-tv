@@ -39,6 +39,7 @@ Feature-specific documentation lives under `docs/`. Read the one that covers wha
 | [Entity popovers](docs/entity-popovers.md) | Touching `src/components/entity-popovers/` (a tag's, performer's or studio's popover in the info panel, and its card and buttons) or adding a popover for another kind of entity |
 | [Keyboard shortcuts](docs/keyboard-shortcuts.md) | Adding, removing or rebinding a keyboard shortcut, or touching the shortcut help text                  |
 | [App updates](docs/app-updates.md)       | Touching the new-version notice, how the app detects that a new version is installed, or anything that affects how browsers cache the app |
+| [Stash compatibility](docs/stash-compatibility.md) | Updating the Stash version stash-ui is built from, touching how the app talks to Stash's API (Apollo links, `getApolloClient`), or something works on one Stash version but not another |
 
 Adding a new doc means adding its row to this table. A test validates that every doc in `docs/` is listed here and every link points to a real file — a doc without a row is caught rather than going unnoticed.
 
@@ -204,6 +205,7 @@ Settings & UI Overlays:
 
 - **Client:** Apollo Client 3.x with subscriptions support via graphql-ws
 - **Schema:** Generated TypeScript types from Stash GraphQL schema
+- **Two Stash versions:** stash-ui is built from Stash's develop branch, but the plugin also supports the latest Stash release. A link adapts every operation to the connected server's schema, leaving out what it lacks; the integration suite runs against both ([Stash compatibility](docs/stash-compatibility.md))
 - **Customization:** Small wrapper around Apollo to:
   - Add Stash origin detection
   - Modify request headers for dev proxy

@@ -2,7 +2,6 @@
 import cx from "classnames";
 import React, {
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -37,7 +36,7 @@ import { useSeeking } from "../../../hooks/useSeeking";
 import { useGestureControls } from "../../../hooks/useGestureControls";
 import { useKeyboardSeeking } from "../../../hooks/useKeyboardSeeking";
 import { TOGGLE_VIDEO_EVENT, PAUSE_VIDEO_EVENT } from "../../../events";
-import { ConfigurationContext } from "stash-ui/dist/src/hooks/Config";
+import { useConfigurationContext } from "stash-ui/dist/src/hooks/Config";
 import { useFirstMountState } from "react-use";
 import { MediaItemStateContextProvider } from "../../../store/mediaItemState";
 import { useDeleteMediaItemDialog } from "../../../hooks/useDeleteMediaItemDialog";
@@ -103,7 +102,7 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
 
   const mediaSlideElementRef = useRef<HTMLDivElement>(null)
 
-  const { configuration: stashConfig } = useContext(ConfigurationContext)
+  const { configuration: stashConfig } = useConfigurationContext()
   const { connectedAt: gamepadConnectedAt } = useGamepadStatus();
   const gamepadConnectedAWhileAgo = (Date.now() - (gamepadConnectedAt ?? 0)) > 6000
 

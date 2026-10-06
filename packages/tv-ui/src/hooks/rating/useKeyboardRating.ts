@@ -1,5 +1,4 @@
-import { useContext } from "react";
-import { ConfigurationContext } from "stash-ui/dist/src/hooks/Config";
+import { useConfigurationContext } from "stash-ui/dist/src/hooks/Config";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import { useSetRating } from "./useSetRating";
 import { useRatingKeybinds } from "stash-ui/dist/src/hooks/keybinds";
@@ -15,7 +14,7 @@ import { useRatingKeybinds } from "stash-ui/dist/src/hooks/keybinds";
  * @see docs/keyboard-shortcuts.md § "Rating shortcuts"
  */
 export function useKeyboardRating(scene: GQL.SceneDataFragment, { enabled }: { enabled: boolean }) {
-  const { configuration: stashConfig } = useContext(ConfigurationContext)
+  const { configuration: stashConfig } = useConfigurationContext()
   const setRating = useSetRating(scene);
 
   useRatingKeybinds(

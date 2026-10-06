@@ -18,8 +18,9 @@ mkdir -p "$BUILD_DIR"
 {
     cd "$STASH_DIR"
     cp "$PACKAGE_DIR/patches/scene-player-utils.ts" src/components/ScenePlayer/util.ts
-    yarn run tsc --outDir "$BUILD_DIR" --noEmit false --declaration true --rootDir "."
-    git restore src/components/ScenePlayer/util.ts
+    # Put Stash's own util.ts back even if tsc fails, or the stash/ checkout is left modified
+    trap 'git -C "$STASH_DIR" restore src/components/ScenePlayer/util.ts' EXIT
+    pnpm exec tsc --outDir "$BUILD_DIR" --noEmit false --declaration true --rootDir "."
 };
 
 # Run tsc-alias to replace path aliases and copy in CSS + custom declaration files

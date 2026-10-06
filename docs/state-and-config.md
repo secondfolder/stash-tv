@@ -35,7 +35,7 @@ useTvConfig.setState({ volume: 0.5 });
 
 🚫 Never modify global state before `tvConfigLoaded` is true. `globalState`'s setters warn and no-op if called pre-init; `App.tsx` renders nothing until the config has loaded.
 
-⚠️ `tvConfigLoaded` doesn't mean Stash's own configuration (`GQL.useConfigurationQuery()`, provided to Stash's components and ours through `ConfigurationContext`) has loaded. If Stash doesn't answer, tvConfig falls back to its defaults and the feed renders anyway. `App.tsx` provides the configuration as `undefined` until it has loaded, as Stash's own app does, so read it with optional chaining all the way down (`configuration?.general?.…`) or default it. It used to provide a partial object, and the first slide crashed reading `configuration.general` when the request failed.
+⚠️ `tvConfigLoaded` doesn't mean Stash's own configuration (`GQL.useConfigurationQuery()`, provided to Stash's components and ours through `ConfigurationProvider`) has loaded. If Stash doesn't answer, tvConfig falls back to its defaults. Stash's components (`ScenePlayer`, `TagSelect`, its selects and ratings…) read the configuration with `useConfigurationContext()`, which throws outside a provider, so as in Stash's own app `App.tsx` mounts the provider and the feed only once the configuration has loaded. Until then it shows a loading indicator, or Stash's "Error loading configuration" message if the request failed. Inside the feed the configuration is always there: read it with `useConfigurationContext()` too.
 
 ---
 

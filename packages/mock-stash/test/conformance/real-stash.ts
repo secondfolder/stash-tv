@@ -4,12 +4,22 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
 import { MEDIA_SPECS } from "../../src/fixtures";
+import type { MockStashVersion } from "../../src/schema";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const MEDIA_DIR = path.resolve(here, "../../src/media");
 
-/** Pinned to match the stash submodule version in stash-ui (v0.28.1). */
-export const STASH_IMAGE = "stashapp/stash:v0.28.1";
+/**
+ * The real Stash for each version Stash TV supports (see docs/stash-compatibility.md):
+ * - `pinned` matches the stash submodule in stash-ui (develop at e7d33c9b, v0.31.1-175-ge7d33c9b). Stash only
+ *   publishes develop as the moving `development` tag, so it's pinned by digest: the image pushed right after that
+ *   commit.
+ * - `latest-release` matches `STASH_RELEASE_VERSION` in stash-ui's setup.sh.
+ */
+export const STASH_IMAGES: Record<MockStashVersion, string> = {
+  pinned: "stashapp/stash:development@sha256:1d9758bad8df69f27ab7110de12191e5b1cf2548343076be6e895746824f3bf5",
+  "latest-release": "stashapp/stash:v0.31.1",
+};
 const STASH_PORT = 9999;
 
 export interface RealStash {
@@ -42,7 +52,7 @@ export async function isDockerAvailable(): Promise<boolean> {
  * serves (main files only — a real scan would turn preview clips into scenes), then
  * runs setup + a metadata scan so scenes exist.
  */
-export async function startRealStash(): Promise<RealStash> {
+export async function startRealStash(version: MockStashVersion): Promise<RealStash> {
   // Only the main media files — previews/screenshots must not be scanned as scenes.
   const mediaDir = makeTempDir("stash-media-");
   for (const spec of MEDIA_SPECS) {
@@ -52,7 +62,7 @@ export async function startRealStash(): Promise<RealStash> {
   mkdirSync(path.join(configDir, "generated"), { recursive: true });
   mkdirSync(path.join(configDir, "cache"), { recursive: true });
 
-  const container = await new GenericContainer(STASH_IMAGE)
+  const container = await new GenericContainer(STASH_IMAGES[version])
     .withExposedPorts(STASH_PORT)
     .withEnvironment({
       // No auth; the app cannot send cookies cross-origin from the dev server.

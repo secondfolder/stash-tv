@@ -93,8 +93,8 @@ async function fetchPage(client: ApolloClient<object>, filter: SearchableMediaIt
   const pageFilter = { ...filter.generalFilter, page, per_page: perPage }
   // Fetched once and never watched: there's no list query for Stash's evictions to trigger refetches of
   if (filter.entityType === "scene") {
-    const { data } = await client.query<GQL.FindFullScenesQuery, GQL.FindFullScenesQueryVariables>({
-      query: GQL.FindFullScenesDocument,
+    const { data } = await client.query<GQL.FindFullScenesForTvQuery, GQL.FindFullScenesForTvQueryVariables>({
+      query: GQL.FindFullScenesForTvDocument,
       variables: { filter: pageFilter, scene_filter: filter.entityFilter, ids: filter.ids },
       fetchPolicy: "network-only",
     })

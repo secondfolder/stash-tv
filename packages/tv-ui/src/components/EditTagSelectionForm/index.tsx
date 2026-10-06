@@ -10,7 +10,7 @@ import { Tag as TagBadge } from "../tags/tag";
 
 const logger = getLogger(["stash-tv", "EditTagSelectionForm"]);
 
-export type SlimTag = Omit<Tag, "aliases"> & Partial<Pick<Tag, "aliases">>
+export type SlimTag = Omit<Tag, "aliases" | "stash_ids"> & Partial<Pick<Tag, "aliases" | "stash_ids">>
 
 export function EditTagSelectionForm(
   {initialTags, pinnedTagIds, save, cancel}: {

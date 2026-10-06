@@ -3,7 +3,7 @@ import { type VideoJsPlayer } from "video.js";
 import { type Logger } from "@logtape/logtape";
 import { useGesture } from "@use-gesture/react";
 import { useLatest } from "react-use";
-import UAParser from "ua-parser-js";
+import { UAParser } from "ua-parser-js";
 import { gestureArea, holdDelay, holdSpeed, type GestureArea } from "../helpers/seek-speed";
 import { type Seeking } from "./useSeeking";
 

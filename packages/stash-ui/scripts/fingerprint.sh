@@ -6,13 +6,15 @@
 
 STASH_UI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 STASH_REPO_DIR="$STASH_UI_DIR/stash"
+# The latest Stash release's GraphQL schema, extracted by setup.sh
+RELEASE_SCHEMA_DIR="$STASH_UI_DIR/release-schema"
 # Line 1: setup fingerprint, line 2: stash tree fingerprint as setup left it
 SETUP_STAMP="$STASH_UI_DIR/.local/setup-stamp"
 # Lives in dist/ so build.sh's clean of dist/ also removes it
 BUILD_STAMP="$STASH_UI_DIR/dist/.build-stamp"
 
 # Hashes the given files (paths relative to the stash-ui package). Missing files hash as absent
-# rather than failing, e.g. stash/ui/v2.5/yarn.lock before the submodule is initialised.
+# rather than failing, e.g. stash/ui/v2.5/pnpm-lock.yaml before the submodule is initialised.
 hash_files() {
   (
     cd "$STASH_UI_DIR"
@@ -27,7 +29,7 @@ hash_files() {
 
 # Inputs to setup.sh: the pinned Stash version (in setup.sh), the patch and Stash's UI deps
 setup_fingerprint() {
-  hash_files scripts/setup.sh patches/stash-tv.patch stash/ui/v2.5/yarn.lock
+  hash_files scripts/setup.sh patches/stash-tv.patch stash/ui/v2.5/pnpm-lock.yaml
 }
 
 # The state of the Stash checkout: its commit plus every uncommitted change, including

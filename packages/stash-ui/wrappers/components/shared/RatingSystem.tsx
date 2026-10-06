@@ -2,7 +2,7 @@ import React from "react";
 import cx from "classnames";
 import { RatingSystem as StashRatingSystem, IRatingSystemProps } from "stash-ui/dist/src/components/Shared/Rating/RatingSystem";
 import "stash-ui/dist/src/components/Shared/Rating/styles.css";
-import { ConfigurationContext } from "../../../dist/src/hooks/Config";
+import { useConfigurationContext } from "../../../dist/src/hooks/Config";
 import { convertToRatingFormat, defaultRatingSystemOptions, RatingSystemType } from "../../../dist/src/utils/rating";
 import "./RatingSystem.css";
 import { RatingNumber } from "./RatingNumber";
@@ -21,7 +21,7 @@ export type RatingSystemProps = IRatingSystemProps & {
  * not even the rating a hovered star would give.
  */
 export const RatingSystem: React.FC<RatingSystemProps> = ({ valueSide = "end", ...props }) => {
-  const { configuration: config } = React.useContext(ConfigurationContext);
+  const { configuration: config } = useConfigurationContext();
   const ratingSystemOptions = config?.ui.ratingSystemOptions ?? defaultRatingSystemOptions;
 
   if (ratingSystemOptions.type === RatingSystemType.Decimal) {

@@ -7,8 +7,8 @@ How the automated test suites work, the standards tests must follow, and the got
 | Tier | Where | Runner | Command |
 | --- | --- | --- | --- |
 | Unit | `packages/tv-ui/test/unit/` | Vitest + RTL (jsdom) | `yarn --cwd packages/tv-ui test` |
-| Integration | `packages/tv-ui/test/integration/` | Vitest + RTL against a real in-memory mock Stash API | same command as unit |
-| Mock server meta/conformance | `packages/mock-stash/test/` | Vitest (node env; conformance uses Docker, auto-skips without it) | `yarn --cwd packages/mock-stash test` / `test:conformance` |
+| Integration | `packages/tv-ui/test/integration/` | Vitest + RTL against a real in-memory mock Stash API, run twice: against the Stash version stash-ui is built from (`integration` project) and the latest Stash release (`integration-latest-release`, see [Stash compatibility](stash-compatibility.md)) | same command as unit |
+| Mock server meta/conformance | `packages/mock-stash/test/` | Vitest (node env; conformance uses Docker, auto-skips without it, and runs once per supported Stash version) | `yarn --cwd packages/mock-stash test` / `test:conformance` |
 | Docs validation | `packages/repo/test/` | Vitest | `yarn --cwd packages/repo test` |
 | Plugin | `packages/tv-plugin/test/unit/` | Vitest (node env) | `yarn --cwd packages/tv-plugin test` |
 | E2E | `packages/tv-ui/test/e2e/` | Playwright + Chromium | `yarn test:e2e` |
@@ -21,6 +21,7 @@ From `packages/tv-ui` (or with `yarn --cwd packages/tv-ui`):
 yarn test                                      # all tv-ui tests (unit + integration)
 yarn test test/unit/                           # unit only
 yarn test test/integration/                    # integration only
+yarn test --project integration                # integration against the pinned Stash version only
 yarn test test/unit/store/globalState.test.ts  # one file
 yarn test --watch                              # watch mode
 yarn test --coverage                           # coverage report
@@ -210,7 +211,7 @@ describe("integration feature", () => {
 
 ⚠️ **Version pins for React 17:** `@testing-library/react` 12.x, `@testing-library/dom` 8.x, `@testing-library/jest-dom` 5.x, `@testing-library/user-event` 14.x. Do not bump these without solving React 18 first.
 
-⚠️ **Unit tests must never make real network requests.** Without `VITE_APP_PLATFORM_URL` set, Apollo links default to `http://localhost:9999` — Stash's default port, likely a live server (or SSH tunnel) on a dev machine; real responses (e.g. 404s) surface as unhandled rejections. Unit tests are kept network-free by the project-scoped Apollo client mock (see "Test-only exceptions"); integration tests use `mock-stash`'s ephemeral port. If you add a unit test that needs Apollo, extend the mock — don't let it hit the default port. ⚠️ `StashService`'s own query helpers (e.g. `queryFindTagsForSelect`, which Stash's tag selects load their options with) use its real client, not the mocked `getClient()`, so mock each one a component calls, as `setup-unit-apollo.ts` does for the tag selects' (with no tags). A request that slips through shows up as an unhandled `ECONNREFUSED … :9999` rejection, failing the file.
+⚠️ **Unit tests must never make real network requests.** Without `VITE_APP_PLATFORM_URL` set, Apollo links default to `http://localhost:9999` — Stash's default port, likely a live server (or SSH tunnel, or the dev server with `DEV_PORT=9999`) on a dev machine; real responses (e.g. 404s) surface as unhandled rejections, and Stash's websocket client, connected to it, never finishes disposing so `test/setup.ts`'s teardown times out. So the unit project sets `VITE_APP_PLATFORM_URL` to `http://127.0.0.1:1`, where nothing listens. Unit tests are kept network-free by the project-scoped Apollo client mock (see "Test-only exceptions"); integration tests use `mock-stash`'s ephemeral port. If you add a unit test that needs Apollo, extend the mock — don't let it hit the default port. ⚠️ `StashService`'s own query helpers (e.g. `queryFindTagsForSelect`, which Stash's tag selects load their options with) use its real client, not the mocked `getClient()`, so mock each one a component calls, as `setup-unit-apollo.ts` does for the tag selects' (with no tags). A request that slips through shows up as an unhandled `ECONNREFUSED … :9999` rejection, failing the file.
 
 ⚠️ **`graphql-ws` clients need disposal before jsdom teardown.** The Apollo client singleton uses `retryAttempts: Infinity`; integration tests create many clients via `vi.resetModules()` re-imports. `tv-ui/test/setup.ts` wraps `graphql-ws`'s `createClient` to track and dispose all clients in `afterAll`. If you see unhandled `ECONNREFUSED`/reconnect errors in teardown, this wrapper is the place to look.
 

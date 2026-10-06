@@ -97,6 +97,13 @@ addVideoJsHook('scene-player', 'beforesetup', function(videoEl, options) {
             skipButtons: undefined,
             persistVolume: undefined,
             vrMenu: undefined,
+            // Every rendered slide's player would take over the browser's global media session handlers (media keys,
+            // play/pause/next/previous) as it became ready, so they'd drive whichever loaded last. Stash TV registers
+            // its own while in picture-in-picture (see usePictureInPicture)
+            mediaSession: undefined,
+            // Its control bar button toggles Stash's own autoplay setting (saving it to Stash's config), but Stash TV
+            // has its own, which it passes as the autoplay prop
+            autostartButton: undefined,
         },
     }
 });

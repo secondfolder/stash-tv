@@ -7,7 +7,7 @@ import StarOutlineIcon from '../../../assets/star-outline.svg?react';
 import type { ActionButtonDefinitionInput } from "./index";
 import cx from "classnames";
 import { useTvConfig } from "../../../store/tvConfig";
-import { ConfigurationContext } from "stash-ui/dist/src/hooks/Config";
+import { useConfigurationContext } from "stash-ui/dist/src/hooks/Config";
 import { defaultRatingSystemOptions } from "stash-ui/dist/src/utils/rating";
 import { RatingSystem } from "stash-ui/wrappers/components/shared/RatingSystem";
 import { useSetRating } from "../../../hooks/rating/useSetRating";
@@ -39,7 +39,7 @@ export function RateSceneActionButton({
 }: {
   scene: GQL.SceneDataFragment,
 }) {
-  const { configuration: stashConfig } = React.useContext(ConfigurationContext);
+  const { configuration: stashConfig } = useConfigurationContext();
   const { leftHandedUi } = useTvConfig();
   const ratingSystemOptions =
     stashConfig?.ui.ratingSystemOptions ?? defaultRatingSystemOptions;

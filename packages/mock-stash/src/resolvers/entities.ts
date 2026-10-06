@@ -50,6 +50,7 @@ export const entityResolvers = {
     groups: () => [],
     movies: () => [],
     stash_ids: () => [],
+    custom_fields: () => ({}),
   },
 
   SceneMarker: {
@@ -89,6 +90,8 @@ export const entityResolvers = {
     movie_count: () => 0,
     parent_count: (tag: { parent_ids: string[] }) => tag.parent_ids.length,
     child_count: (tag: { child_ids: string[] }) => tag.child_ids.length,
+    stash_ids: () => [],
+    custom_fields: () => ({}),
   },
 
   Performer: {
@@ -121,10 +124,19 @@ export const entityResolvers = {
     parent_studio: (studio: StudioRecord, _args: unknown, ctx: MockContext) =>
       studio.parent_studio_id ? ctx.store.studios.get(studio.parent_studio_id) ?? null : null,
     aliases: () => [],
+    // Stash replaced url with urls, still giving the first as url
+    urls: (studio: StudioRecord) => (studio.url ? [studio.url] : []),
     tags: () => [],
     ignore_auto_tag: () => false,
     stash_ids: () => [],
     favorite: () => false,
+    organized: () => false,
+    // As Stash's, the o-count of the studio's scenes
+    o_counter: (studio: { id: string }, _args: unknown, ctx: MockContext) =>
+      [...ctx.store.scenes.values()]
+        .filter((s) => s.studio_id === studio.id)
+        .reduce((count, s) => count + s.o_history.length, 0),
+    custom_fields: () => ({}),
     groups: () => [],
     movies: () => [],
     // As Stash's, marked as its default image when the studio has none of its own
@@ -136,6 +148,9 @@ export const entityResolvers = {
     gallery_count: () => 0,
     performer_count: () => 0,
     group_count: () => 0,
+    // As Stash's, markers on the studio's scenes
+    scene_marker_count: (studio: { id: string }, _args: unknown, ctx: MockContext) =>
+      [...ctx.store.markers.values()].filter((m) => ctx.store.scenes.get(m.scene_id)?.studio_id === studio.id).length,
     movie_count: () => 0,
   },
 

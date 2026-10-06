@@ -1,11 +1,32 @@
-import videojs from "video.js";
+import videojs, { VideoJsPlayer } from "video.js";
 
 // This is used by Stash components which only expect there to ever be one player at a time so we have to
 // do some messy stuff to update this such that it is always pointing at the currently focused player
 export let VIDEO_PLAYER_ID = "";
 
-export const getPlayerPosition = () =>
-  videojs.getPlayer(VIDEO_PLAYER_ID)?.currentTime();
+export const getPlayer = () => videojs.getPlayer(VIDEO_PLAYER_ID);
+
+export const getPlayerPosition = () => getPlayer()?.currentTime();
+
+export type AbLoopOptions = {
+  start: number;
+  end: number | false;
+  enabled?: boolean;
+};
+
+export type AbLoopPluginApi = {
+  getOptions: () => AbLoopOptions;
+  setOptions: (options: AbLoopOptions) => void;
+};
+
+export const getAbLoopPlugin = () => {
+  const player = getPlayer();
+  if (!player) return null;
+  const { abLoopPlugin } = player as VideoJsPlayer & {
+    abLoopPlugin?: AbLoopPluginApi;
+  };
+  return abLoopPlugin ?? null;
+};
 
 // This module can be evaluated more than once in a page (on a hot reload in development, and on every boot in Stash
 // TV's integration tests), so stop the previous copy's watchers first. They would otherwise run for as long as the

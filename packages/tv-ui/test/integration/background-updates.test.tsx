@@ -76,12 +76,12 @@ describe("Background cache updates", () => {
     const app = await bootApp();
     const sceneId = sceneIdOf(currentSlide(app));
     // Let the initial load finish first: the 8 fixture scenes are pages 1 and 2 at the default page size of 5
-    await waitFor(() => expect(integration.server.getRequestCounts()["FindFullScenes"]).toBe(2));
+    await waitFor(() => expect(integration.server.getRequestCounts()["FindFullScenesForTv"]).toBe(2));
     integration.server.resetRequestCounts();
 
     await simulateActivitySave(app, sceneId);
 
-    expect(integration.server.getRequestCounts()["FindFullScenes"] ?? 0).toBe(0);
+    expect(integration.server.getRequestCounts()["FindFullScenesForTv"] ?? 0).toBe(0);
 
     await app.unmount();
   });

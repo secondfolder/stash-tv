@@ -3,6 +3,10 @@ import FeedPage from "../pages/Feed";
 import { useTvConfig } from "../store/tvConfig";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import {ConfigurationProvider} from "stash-ui/dist/src/hooks/Config";
+import { ToastProvider } from "stash-ui/dist/src/hooks/Toast";
+import { ErrorMessage } from "stash-ui/dist/src/components/Shared/ErrorMessage";
+import { LoadingIndicator } from "stash-ui/wrappers/components/shared/LoadingIndicator";
+import { FormattedMessage } from "react-intl";
 import { useViewportRotate } from "../hooks/useViewportRotate";
 import { useBrowserZoomResetOnViewportChange } from "../hooks/useBrowserZoomResetOnViewportChange";
 import { ErrorBoundary } from "stash-ui/dist/src/components/ErrorBoundary";
@@ -25,8 +29,6 @@ const App = () => {
 
   const stashConfig = GQL.useConfigurationQuery();
 
-  // Undefined until Stash's configuration has loaded (as Stash's own app provides it), so components fall back to
-  // Stash's defaults. A partial configuration would crash those that read a section of it, like `general`
   const loadedStashConfig = stashConfig.data?.configuration;
   const modifiedStashConfig = loadedStashConfig && {
     ...loadedStashConfig,
@@ -50,14 +52,24 @@ const App = () => {
   return (
     <AppIntlProvider locale={language}>
       <ErrorBoundary>
-        <ConfigurationProvider
-          configuration={modifiedStashConfig}
-          loading={stashConfig.loading}
-        >
+        {/* Stash's components (e.g. its marker form) report what they've done, and errors, with toasts */}
+        <ToastProvider>
           <FeedbackOverlay />
           <NewVersionNotice />
-          <FeedPage />
-        </ConfigurationProvider>
+          {modifiedStashConfig ? (
+            <ConfigurationProvider configuration={modifiedStashConfig}>
+              <FeedPage />
+            </ConfigurationProvider>
+          ) : stashConfig.error ? (
+            // Stash's components need its configuration, so as in Stash's own app there's no feed without it
+            <ErrorMessage
+              message={<FormattedMessage id="errors.loading_type" values={{ type: "configuration" }} />}
+              error={stashConfig.error.message}
+            />
+          ) : (
+            <LoadingIndicator />
+          )}
+        </ToastProvider>
       </ErrorBoundary>
     </AppIntlProvider>
   );

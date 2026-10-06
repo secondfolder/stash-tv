@@ -1,8 +1,8 @@
-import { useContext, useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useApolloClient, useFragment } from "@apollo/client";
 import { getLogger } from "@logtape/logtape";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
-import { ConfigurationContext } from "stash-ui/dist/src/hooks/Config";
+import { useConfigurationContext } from "stash-ui/dist/src/hooks/Config";
 import { MarkerForTv, MediaItem, MediaItemRef, mediaItemFragment, mediaItemFromEntity } from "../helpers/mediaItem";
 import { makeMediaItemPreviewOnly } from "../helpers/makeMediaItemPreviewOnly";
 import { useTvConfig } from "../store/tvConfig";
@@ -55,7 +55,7 @@ export function useLiveMediaItem(ref: MediaItemRef): MediaItem | undefined {
   const { scenePreviewOnly, markerPreviewOnly } = useTvConfig()
   const previewOnly = ref.entityType === "scene" ? scenePreviewOnly : markerPreviewOnly
   const previewLength = usePreviewLengths(previewLengths => previewLengths[ref.id])
-  const { configuration: stashConfig } = useContext(ConfigurationContext)
+  const { configuration: stashConfig } = useConfigurationContext()
   const previewSegmentDuration = stashConfig?.general.previewSegmentDuration ?? undefined
   const previewSegments = stashConfig?.general.previewSegments ?? undefined
 

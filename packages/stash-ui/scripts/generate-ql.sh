@@ -9,5 +9,5 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 {
   cd "$SCRIPT_DIR/../stash/ui/v2.5"
-  yarn run gqlgen
+  pnpm run gqlgen
 };

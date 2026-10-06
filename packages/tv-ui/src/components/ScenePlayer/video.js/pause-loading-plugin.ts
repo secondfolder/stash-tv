@@ -1,7 +1,7 @@
 import { getLogger } from "@logtape/logtape";
 import videojs, { VideoJsPlayer } from "video.js";
 import { addVideoJsHook, useVideoJsMiddleware } from "./global-additions";
-import UAParser from "ua-parser-js";
+import { UAParser } from "ua-parser-js";
 import testVideo from '../../../assets/1x1_10bit.webm?url';
 
 // How long we're willing to wait for the hidden probe video below to produce a frame before giving up. This is a

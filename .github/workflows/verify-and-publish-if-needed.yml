@@ -21,6 +21,13 @@ jobs:
         with:
           node-version: 'lts/*'
 
+      # Stash's UI (packages/stash-ui/stash) installs its dependencies with pnpm. pnpm switches
+      # itself to the exact version pinned in Stash's packageManager field.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup ffmpeg
         uses: AnimMouse/setup-ffmpeg@v1
 

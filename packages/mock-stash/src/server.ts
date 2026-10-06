@@ -3,7 +3,7 @@ import type { AddressInfo } from "node:net";
 import { createYoga } from "graphql-yoga";
 import { WebSocketServer } from "ws";
 import { useServer } from "graphql-ws/lib/use/ws";
-import { getStashSchema } from "./schema";
+import { getStashSchema, type MockStashVersion } from "./schema";
 import { createStore, type MockStore } from "./store";
 import { createDefaultFixtures } from "./fixtures";
 import { ensureMediaFixtures } from "./generate-media";
@@ -39,6 +39,8 @@ export interface StartMockStashOptions {
   port?: number;
   /** Full fixture override (defaults to `createDefaultFixtures()`). */
   fixtures?: Fixtures;
+  /** Which Stash version's schema to serve (default `"pinned"`, the one Stash TV is built against). */
+  stashVersion?: MockStashVersion;
 }
 
 /**
@@ -81,7 +83,7 @@ export async function startMockStash(
   const requestCounts: Record<string, number> = {};
   const requests: { operationName: string; variables: Record<string, unknown> }[] = [];
 
-  const schema = getStashSchema();
+  const schema = getStashSchema(options.stashVersion);
 
   const yoga = createYoga({
     schema,

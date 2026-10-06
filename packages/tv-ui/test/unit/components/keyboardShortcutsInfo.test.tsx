@@ -12,6 +12,7 @@ import { RatingSystemType } from "stash-ui/dist/src/utils/rating";
 import helpText from "../../../src/components/settings/KeyboardShortcutsInfo/KeyboardShortcutsInfo.md?raw";
 import { KeyboardShortcutsInfo } from "../../../src/components/settings/KeyboardShortcutsInfo";
 import { filterShortcutsForRatingSystem } from "../../../src/components/settings/KeyboardShortcutsInfo/filterShortcutsForRatingSystem";
+import { WithStashConfiguration } from "../helpers/render";
 
 // Assertions key off the shortcut sequences (each row's first cell) so rewording a description doesn't break them
 const STAR_ROWS = ["| `r {1-5}` |", "| `r 0` |"];
@@ -39,7 +40,8 @@ describe("keyboard shortcut help rating filter", () => {
 
 describe("KeyboardShortcutsInfo", () => {
   it("renders the filtered help text, defaulting to star ratings when Stash has no rating config", async () => {
-    render(<KeyboardShortcutsInfo show onHide={() => {}} />);
+    // A fresh install has no rating config
+    render(<KeyboardShortcutsInfo show onHide={() => {}} />, { wrapper: WithStashConfiguration });
 
     expect(await screen.findByText("r {1-5}")).toBeInTheDocument();
     expect(screen.queryByText("r {0-9} {0-9}")).not.toBeInTheDocument();

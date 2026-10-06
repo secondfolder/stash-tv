@@ -3,8 +3,7 @@
 
 import { PLUGIN_NAMESPACE } from "../constants";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
-import { ConfigurationContext } from "stash-ui/dist/src/hooks/Config";
-import { useContext } from "react";
+import { useConfigurationContext } from "stash-ui/dist/src/hooks/Config";
 import { ApolloCache, StoreObject, useMutation } from "@apollo/client";
 
 /** Config saved in Stash but managed and only use by Stash TV */
@@ -21,8 +20,7 @@ export default function useStashTvConfig() {
         [PLUGIN_NAMESPACE as string]: stashTvConfig = {}
       } = {},
     } = {},
-    loading
-  } = useContext(ConfigurationContext)
+  } = useConfigurationContext()
 
   const [mutatePlugin] = useMutation<GQL.ConfigurePluginMutation, GQL.ConfigurePluginMutationVariables>(
     GQL.ConfigurePluginDocument,
@@ -69,7 +67,6 @@ export default function useStashTvConfig() {
 
   return {
     data: stashTvConfig as StashTvConfig,
-    loading,
     update,
   }
 }

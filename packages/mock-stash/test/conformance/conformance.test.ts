@@ -1,5 +1,6 @@
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import { startMockStash, type MockStashServer } from "../../src/server";
+import type { MockStashVersion } from "../../src/schema";
 import {
   isDockerAvailable,
   startRealStash,
@@ -18,6 +19,8 @@ import {
  */
 
 const dockerAvailable = await isDockerAvailable();
+// The vitest.conformance.config.ts projects run this once per Stash version Stash TV supports
+const stashVersion: MockStashVersion = process.env.MOCK_STASH_VERSION === "latest-release" ? "latest-release" : "pinned";
 
 let mock: MockStashServer;
 let real: RealStash;
@@ -41,8 +44,8 @@ async function gqlBoth(
 
 beforeAll(async () => {
   if (!dockerAvailable) return;
-  mock = await startMockStash();
-  real = await startRealStash();
+  mock = await startMockStash({ stashVersion });
+  real = await startRealStash(stashVersion);
 }, 300_000);
 
 afterAll(async () => {

@@ -57,6 +57,27 @@ export function allowPluginRemoval() {
             }) as unknown as VideoJsPlayer["skipButtons"];
         }
 
+        if (!('autostartButton' in plugins)) {
+            player.autostartButton = (() => {
+                return {
+                    // ScenePlayer autoplays if the button is on, so it's always off (our autoplay prop decides)
+                    getEnabled: () => false,
+                    isEnabled: () => false,
+                    setEnabled: () => {},
+                    syncWithConfig: () => {},
+                    updateAutoStart: () => Promise.resolve(),
+                }
+            }) as unknown as VideoJsPlayer["autostartButton"];
+        }
+
+        if (!('mediaSession' in plugins)) {
+            player.mediaSession = (() => {
+                return {
+                    setMetadata: () => {},
+                }
+            }) as unknown as VideoJsPlayer["mediaSession"];
+        }
+
         if (!('trackActivity' in plugins)) {
             player.trackActivity = (() => {
                 return {

@@ -31,8 +31,10 @@ describe("App boots against the mock Stash API", () => {
     await app.unmount();
   });
 
-  it("shows the feed when Stash's configuration can't be loaded", async () => {
-    // As if Stash didn't answer: tvConfig falls back to its defaults, and the feed to Stash's default settings
+  /** @see docs/state-and-config.md § "The `tvConfigLoaded` Guard" */
+  it("shows an error instead of the feed when Stash's configuration can't be loaded", async () => {
+    // As if Stash didn't answer: tvConfig falls back to its defaults, but Stash's components can't render without its
+    // configuration
     const realFetch = globalThis.fetch;
     vi.spyOn(globalThis, "fetch").mockImplementation((input, init) =>
       typeof init?.body === "string" && init.body.includes('"operationName":"Configuration"')
@@ -40,9 +42,10 @@ describe("App boots against the mock Stash API", () => {
         : realFetch(input, init)
     );
 
-    const app = await bootApp();
+    const app = await bootApp("Error loading configuration");
 
-    expect(app.rendered.container.querySelector(".FeedPage")).toBeTruthy();
+    expect(app.rendered.container.querySelector(".ErrorMessage")).toBeTruthy();
+    expect(app.rendered.container.querySelector(".FeedPage")).toBeNull();
     await app.unmount();
   });
 });

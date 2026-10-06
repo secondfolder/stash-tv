@@ -71,6 +71,7 @@ async function buildAllOtherSassFiles() {
 
     const contentToCompile = `
       ${await getSassThemeVariables()};
+      ${await getSassIndexVariables()}
       @import "bootstrap/scss/functions";
       @import "bootstrap/scss/variables";
       @import "bootstrap/scss/mixins";
@@ -103,6 +104,17 @@ async function getSassThemeVariables() {
     _sassThemeVariablesCache = file.match( /\$[^;:]*?:[^;]*?;/g )?.join("\n") || null;
   }
   return _sassThemeVariablesCache;
+}
+
+// index.scss declares variables (e.g. $sidebar-width) before importing the stylesheets that use them. Each stylesheet
+// is compiled on its own here, so they have to be declared ahead of each one.
+let _sassIndexVariablesCache: string | null = null;
+async function getSassIndexVariables() {
+  if (_sassIndexVariablesCache === null) {
+    const file = await fs.readFile(path.join(srcDir, "index.scss"), "utf8")
+    _sassIndexVariablesCache = file.match(/^\$[\w-]+:[^;]*;/gm)?.join("\n") ?? ""
+  }
+  return _sassIndexVariablesCache;
 }
 
 await buildThemeVarsSassFile()
