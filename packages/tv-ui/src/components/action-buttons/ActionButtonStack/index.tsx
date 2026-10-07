@@ -17,6 +17,7 @@ import { useMediaItemState } from "../../../store/mediaItemState";
 import { ChevronRight } from "react-bootstrap-icons";
 import { animateFolderIcons } from "./folderIconAnimation";
 import { useUiVisible } from "../../../hooks/useUiVisible";
+import { useGlobalState } from "../../../store/globalState";
 
 const logger = getLogger(["stash-tv", "ActionButtonStack"]);
 
@@ -174,6 +175,12 @@ const Folder = ({
     setClosing(true)
     if (await animateIcons({from: "current", to: "preview"})) setClosing(false)
   }
+
+  // Opening the scene info panel closes the folder, so the two aren't on screen together
+  const { sceneInfoOpen } = useGlobalState()
+  useEffect(() => {
+    if (sceneInfoOpen && isOpen) close()
+  }, [sceneInfoOpen])
 
   function open() {
     setMediaItemState("openFolderId", id)

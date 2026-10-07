@@ -89,6 +89,7 @@ The presentational shell all buttons render. Props (beyond those above):
 A button's side panel is a `PopoverPanel` (`src/components/PopoverPanel/`, with its CSS), which `ActionButtonBase` wraps its button in. It's a component of its own for popovers that behave the same away from the action buttons, e.g. the scene info panel's o-count, which opens the o-counter's controls with it. Its `placement` (`top` or `bottom`) overrides the side beside the buttons, and its panel then fades in rather than sliding in from the side (`.vertical`). The action buttons' props keep their names (`sidePanel`, `sidePanelClassName`, `onSidePanelToggle`), passed on as `content`, `className` and `onToggle`.
 
 - Only **one side panel can be open app-wide** — coordinated via the module-level `useCurrentOpenPopover` Zustand store; opening one closes any other
+- Closes when the scene info panel opens (`setSceneInfoOpen` in `MediaSlide`, which both the `i` key and the `show-scene-info` button go through), so the two aren't on screen at once
 - Closes on outside click or when the button scrolls offscreen (custom popper modifiers). ⚠️ Only a press that also *started* outside counts: on iOS, pressing inside a panel can close the on-screen keyboard, which moves the panel before the finger lifts, so the click lands on the outside-click backdrop.
 - Placement flips with `leftHandedUi`
 - **The panel re-positions whenever it changes size** (`updateOnResizeModifier`, a `ResizeObserver` on the panel and its contents), e.g. when a short list is swapped for a form. Popper itself only re-positions on scroll and window resize. ⚠️ Don't rely on focus changes to trigger it: Safari on iOS doesn't focus a button when it's tapped.
@@ -166,6 +167,7 @@ What each remaining button does, as the tests check it. Buttons not listed here 
   - ⚠️ While the icons move, the popover gets `.icons-animating`, which turns off its `overflow: auto` and the overflow indicators' `mask-image`. Either would clip icons that are still outside it.
   - The popover has no fade transition (`transition={false}`), so react-bootstrap's `onEntering`/`onExited` don't fire. The popover element comes from `onFirstUpdate` instead.
   - While the folder is open, its button shows an arrow instead of the preview. The arrow fades in after a short delay, once the icons are on their way out, and fades out as soon as the folder starts closing so it's gone by the time they're back.
+  - Opening the scene info panel closes the folder the same animated way (each folder watches `globalState.sceneInfoOpen`), including when the `show-scene-info` button is in that folder.
   - Closing it any other way (scrolled off screen, another folder opened) closes it at once, without animating.
   - Where the user prefers reduced motion (`prefers-reduced-motion: reduce`), nothing animates: the icons go straight to their place and the arrow appears and disappears without fading.
 - ⚠️ Since previewed buttons are mounted, their hooks run for the preview as well as the open folder. Effects that subscribe to something (e.g. player events) must clean up after themselves.

@@ -1,14 +1,15 @@
 /**
  * The action button stack as a whole, with buttons that need Stash's data: previewing them in a folder, and their
- * side panels. The rest of the stack (opening and closing folders, unknown buttons) is unit tested, in
+ * side panels, and both closing when the scene info panel opens. The rest of the stack (opening and closing folders, unknown buttons) is unit tested, in
  * test/unit/components/actionButtonStack.test.tsx.
  *
  * @see docs/action-buttons.md § "Rendering (`ActionButtonStack`)"
  * @see docs/action-buttons.md § "`ActionButtonBase`"
+ * @see docs/action-buttons.md § "Side panels"
  */
 
 import { describe, expect, it } from "vitest";
-import { waitFor, within } from "@testing-library/react";
+import { fireEvent, waitFor, within } from "@testing-library/react";
 import { setupIntegrationTest, bootApp, type BootedApp } from "./helpers/harness";
 import { currentSlide, pinActionButtons, setStackConfig, click } from "./helpers/feed";
 import { displayedIconState, isSidePanelOpen } from "../helpers/actionButtons";
@@ -77,6 +78,45 @@ describe("Action button side panels", () => {
     await waitFor(() => expect(document.querySelector(".action-button-rating-stars")).toBeNull());
     expect(openSidePanels()).toHaveLength(1);
     expect(isSidePanelOpen()).toBe(true);
+
+    await app.unmount();
+  });
+});
+
+describe("Opening the scene info panel", () => {
+  it("closes the open side panel", async () => {
+    const app = await bootApp();
+    await pinActionButtons(["rate-scene"]);
+    const rateButton = slideButton(app, "Rate scene");
+    if (!rateButton) throw new Error("Button not rendered");
+    click(rateButton);
+    await waitFor(() => expect(isSidePanelOpen()).toBe(true));
+
+    fireEvent.keyDown(document.body, { key: "i" });
+
+    await waitFor(() => expect(isSidePanelOpen()).toBe(false));
+    expect(within(currentSlide(app)).getByTestId("MediaSlide--sceneInfo").classList).toContain("active");
+
+    await app.unmount();
+  });
+
+  it("closes the open folder, even when the button opening it is in that folder", async () => {
+    const app = await bootApp();
+    await setStackConfig([
+      { id: "a", type: "folder", pinned: false, contents: (["show-scene-info", "loop"] as const)
+        .map((buttonType) => ({ id: buttonType, type: "button", buttonType, pinned: false })) },
+    ]);
+    click(within(currentSlide(app)).getByRole("button", { name: "Open folder" }));
+    const folderPopover = await waitFor(() => {
+      const popover = document.querySelector<HTMLElement>(".folder-contents-popover");
+      if (!popover) throw new Error("Folder not open");
+      return popover;
+    });
+
+    click(within(folderPopover).getByRole("button", { name: "Show scene info" }));
+
+    await waitFor(() => expect(document.querySelector(".folder-contents-popover")).toBeNull());
+    expect(within(currentSlide(app)).getByTestId("MediaSlide--sceneInfo").classList).toContain("active");
 
     await app.unmount();
   });

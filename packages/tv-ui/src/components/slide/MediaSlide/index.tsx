@@ -42,6 +42,7 @@ import { useFirstMountState } from "react-use";
 import { MediaItemStateContextProvider } from "../../../store/mediaItemState";
 import { useDeleteMediaItemDialog } from "../../../hooks/useDeleteMediaItemDialog";
 import { useGlobalState } from "../../../store/globalState";
+import { useCurrentOpenPopover } from "../../PopoverPanel";
 import { useMediaItemTags } from "../../../hooks/useMediaItemTags";
 import { EditTagsContents } from "../../EditTagsContents";
 import { Modal } from "../../containers/Modal";
@@ -551,7 +552,11 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
   }, [props.removeMediaItem, props.mediaItem.id, props.changeItemHandler, props.index]);
   const { open: openDeleteConfirmation, dialog: deleteConfirmationDialog } = useDeleteMediaItemDialog(props.mediaItem, handleMediaItemDeleted);
   const { set: setGlobalState, sceneInfoOpen } = useGlobalState();
-  const setSceneInfoOpen = useCallback((open: boolean) => setGlobalState("sceneInfoOpen", open), [setGlobalState]);
+  const setSceneInfoOpen = useCallback((open: boolean) => {
+    // Opening the panel closes any side panel (each slide's open folder closes itself, see ActionButtonStack)
+    if (open) useCurrentOpenPopover.setState(null);
+    setGlobalState("sceneInfoOpen", open);
+  }, [setGlobalState]);
   const { tags: mediaItemTags, primaryTag: mediaItemPrimaryTag, setTags: setMediaItemTags } = useMediaItemTags(props.mediaItem);
   const [showTagEditor, setShowTagEditor] = useState(false);
 

@@ -6,7 +6,7 @@
 
 ## Overview
 
-The panel across the bottom of a slide showing the scene's details. It's opened with the `show-scene-info` action button or the `i` key (`globalState.sceneInfoOpen`, shared by every slide). On marker slides it shows the marker's scene.
+The panel across the bottom of a slide showing the scene's details. It's opened with the `show-scene-info` action button or the `i` key (`globalState.sceneInfoOpen`, shared by every slide). Opening it closes any open action button folder or side panel (see [action buttons](action-buttons.md)). On marker slides it shows the marker's scene.
 
 Which fields it shows, on which lines, and which of them are right-aligned, is up to the user and persists in `tvConfig.sceneInfoLayout` (Stash plugin config, so it syncs across devices).
 
