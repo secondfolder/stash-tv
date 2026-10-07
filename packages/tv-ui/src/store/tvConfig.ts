@@ -7,12 +7,10 @@ import { useGlobalState } from "./globalState"
 import { ActionButtonStackConfig } from '../components/action-buttons/ActionButtonStack';
 import { ChannelConfig, normalizeChannels, persistedChannels, StartupChannel } from '../components/channels/channel-config';
 import { generateConfigId } from '../helpers/config-ids';
-import { END_POSITION_OPTIONS, START_POSITION_OPTIONS } from '../constants';
+import { END_POSITION_OPTIONS, START_POSITION_OPTIONS, TV_CONFIG_STORAGE_KEY } from '../constants';
 import { defaultSceneInfoLayout } from '../components/slide/SceneInfo/default-layout';
 import type { SceneInfoFieldOptionsConfig, SceneInfoLayout } from '../components/slide/SceneInfo/scene-info-config';
 export type DebuggingInfo = "render-debugging" | "onscreen-info" | "virtualizer-debugging";
-
-export const tvConfigStorageKey = 'app-state';
 
 type TvConfig = {
   volume: number;
@@ -251,7 +249,7 @@ export const useTvConfig = create<TvConfig & AppAction>()(
       },
     }),
     {
-      name: tvConfigStorageKey,
+      name: TV_CONFIG_STORAGE_KEY,
       storage: createJSONStorage(() => createHybridStorage()),
       // The temporary channel only lasts until Stash TV is closed
       partialize: (state) => ({ ...state, channels: persistedChannels(state.channels) }),

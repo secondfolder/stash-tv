@@ -9,15 +9,28 @@
 import { describe, it, expect, vi } from "vitest";
 import { importPlugin } from "./test-harness";
 
-// main.tsx transitively imports tv-ui's config store, which builds an Apollo
-// client from Stash's StashService — that touches `document`, which doesn't
-// exist in the node test environment. Stub the Stash client; its query/mutate
-// failures are caught by stash-config-storage.
-vi.mock("stash-ui/dist/src/core/StashService", () => ({
-  getClient: () => ({ cache: {}, link: undefined }),
-}));
+// Modules the plugin must not load: see the test below
+const loadedForbiddenModules = vi.hoisted(() => new Set<string>());
+vi.mock("stash-ui/dist/src/core/StashService", () => {
+  loadedForbiddenModules.add("stash-ui StashService");
+  return {};
+});
+vi.mock("../../../tv-ui/src/store/tvConfig", () => {
+  loadedForbiddenModules.add("tv-ui tvConfig store");
+  return {};
+});
 
 describe("Plugin initialization", () => {
+  // The plugin runs in every Stash page. Anything it imports is bundled into it, so importing tv-ui's tvConfig store
+  // started the store up there, along with a second copy of Stash's StashService and its own Apollo client. Use Stash's
+  // client from PluginApi instead, and keep anything the plugin needs from tv-ui in modules without side effects
+  // (e.g. tv-ui's constants).
+  it("doesn't load tv-ui's tvConfig store or its own copy of Stash's StashService", async () => {
+    await importPlugin({ plugins: { "stash-tv": { initialSetupComplete: true } } });
+
+    expect([...loadedForbiddenModules]).toEqual([]);
+  });
+
   it("registers patches for PluginSettings, MainNavBar.MenuItems, CheckboxGroup and ScenePage", async () => {
     const mock = await importPlugin({ plugins: { "stash-tv": { initialSetupComplete: true } } });
 

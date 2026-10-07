@@ -1,9 +1,8 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { PLUGIN_NAMESPACE, STASH_QUEUE_PARAMS, STASH_QUEUE_SCENE_PARAM } from "../tv-ui/src/constants";
+import { PLUGIN_NAMESPACE, STASH_QUEUE_PARAMS, STASH_QUEUE_SCENE_PARAM, TV_CONFIG_STORAGE_KEY } from "../tv-ui/src/constants";
 import { StashTvConfig } from "../tv-ui/src/hooks/useStashTvConfig"
 import { ConfigDataFragment, ConfigInterfaceResult } from "stash-ui/dist/src/core/generated-graphql.js";
 import type { CheckboxGroup } from "stash-ui/dist/src/components/Settings/SettingsInterfacePanel/CheckboxGroup";
-import { tvConfigStorageKey } from "../tv-ui/src/store/tvConfig";
 import StashTvLogo from "../tv-ui/src/assets/stash-tv-logo.svg?react";
 
 const { PluginApi } = window;
@@ -47,7 +46,7 @@ PluginApi.patch.instead(
 
     const isDevOptionsEnabled = PluginApi.React.useMemo(
       () => JSON.parse(
-        stashTvConfig && tvConfigStorageKey in stashTvConfig && typeof stashTvConfig[tvConfigStorageKey] === "string" ? stashTvConfig[tvConfigStorageKey] : '{}'
+        stashTvConfig && TV_CONFIG_STORAGE_KEY in stashTvConfig && typeof stashTvConfig[TV_CONFIG_STORAGE_KEY] === "string" ? stashTvConfig[TV_CONFIG_STORAGE_KEY] : '{}'
       )?.state?.showDevOptions,
       [stashTvConfig]
     );
@@ -85,17 +84,17 @@ PluginApi.patch.instead(
               </summary>
               <pre>
                 {JSON.stringify(
-                  (stashTvConfig && tvConfigStorageKey in stashTvConfig && typeof stashTvConfig[tvConfigStorageKey] === "string")
-                    ? {...stashTvConfig, [tvConfigStorageKey]: '<app state data>'}
+                  (stashTvConfig && TV_CONFIG_STORAGE_KEY in stashTvConfig && typeof stashTvConfig[TV_CONFIG_STORAGE_KEY] === "string")
+                    ? {...stashTvConfig, [TV_CONFIG_STORAGE_KEY]: '<app state data>'}
                     : stashTvConfig,
                   null,
                   2
                 )}
               </pre>
-              {(stashTvConfig && tvConfigStorageKey in stashTvConfig && typeof stashTvConfig[tvConfigStorageKey] === "string") && <>
+              {(stashTvConfig && TV_CONFIG_STORAGE_KEY in stashTvConfig && typeof stashTvConfig[TV_CONFIG_STORAGE_KEY] === "string") && <>
                 App state stored in Stash TV config:
                 <pre>
-                  {JSON.stringify(JSON.parse(stashTvConfig[tvConfigStorageKey]), null, 2)}
+                  {JSON.stringify(JSON.parse(stashTvConfig[TV_CONFIG_STORAGE_KEY]), null, 2)}
                 </pre>
               </>}
             </details>

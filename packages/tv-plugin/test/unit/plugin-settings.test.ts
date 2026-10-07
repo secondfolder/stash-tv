@@ -6,14 +6,9 @@
  * and the dev-options JSON inspector gated on showDevOptions.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import type { MockReactElement } from "./plugin-api-mock";
 import { importPlugin } from "./test-harness";
-
-// See plugin-initialization.test.ts for why StashService is stubbed.
-vi.mock("stash-ui/dist/src/core/StashService", () => ({
-  getClient: () => ({ cache: {}, link: undefined }),
-}));
 
 const Original = () => "original";
 

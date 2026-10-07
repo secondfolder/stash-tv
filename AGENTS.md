@@ -315,6 +315,8 @@ Conventional Commits (Commitlint-enforced); Semantic Release automates versionin
 
 ⚠️ **Plugin runs in Stash's iframe context.** Access to Stash APIs via `window.PluginApi`. Some browser features may be restricted.
 
+⚠️ **`packages/tv-plugin/main.tsx` runs in every Stash page, so import only side-effect-free modules from tv-ui** (e.g. `src/constants`, types). Everything it imports is bundled into the plugin. Importing the tvConfig store once pulled in the store, Apollo and a second copy of Stash's `StashService`, and started them up inside Stash's own UI. Use `PluginApi` for Stash's client and components. A tv-plugin test fails if the store or `StashService` gets loaded.
+
 ### 4. Type Imports
 
 ⚠️ **Always import types from `stash-ui/dist/src/core/generated-graphql` for Stash API types.** Do not redefine or copy types.

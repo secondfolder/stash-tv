@@ -24,6 +24,12 @@ export const PLUGIN_CONFIG_PROPERTY = {
 export const PLUGIN_NAMESPACE = "stash-tv" as const;
 
 /**
+ * The key the tvConfig store is persisted under in Stash TV's plugin config. Kept here rather than in the store so the
+ * plugin can read it without bundling the store, which would otherwise start up inside every Stash page.
+ */
+export const TV_CONFIG_STORAGE_KEY = "app-state";
+
+/**
  * The URL params Stash describes a scene page's queue with: a filter's (sort, search, criteria and page), or
  * hand-picked scenes' ids. The plugin opens Stash TV with them to show the queue (see `getStashQueue`).
  */
