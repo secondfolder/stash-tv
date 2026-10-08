@@ -31,12 +31,12 @@ let configWritesSettledPerBoot: (() => Promise<void>)[] = [];
 configure({ asyncUtilTimeout: 15000 });
 
 function mockStashVersion(): MockStashVersion {
-  return process.env.MOCK_STASH_VERSION === "latest-release" ? "latest-release" : "pinned";
+  return process.env.MOCK_STASH_VERSION === "latest-stable-release" ? "latest-stable-release" : "pinned";
 }
 
 export function setupIntegrationTest() {
   beforeAll(async () => {
-    // The integration-latest-release project runs the suite against the latest Stash release's schema too
+    // The integration-stash-stable project runs the suite against the latest Stash release's schema too
     // @see docs/stash-compatibility.md
     server = await startMockStash({ stashVersion: mockStashVersion() });
     // Must be stubbed before any app module import — the Apollo link captures it at

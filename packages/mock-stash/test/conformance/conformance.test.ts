@@ -20,7 +20,7 @@ import {
 
 const dockerAvailable = await isDockerAvailable();
 // The vitest.conformance.config.ts projects run this once per Stash version Stash TV supports
-const stashVersion: MockStashVersion = process.env.MOCK_STASH_VERSION === "latest-release" ? "latest-release" : "pinned";
+const stashVersion: MockStashVersion = process.env.MOCK_STASH_VERSION === "latest-stable-release" ? "latest-stable-release" : "pinned";
 
 let mock: MockStashServer;
 let real: RealStash;

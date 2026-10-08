@@ -83,11 +83,13 @@ export default defineConfig({
           ...sharedTestOptions,
         },
       },
+      // Against the Stash version stash-ui is built from (a commit on Stash's develop branch)
+      // @see docs/stash-compatibility.md
       {
         plugins: sharedPlugins,
         resolve: sharedResolve,
         test: {
-          name: "integration",
+          name: "integration-stash-develop",
           include: ["test/integration/**/*.test.{ts,tsx}"],
           setupFiles: ["./test/setup.ts"],
           ...sharedTestOptions,
@@ -99,10 +101,10 @@ export default defineConfig({
         plugins: sharedPlugins,
         resolve: sharedResolve,
         test: {
-          name: "integration-latest-release",
+          name: "integration-stash-stable",
           include: ["test/integration/**/*.test.{ts,tsx}"],
           setupFiles: ["./test/setup.ts"],
-          env: { MOCK_STASH_VERSION: "latest-release" },
+          env: { MOCK_STASH_VERSION: "latest-stable-release" },
           ...sharedTestOptions,
         },
       },

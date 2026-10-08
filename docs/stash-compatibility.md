@@ -32,11 +32,11 @@ The plugin runs against whatever Stash it's installed in, but it bundles one cop
 ## Tests
 
 - `test/unit/helpers/stashSchemaCompat.test.ts` checks that every operation Stash's UI can send is valid on the latest release once adapted, and unchanged on the pinned version.
-- The tv-ui integration suite runs twice: the `integration` project against mock-stash serving the pinned schema, and `integration-latest-release` against it serving the latest release's (`startMockStash({ stashVersion: "latest-release" })`). The second catches what the adapted queries break at runtime.
+- The tv-ui integration suite runs twice: the `integration-stash-develop` project against mock-stash serving the pinned schema (from Stash's develop branch), and `integration-stash-stable` against it serving the latest release's (`startMockStash({ stashVersion: "latest-stable-release" })`). The second catches what the adapted queries break at runtime.
 - mock-stash's conformance suite runs against a real Stash of each version (`STASH_IMAGES` in `test/conformance/real-stash.ts`).
 - `setup.sh` extracts the latest release's schema from its git tag into `packages/stash-ui/release-schema/` (gitignored), which mock-stash and the unit test read.
 
 ## Updating the versions
 
 - **New pinned version:** see [stash-ui package](stash-ui-package.md) § "Automatic Setup & Build". Then run the tests above.
-- **New Stash release:** set `STASH_RELEASE_VERSION` in `setup.sh` and the `latest-release` image in `real-stash.ts`, run setup, and run the tests. Once a release includes everything the pinned version has, the latest release and pinned version have the same schema and adapting changes nothing.
+- **New Stash release:** set `STASH_RELEASE_VERSION` in `setup.sh` and the `latest-stable-release` image in `real-stash.ts`, run setup, and run the tests. Once a release includes everything the pinned version has, the latest release and pinned version have the same schema and adapting changes nothing.

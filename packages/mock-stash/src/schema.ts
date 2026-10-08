@@ -14,13 +14,13 @@ const here = path.dirname(fileURLToPath(import.meta.url));
  *
  * Stash TV supports two Stash versions (see docs/stash-compatibility.md), so it can serve either's schema:
  * - `"pinned"`: the one from the `stash` git submodule pinned in stash-ui, which Stash TV is built against
- * - `"latest-release"`: the latest Stash release's, which stash-ui's setup.sh extracts to `release-schema/`
+ * - `"latest-stable-release"`: the latest Stash release's, which stash-ui's setup.sh extracts to `release-schema/`
  */
-export type MockStashVersion = "pinned" | "latest-release";
+export type MockStashVersion = "pinned" | "latest-stable-release";
 
 const SCHEMA_DIRS: Record<MockStashVersion, string> = {
   pinned: path.resolve(here, "../../stash-ui/stash/graphql/schema"),
-  "latest-release": path.resolve(here, "../../stash-ui/release-schema"),
+  "latest-stable-release": path.resolve(here, "../../stash-ui/release-schema"),
 };
 
 function readGraphqlFiles(dir: string): string {

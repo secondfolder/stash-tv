@@ -15,8 +15,8 @@ export default defineConfig({
   test: {
     // Once per Stash version Stash TV supports (see docs/stash-compatibility.md)
     projects: [
-      { test: { name: "conformance", ...sharedTestOptions } },
-      { test: { name: "conformance-latest-release", env: { MOCK_STASH_VERSION: "latest-release" }, ...sharedTestOptions } },
+      { test: { name: "conformance-stash-develop", ...sharedTestOptions } },
+      { test: { name: "conformance-stash-stable", env: { MOCK_STASH_VERSION: "latest-stable-release" }, ...sharedTestOptions } },
     ],
   },
 });

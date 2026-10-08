@@ -7,7 +7,7 @@ How the automated test suites work, the standards tests must follow, and the got
 | Tier | Where | Runner | Command |
 | --- | --- | --- | --- |
 | Unit | `packages/tv-ui/test/unit/` | Vitest + RTL (jsdom) | `yarn --cwd packages/tv-ui test` |
-| Integration | `packages/tv-ui/test/integration/` | Vitest + RTL against a real in-memory mock Stash API, run twice: against the Stash version stash-ui is built from (`integration` project) and the latest Stash release (`integration-latest-release`, see [Stash compatibility](stash-compatibility.md)) | same command as unit |
+| Integration | `packages/tv-ui/test/integration/` | Vitest + RTL against a real in-memory mock Stash API, run twice: against the Stash version stash-ui is built from (`integration-stash-develop` project) and the latest Stash release (`integration-stash-stable`, see [Stash compatibility](stash-compatibility.md)) | same command as unit |
 | Mock server meta/conformance | `packages/mock-stash/test/` | Vitest (node env; conformance uses Docker, auto-skips without it, and runs once per supported Stash version) | `yarn --cwd packages/mock-stash test` / `test:conformance` |
 | Docs validation | `packages/repo/test/` | Vitest | `yarn --cwd packages/repo test` |
 | Plugin | `packages/tv-plugin/test/unit/` | Vitest (node env) | `yarn --cwd packages/tv-plugin test` |
@@ -21,7 +21,7 @@ From `packages/tv-ui` (or with `yarn --cwd packages/tv-ui`):
 yarn test                                      # all tv-ui tests (unit + integration)
 yarn test test/unit/                           # unit only
 yarn test test/integration/                    # integration only
-yarn test --project integration                # integration against the pinned Stash version only
+yarn test --project integration-stash-develop  # integration against the pinned (develop) Stash version only
 yarn test test/unit/store/globalState.test.ts  # one file
 yarn test --watch                              # watch mode
 yarn test --coverage                           # coverage report

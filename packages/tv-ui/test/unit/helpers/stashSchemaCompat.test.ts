@@ -16,7 +16,7 @@ import {
 } from "../../../src/helpers/stash-schema-compat";
 
 const pinnedSchema = buildSchema(loadStashTypeDefinitions("pinned"), { assumeValidSDL: true });
-const latestReleaseSchema = buildSchema(loadStashTypeDefinitions("latest-release"), { assumeValidSDL: true });
+const latestStableReleaseSchema = buildSchema(loadStashTypeDefinitions("latest-stable-release"), { assumeValidSDL: true });
 
 /** Every query, mutation and subscription Stash's UI (and so Stash TV) can send */
 const stashOperations = Object.entries(GQL)
@@ -36,8 +36,8 @@ describe("Stash's operations", () => {
     const invalid = stashOperations
       // An operation using a query or mutation the release doesn't have can't be adapted; nothing Stash TV shows
       // sends one
-      .filter(([, document]) => validate(latestReleaseSchema, document).every((error) => !/on type "(Query|Mutation|Subscription)"|Unknown type/.test(error.message)))
-      .map(([name, document]) => [name, validate(latestReleaseSchema, adaptDocumentToSchema(document, latestReleaseSchema)).map((error) => error.message)] as const)
+      .filter(([, document]) => validate(latestStableReleaseSchema, document).every((error) => !/on type "(Query|Mutation|Subscription)"|Unknown type/.test(error.message)))
+      .map(([name, document]) => [name, validate(latestStableReleaseSchema, adaptDocumentToSchema(document, latestStableReleaseSchema)).map((error) => error.message)] as const)
       .filter(([, errors]) => errors.length > 0);
     expect(invalid).toEqual([]);
   });
@@ -51,8 +51,8 @@ describe("Stash's operations", () => {
 
   it("include the ones Stash TV sends on startup, which the latest release can run once adapted", () => {
     for (const document of [GQL.ConfigurationDocument, GQL.FindFullScenesForTvDocument, GQL.FindSceneMarkersForTvDocument]) {
-      expect(validate(latestReleaseSchema, document)).not.toEqual([]);
-      expect(validate(latestReleaseSchema, adaptDocumentToSchema(document, latestReleaseSchema))).toEqual([]);
+      expect(validate(latestStableReleaseSchema, document)).not.toEqual([]);
+      expect(validate(latestStableReleaseSchema, adaptDocumentToSchema(document, latestStableReleaseSchema))).toEqual([]);
     }
   });
 });
