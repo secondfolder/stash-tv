@@ -5,6 +5,7 @@ runs:
   using: composite
   steps:
     - name: Setup Node.js
+      id: node
       uses: actions/setup-node@v7
       with:
         node-version: 'lts/*'
@@ -28,11 +29,38 @@ runs:
         yarn --version
         ffmpeg -version | head -n 1
 
+    # Installing is then near-instant: yarn sees node_modules already matches yarn.lock
+    - name: Restore node_modules
+      uses: actions/cache@v6
+      with:
+        path: |
+          node_modules
+          packages/*/node_modules
+        key: node-modules-${{ runner.os }}-node-${{ steps.node.outputs.node-version }}-${{ hashFiles('yarn.lock') }}
+
     - name: Install project packages
       shell: bash
       run: yarn install --frozen-lockfile
 
-    # Sets up stash-ui's Stash checkout and builds it, which everything else imports from
-    - name: Set up and build stash-ui
+    - name: Set up stash-ui
+      shell: bash
+      run: yarn --cwd packages/stash-ui setup
+
+    # The fingerprint ensure-ready compares with the stamp in dist/ to tell whether stash-ui needs building again
+    - name: Fingerprint stash-ui's build inputs
+      id: stash-ui
+      shell: bash
+      run: |
+        source packages/stash-ui/scripts/fingerprint.sh
+        echo "build-fingerprint=$(build_fingerprint)" >> "$GITHUB_OUTPUT"
+
+    - name: Restore stash-ui build
+      uses: actions/cache@v6
+      with:
+        path: packages/stash-ui/dist
+        key: stash-ui-dist-${{ steps.stash-ui.outputs.build-fingerprint }}
+
+    # Builds stash-ui, which everything else imports from, unless the restored build is up to date
+    - name: Build stash-ui
       shell: bash
       run: yarn --cwd packages/stash-ui ensure-ready
