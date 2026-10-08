@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import type { MockReactElement } from "./plugin-api-mock";
+import { afterPatchArgs, type MockReactElement } from "./plugin-api-mock";
 import { importPlugin } from "./test-harness";
 
 const Original = () => "original";
@@ -62,6 +62,15 @@ describe("PluginSettings patch", () => {
     expect((result as { type: unknown }).type).toBe(Original);
   });
 
+  it("hands another plugin's after patch the whole render for its own settings", async () => {
+    const mock = await importPlugin({ plugins: { "stash-tv": { initialSetupComplete: true } } });
+    const patch = mock.patchFor("PluginSettings");
+
+    const result = render(mock, patch, ownProps);
+
+    expect(afterPatchArgs([ownProps, undefined], result).at(-1)).toBe(result);
+  });
+
   it("resets all Stash TV settings to an empty config when Reset is clicked", async () => {
     const mock = await importPlugin({
       plugins: { "stash-tv": { volume: 50, initialSetupComplete: true } },
@@ -69,7 +78,7 @@ describe("PluginSettings patch", () => {
     const patch = mock.patchFor("PluginSettings");
     mock.mutate.mockClear();
 
-    const result = render(mock, patch, ownProps) as unknown[];
+    const result = render(mock, patch, ownProps);
     const buttons = flatten(result).filter(
       (element) => element.type === mock.pluginApi.libraries.Bootstrap.Button
     );

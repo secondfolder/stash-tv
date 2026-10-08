@@ -51,58 +51,60 @@ PluginApi.patch.instead(
       [stashTvConfig]
     );
 
-    // Add the button to the navbar
-    return [
-      <Original {...props} />,
-      <div className="plugin-settings">
-        <div className="setting"></div> {/* Dummy setting to force line between settings */}
-        <div className="setting">
-          <div>
-            <h3>Reset all Stash TV settings</h3>
-            <div className="sub-heading">
-              Stash TV has its own settings which are configurable from the settings panel in the
-              Stash TV interface. This resets those settings to default.
+    // A single element rather than an array, as with the ScenePage patch below
+    return (
+      <>
+        <Original {...props} />
+        <div className="plugin-settings">
+          <div className="setting"></div> {/* Dummy setting to force line between settings */}
+          <div className="setting">
+            <div>
+              <h3>Reset all Stash TV settings</h3>
+              <div className="sub-heading">
+                Stash TV has its own settings which are configurable from the settings panel in the
+                Stash TV interface. This resets those settings to default.
+              </div>
+            </div>
+            <div>
+              <PluginApi.libraries.Bootstrap.Button onClick={resetStashTvSettings} variant="warning">
+                {settingResetComplete && <>
+                  <FontAwesomeIcon
+                    icon={PluginApi.libraries.FontAwesomeSolid.faCheck}
+                  />
+                  {" "}
+                </>}
+                Reset
+              </PluginApi.libraries.Bootstrap.Button>
             </div>
           </div>
-          <div>
-            <PluginApi.libraries.Bootstrap.Button onClick={resetStashTvSettings} variant="warning">
-              {settingResetComplete && <>
-                <FontAwesomeIcon
-                  icon={PluginApi.libraries.FontAwesomeSolid.faCheck}
-                />
-                {" "}
-              </>}
-              Reset
-            </PluginApi.libraries.Bootstrap.Button>
-          </div>
-        </div>
-        {isDevOptionsEnabled && <div className="setting">
-          <div>
-            <details>
-              <summary>
-                <h3 style={{ display: 'inline' }}>Stash TV settings JSON</h3>
-              </summary>
-              <pre>
-                {JSON.stringify(
-                  (stashTvConfig && TV_CONFIG_STORAGE_KEY in stashTvConfig && typeof stashTvConfig[TV_CONFIG_STORAGE_KEY] === "string")
-                    ? {...stashTvConfig, [TV_CONFIG_STORAGE_KEY]: '<app state data>'}
-                    : stashTvConfig,
-                  null,
-                  2
-                )}
-              </pre>
-              {(stashTvConfig && TV_CONFIG_STORAGE_KEY in stashTvConfig && typeof stashTvConfig[TV_CONFIG_STORAGE_KEY] === "string") && <>
-                App state stored in Stash TV config:
+          {isDevOptionsEnabled && <div className="setting">
+            <div>
+              <details>
+                <summary>
+                  <h3 style={{ display: 'inline' }}>Stash TV settings JSON</h3>
+                </summary>
                 <pre>
-                  {JSON.stringify(JSON.parse(stashTvConfig[TV_CONFIG_STORAGE_KEY]), null, 2)}
+                  {JSON.stringify(
+                    (stashTvConfig && TV_CONFIG_STORAGE_KEY in stashTvConfig && typeof stashTvConfig[TV_CONFIG_STORAGE_KEY] === "string")
+                      ? {...stashTvConfig, [TV_CONFIG_STORAGE_KEY]: '<app state data>'}
+                      : stashTvConfig,
+                    null,
+                    2
+                  )}
                 </pre>
-              </>}
-            </details>
-          </div>
-          <div></div> {/* To stop :last-child style right-aligning this */}
-        </div>}
-      </div>
-    ];
+                {(stashTvConfig && TV_CONFIG_STORAGE_KEY in stashTvConfig && typeof stashTvConfig[TV_CONFIG_STORAGE_KEY] === "string") && <>
+                  App state stored in Stash TV config:
+                  <pre>
+                    {JSON.stringify(JSON.parse(stashTvConfig[TV_CONFIG_STORAGE_KEY]), null, 2)}
+                  </pre>
+                </>}
+              </details>
+            </div>
+            <div></div> {/* To stop :last-child style right-aligning this */}
+          </div>}
+        </div>
+      </>
+    );
   }
 );
 
@@ -114,12 +116,12 @@ PluginApi.patch.instead(
     const showNavButton = stashConfig?.configuration?.interface?.menuItems?.includes('tv')
 
     // Add the button to the navbar
-    return [
+    return (
       <Original {...props}>
         {children}
         {(!stashConfigLoading && showNavButton) && <StashTVButtonInner />}
-      </Original>,
-    ];
+      </Original>
+    );
   }
 );
 
@@ -170,10 +172,14 @@ const StashTVButtonInner = () => {
 PluginApi.patch.instead(
   "ScenePage",
   function (props, _, Original) {
-    return [
-      <Original {...props} />,
-      <QueueTvButton />,
-    ];
+    // A single element rather than an array: Stash passes the result on to "after" patches with `args.concat(result)`,
+    // which spreads an array, so another plugin's after patch reading its last argument would get only the button.
+    return (
+      <>
+        <Original {...props} />
+        <QueueTvButton />
+      </>
+    );
   }
 );
 

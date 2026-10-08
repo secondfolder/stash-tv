@@ -72,6 +72,7 @@ export function createReactMock() {
 
   return {
     createElement,
+    Fragment: "Fragment",
     useState,
     useEffect,
     useMemo,
@@ -174,3 +175,12 @@ export function createPluginApiMock() {
 }
 
 export type PluginApiMock = ReturnType<typeof createPluginApiMock>;
+
+/**
+ * The arguments Stash's `PatchFunction` passes an "after" patch for an "instead" patch's result:
+ * `args.concat(result)`, which spreads a result that's an array. Another plugin's after patch takes the rendered
+ * element from the last of them, so a patch must return a single element for that to be the whole render.
+ */
+export function afterPatchArgs(args: unknown[], result: unknown): unknown[] {
+  return args.concat(result);
+}

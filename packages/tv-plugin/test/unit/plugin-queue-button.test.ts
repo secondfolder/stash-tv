@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import type { MockReactElement } from "./plugin-api-mock";
+import { afterPatchArgs, type MockReactElement } from "./plugin-api-mock";
 import { importPlugin } from "./test-harness";
 
 const Original = () => "original";
@@ -24,11 +24,23 @@ describe("ScenePage patch", () => {
     const { mock } = await importSetUpPlugin();
     const patch = mock.patchFor("ScenePage");
 
-    const result = patch.implementation({ id: "1" }, undefined, Original) as MockReactElement[];
+    const result = patch.implementation({ id: "1" }, undefined, Original) as MockReactElement;
+    const [page, button] = result.props.children as MockReactElement[];
 
-    expect(result[0].type).toBe(Original);
-    expect(result[0].props).toMatchObject({ id: "1" });
-    expect((result[1].type as { name?: string }).name).toBe("QueueTvButton");
+    expect(result.type).toBe(mock.pluginApi.React.Fragment);
+    expect(page.type).toBe(Original);
+    expect(page.props).toMatchObject({ id: "1" });
+    expect((button.type as { name?: string }).name).toBe("QueueTvButton");
+  });
+
+  it("hands another plugin's after patch the whole render, page included", async () => {
+    const { mock } = await importSetUpPlugin();
+    const patch = mock.patchFor("ScenePage");
+    const args = [{ id: "1" }, undefined];
+
+    const result = patch.implementation(...args, Original);
+
+    expect(afterPatchArgs(args, result).at(-1)).toBe(result);
   });
 });
 

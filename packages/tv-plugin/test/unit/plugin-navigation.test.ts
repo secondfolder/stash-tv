@@ -59,8 +59,7 @@ describe("MainNavBar.MenuItems patch", () => {
     mock.useConfigurationQuery.mockReturnValue({ data: configuration, loading });
 
     const result = patch.implementation({ children: [] }, undefined, Original);
-    const root = Array.isArray(result) ? result : [result];
-    return root.flatMap(flatten);
+    return flatten(result);
   }
 
   it("shows the TV nav button when tv is in interface.menuItems", async () => {

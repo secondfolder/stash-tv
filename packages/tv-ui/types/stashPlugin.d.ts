@@ -1,6 +1,13 @@
 import { PluginApi } from "stash-ui/dist/src/pluginApi.js"
 import type { CheckboxGroup } from "stash-ui/dist/src/components/Settings/SettingsInterfacePanel/CheckboxGroup";
 
+/**
+ * What an "instead" patch renders: a single element, never an array. Stash hands the result to "after" patches as
+ * `args.concat(result)`, which spreads an array, so another plugin's after patch reading its last argument would get
+ * only the last element. Wrap several elements in a Fragment.
+ */
+type PatchRender = React.ReactElement | null;
+
 
 
 declare global {
@@ -21,7 +28,7 @@ declare global {
               }>,
               _: object,
               Original: React.JSX
-            ) => React.Node
+            ) => PatchRender,
           ): void,
           (
             component: string,
@@ -29,7 +36,7 @@ declare global {
               props: React.PropsWithChildren<{}>,
               _: object,
               Original: React.JSX
-            ) => React.Node
+            ) => PatchRender
           ): void,
         }
       }
