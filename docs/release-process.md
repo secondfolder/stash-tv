@@ -29,6 +29,6 @@ Beyond the standard `feat` (minor) / `fix` + breaking (major/minor) behaviour, f
 
 ⚠️ The two versions must match: the running app compares its build-time version (from `package.json`) with the version Stash reports for the installed plugin (from `source.yml`) to tell the user an update is available (see [app updates](app-updates.md)).
 
-CI works out the next version before building, with a Semantic Release dry run (`scripts/update-version-number.ts`). If no commit since the last release triggers one (e.g. only `test` commits), the job still builds and tests, skips the Release step, and notes "No publishable changes" in its summary rather than failing.
+CI's build job works out the next version before building, with a Semantic Release dry run (`scripts/update-version-number.ts`). Its separate release job runs once every test job has passed, and publishes the plugin exactly as the build job built it (passed along as the `plugin` artifact). If no commit since the last release triggers one (e.g. only `test` commits), CI still builds and tests, publishes nothing, and its release job notes "No publishable changes" in its summary rather than failing.
 
 ⚠️ Changing the release/versioning setup (`release.config.js`, version handling in `package.json` / `source.yml`) is an **ask first** area — releases are fully automated on merge to `main`.

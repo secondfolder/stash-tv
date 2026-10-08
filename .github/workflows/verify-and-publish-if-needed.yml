@@ -6,107 +6,155 @@ on:
       - '**'
   workflow_call:
 
+# The slow test suites run in jobs of their own, alongside the build, and the release waits for all of them
 jobs:
-  lint:
-    name: Verify and publish if needed
+  build:
+    name: Build, typecheck and unit test
     runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.version.outputs.release }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-        with:
-          path: stash-tv
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 'lts/*'
-
-      # Stash's UI (packages/stash-ui/stash) installs its dependencies with pnpm. pnpm switches
-      # itself to the exact version pinned in Stash's packageManager field.
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: Setup ffmpeg
-        uses: AnimMouse/setup-ffmpeg@v1
-
-      - name: Print versions
-        run: |
-          git --version
-          node --version
-          npm --version
-          npx commitlint --version
-          ffmpeg -version | head -n 1
-
-      - name: Install project packages
-        working-directory: stash-tv
-        run: |
-          yarn install --frozen-lockfile
-          yarn --cwd packages/stash-ui setup
+      - name: Set up project
+        uses: ./.github/actions/setup
 
       - name: Validate message of latest commit with commitlint
         if: github.event_name == 'push'
-        working-directory: stash-tv
         run: npx commitlint --last --verbose
 
       - name: Set version number for release
         id: version
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')
-        working-directory: stash-tv
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CI_GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: scripts/update-version-number.ts
 
       - name: Build project
-        working-directory: stash-tv
         run: yarn build
 
       # We check types after building because GraphQL related types are generated during build
       - name: TypeScript check
-        working-directory: stash-tv
         run: |
           yarn tsc --version
           yarn typecheck
 
-      - name: Run tests
-        working-directory: stash-tv
-        run: yarn test
+      # The root package.json's test script, less tv-ui's integration tests (the integration job runs those)
+      - name: Run unit tests
+        run: |
+          yarn --cwd packages/repo test
+          yarn --cwd packages/mock-stash test
+          yarn --cwd packages/tv-ui test --project unit
+          yarn --cwd packages/tv-plugin test
+
+      # What the release job publishes: the plugin as built here, and package.json for the version it was built with
+      - name: Upload built plugin for release
+        if: steps.version.outputs.release == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: plugin
+          path: |
+            package.json
+            packages/tv-plugin/dist
+          if-no-files-found: error
+
+      - name: Upload npm logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: npm-logs
+          path: ~/.npm/_logs/*
+          if-no-files-found: ignore
+
+  integration:
+    name: Integration tests (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    strategy:
+      # Let both finish, so a failure shows which Stash versions it affects
+      fail-fast: false
+      matrix:
+        project: [integration-stash-develop, integration-stash-stable]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up project
+        uses: ./.github/actions/setup
+
+      - name: Run integration tests
+        run: yarn --cwd packages/tv-ui test --project ${{ matrix.project }}
+
+  e2e:
+    name: E2E tests (shard ${{ matrix.shard }} of 4)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up project
+        uses: ./.github/actions/setup
 
       - name: Install browser for E2E tests
-        working-directory: stash-tv/packages/tv-ui
+        working-directory: packages/tv-ui
         run: npx playwright install --with-deps chromium
 
       # Playwright starts mock-stash and the dev server itself (see packages/tv-ui/playwright.config.ts)
       - name: Run E2E tests
-        working-directory: stash-tv
         env:
           # The runner has 4 cores, and each worker runs a browser playing video
           E2E_WORKERS: 2
-        run: yarn test:e2e
+        run: yarn test:e2e --shard=${{ matrix.shard }}/4
 
       - name: Upload E2E report on failure
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: e2e-report
+          name: e2e-report-shard-${{ matrix.shard }}
           path: |
-            stash-tv/packages/tv-ui/playwright-report
-            stash-tv/packages/tv-ui/test-results
+            packages/tv-ui/playwright-report
+            packages/tv-ui/test-results
           if-no-files-found: ignore
 
+  release:
+    name: Release
+    needs: [build, integration, e2e]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        if: needs.build.outputs.release == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: 'lts/*'
+
+      # For semantic-release and its plugins
+      - name: Install project packages
+        if: needs.build.outputs.release == 'true'
+        run: yarn install --frozen-lockfile
+
+      - name: Download built plugin
+        if: needs.build.outputs.release == 'true'
+        uses: actions/download-artifact@v7
+        with:
+          name: plugin
+
       - name: Release
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main') && steps.version.outputs.release == 'true'
-        working-directory: stash-tv
+        if: needs.build.outputs.release == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CI_GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: npx semantic-release
 
       - name: Print publish info
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')
-        working-directory: stash-tv
         run: |
           VERSION=$(jq -r '.version' package.json)
           if [[ ! "$VERSION" == 0.0.0* ]]; then
@@ -118,11 +166,3 @@ jobs:
             echo "### $message" >> $GITHUB_STEP_SUMMARY
             echo -e "\e[1m$message\e[0m"
           fi
-
-      - name: Upload npm logs on failure
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: npm-logs
-          path: ~/.npm/_logs/*
-          if-no-files-found: ignore

@@ -1,0 +1,38 @@
+name: Set up project
+description: Installs the tools and packages that building and testing need, and sets up and builds packages/stash-ui
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v7
+      with:
+        node-version: 'lts/*'
+
+    # Stash's UI (packages/stash-ui/stash) installs its dependencies with pnpm. pnpm switches
+    # itself to the exact version pinned in Stash's packageManager field.
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 10
+
+    # mock-stash generates its media fixtures with ffmpeg
+    - name: Setup ffmpeg
+      uses: AnimMouse/setup-ffmpeg@v1
+
+    - name: Print versions
+      shell: bash
+      run: |
+        git --version
+        node --version
+        yarn --version
+        ffmpeg -version | head -n 1
+
+    - name: Install project packages
+      shell: bash
+      run: yarn install --frozen-lockfile
+
+    # Sets up stash-ui's Stash checkout and builds it, which everything else imports from
+    - name: Set up and build stash-ui
+      shell: bash
+      run: yarn --cwd packages/stash-ui ensure-ready
