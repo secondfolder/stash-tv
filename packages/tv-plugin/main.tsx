@@ -3,6 +3,7 @@ import { PLUGIN_NAMESPACE, STASH_QUEUE_PARAMS, STASH_QUEUE_SCENE_PARAM, TV_CONFI
 import { StashTvConfig } from "../tv-ui/src/hooks/useStashTvConfig"
 import { ConfigDataFragment, ConfigInterfaceResult } from "stash-ui/dist/src/core/generated-graphql.js";
 import type { CheckboxGroup } from "stash-ui/dist/src/components/Settings/SettingsInterfacePanel/CheckboxGroup";
+import type { ListFilterModel } from "stash-ui/dist/src/models/list-filter/filter";
 import StashTvLogo from "../tv-ui/src/assets/stash-tv-logo.svg?react";
 
 const { PluginApi } = window;
@@ -199,27 +200,9 @@ export function getQueueTvLink({ pathname, search }: Pick<Location, "pathname" |
 }
 
 const QueueTvButton = () => {
-  const [container, setContainer] = React.useState<HTMLElement | null>(null);
-
-  // The queue's tab, and the queue viewer, can render after the page does, and be re-rendered, so watch for them.
-  // Our button goes in a container of its own, first in the controls on the right (Stash only adds its own buttons
-  // after or between each other's, so it stays first).
-  React.useEffect(() => {
-    const ourContainer = document.createElement("span");
-    ourContainer.className = "stash-tv-queue-button";
-    const placeContainer = () => {
-      const controls = document.querySelector("#queue-viewer .queue-controls > div:last-child");
-      if (controls && controls.firstChild !== ourContainer) controls.prepend(ourContainer);
-    };
-    placeContainer();
-    setContainer(ourContainer);
-    const observer = new MutationObserver(placeContainer);
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => {
-      observer.disconnect();
-      ourContainer.remove();
-    };
-  }, []);
+  // Our button goes first in the queue's controls on the right (Stash only adds its own buttons after or between each
+  // other's, so it stays first)
+  const container = useContainerIn("#queue-viewer .queue-controls > div:last-child", "first", "span", "stash-tv-queue-button");
 
   if (!container) return null;
   return PluginApi.ReactDOM.createPortal(
@@ -234,6 +217,98 @@ const QueueTvButton = () => {
     container
   );
 };
+
+type SceneListProps = { filter: ListFilterModel, selectedIds: Set<string> }
+
+// Add an item opening the scene list in Stash TV to the list's operations menu (the "…" button). The menu isn't
+// patchable itself, so the scene list is patched to put the item in the menu once it's rendered.
+PluginApi.patch.instead(
+  "SceneList",
+  function (props, _, Original) {
+    // A single element rather than an array, as with the ScenePage patch above
+    return (
+      <>
+        <Original {...props} />
+        <SceneListTvMenuItem filter={props.filter} selectedIds={props.selectedIds} />
+      </>
+    );
+  }
+);
+
+/**
+ * Stash TV's link showing a scene list as a queue, as Stash's own "Play" does: the scenes selected if there are any,
+ * otherwise everything the list's filter matches, from the top. It's in the format Stash's scene page has its queue in
+ * (`SceneQueue.makeLink`), which isn't in the PluginApi, so is built here.
+ */
+export function getSceneListTvLink(filter: Pick<ListFilterModel, "getEncodedParams">, selectedIds: Set<string>) {
+  const params: string[] = [];
+  if (selectedIds.size > 0) {
+    for (const id of selectedIds) params.push(`qs=${id}`);
+  } else {
+    // Already URL-encoded
+    const { sortby, sortdir, q, c } = filter.getEncodedParams();
+    if (sortby) params.push(`qsort=${sortby}`);
+    if (sortdir) params.push(`qsortd=${sortdir}`);
+    if (q) params.push(`qfq=${q}`);
+    for (const criterion of c ?? []) params.push(`qfc=${criterion}`);
+    // Stash recognises a filter queue by its page
+    params.push("qfp=1");
+  }
+  return appLink + "?" + params.join("&");
+}
+
+const SceneListTvMenuItem = ({ filter, selectedIds }: SceneListProps) => {
+  // Our item goes last in the menu, after Stash's own. The menu is put in the page's body, and is only rendered once
+  // it's first opened.
+  const container = useContainerIn(".dropdown-menu.scene-list-operations-dropdown", "last", "div", "stash-tv-menu-item");
+
+  if (!container) return null;
+  return PluginApi.ReactDOM.createPortal(
+    <a
+      className="dropdown-item bg-secondary text-white"
+      href={getSceneListTvLink(filter, selectedIds)}
+      target="_blank"
+      // The item isn't one of the menu's own, so it doesn't close it: close it by its toggle as Stash's items do
+      onClick={() => {
+        const toggleId = container.parentElement?.getAttribute("aria-labelledby");
+        if (toggleId) document.getElementById(toggleId)?.click();
+      }}
+    >
+      Open in Stash TV
+    </a>,
+    container
+  );
+};
+
+/**
+ * A container of our own kept in the element `selector` finds, first or last in it, to render into with a portal: for
+ * adding to parts of Stash's UI that aren't patchable. That element can be rendered after our component is, and be
+ * re-rendered, so the page is watched for it.
+ */
+function useContainerIn(selector: string, position: "first" | "last", tagName: string, className: string) {
+  const [container, setContainer] = React.useState<HTMLElement | null>(null);
+
+  React.useEffect(() => {
+    const ourContainer = document.createElement(tagName);
+    ourContainer.className = className;
+    const placeContainer = () => {
+      const parent = document.querySelector(selector);
+      if (!parent) return;
+      if (position === "first" && parent.firstChild !== ourContainer) parent.prepend(ourContainer);
+      if (position === "last" && parent.lastChild !== ourContainer) parent.append(ourContainer);
+    };
+    placeContainer();
+    setContainer(ourContainer);
+    const observer = new MutationObserver(placeContainer);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => {
+      observer.disconnect();
+      ourContainer.remove();
+    };
+  }, [selector, position, tagName, className]);
+
+  return container;
+}
 
 type Config = ConfigDataFragment & { plugins: { [PLUGIN_NAMESPACE]: StashTvConfig } }
 

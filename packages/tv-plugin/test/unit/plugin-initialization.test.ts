@@ -31,7 +31,7 @@ describe("Plugin initialization", () => {
     expect([...loadedForbiddenModules]).toEqual([]);
   });
 
-  it("registers patches for PluginSettings, MainNavBar.MenuItems, CheckboxGroup and ScenePage", async () => {
+  it("registers patches for PluginSettings, MainNavBar.MenuItems, CheckboxGroup, ScenePage and SceneList", async () => {
     const mock = await importPlugin({ plugins: { "stash-tv": { initialSetupComplete: true } } });
 
     const targets = mock.patches.map((p) => `${p.type}:${p.target}`).sort();
@@ -39,6 +39,7 @@ describe("Plugin initialization", () => {
       "before:CheckboxGroup",
       "instead:MainNavBar.MenuItems",
       "instead:PluginSettings",
+      "instead:SceneList",
       "instead:ScenePage",
     ]);
   });

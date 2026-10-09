@@ -1,5 +1,6 @@
 import { PluginApi } from "stash-ui/dist/src/pluginApi.js"
 import type { CheckboxGroup } from "stash-ui/dist/src/components/Settings/SettingsInterfacePanel/CheckboxGroup";
+import type { ListFilterModel } from "stash-ui/dist/src/models/list-filter/filter";
 
 /**
  * What an "instead" patch renders: a single element, never an array. Stash hands the result to "after" patches as
@@ -25,6 +26,17 @@ declare global {
               props: React.PropsWithChildren<{
                 pluginID: string;
                 settings: GQL.PluginSetting[];
+              }>,
+              _: object,
+              Original: React.JSX
+            ) => PatchRender,
+          ): void,
+          (
+            component: "SceneList",
+            fn: (
+              props: React.PropsWithChildren<{
+                filter: ListFilterModel;
+                selectedIds: Set<string>;
               }>,
               _: object,
               Original: React.JSX
