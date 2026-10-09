@@ -36,6 +36,10 @@ import { useGamepadStatus } from "../../../hooks/useGamepadStatus";
 import { useSeeking } from "../../../hooks/useSeeking";
 import { useGestureControls } from "../../../hooks/useGestureControls";
 import { useKeyboardSeeking } from "../../../hooks/useKeyboardSeeking";
+import { matchShortcut } from "../../../hooks/useKeyboardShortcuts";
+import { isTypingTarget } from "../../../helpers/keyboard-shortcuts/key-combos";
+import type { ShortcutActionId } from "../../../helpers/keyboard-shortcuts/definitions";
+import { objectKeys } from "ts-extras";
 import { TOGGLE_VIDEO_EVENT, PAUSE_VIDEO_EVENT } from "../../../events";
 import { useConfigurationContext } from "stash-ui/dist/src/hooks/Config";
 import { useFirstMountState } from "react-use";
@@ -474,7 +478,6 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
   })
   useKeyboardSeeking({
     isCurrentVideo,
-    forceLandscape,
     playerRef: videojsPlayerRef,
     seeking,
     seekForwards,
@@ -540,7 +543,7 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
 
   const sceneInfoPanelRef = useRef(null);
 
-  /* ---------------------------- Single-key shortcuts -------------------------- */
+  /* ---------------------------- Keyboard shortcuts --------------------------- */
 
   // Deleting the current item shifts every later item down by one index, so re-pinning to the same index
   // (rather than leaving currentIndex untouched, or advancing it) is what lands on the next item. If the
@@ -572,52 +575,31 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
 
   useEffect(() => {
     if (!isCurrentVideo) return;
+    const handlers = {
+      "delete": () => openDeleteConfirmation(),
+      "toggle-scene-info": () => setSceneInfoOpen(!sceneInfoOpen),
+      "edit-tags": () => setShowTagEditor(true),
+      "toggle-mute": () => setTvConfig("volume", (prev) => prev ? 0 : 1),
+      "toggle-landscape": () => setTvConfig("forceLandscape", (prev) => !prev),
+      "toggle-looping": () => setTvConfig("looping", (prev) => !prev),
+      "toggle-subtitles": () => setTvConfig("showSubtitles", (prev) => !prev),
+      "toggle-fullscreen": () => setGlobalState("fullscreen", (prev) => !prev),
+      "toggle-pip": () => {
+        if (!isPictureInPictureSupported()) return;
+        // Failures are logged; unlike the action button there's nowhere to show a note
+        void togglePictureInPicture(videojsPlayerRef.current);
+      },
+    } satisfies Partial<Record<ShortcutActionId, () => void>>;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        e.ctrlKey || e.metaKey || e.altKey || e.shiftKey
-        || e.target instanceof HTMLInputElement
-        || e.target instanceof HTMLTextAreaElement
-        || (e.target instanceof HTMLElement && e.target.getAttribute("role") === "slider")
-      ) return;
-      switch (e.key) {
-        case "d":
-          openDeleteConfirmation();
-          break;
-        case "i":
-          setSceneInfoOpen(!sceneInfoOpen);
-          break;
-        case "e":
-          setShowTagEditor(true);
-          break;
-        case "m":
-          setTvConfig("volume", (prev) => prev ? 0 : 1);
-          break;
-        case "o":
-          setTvConfig("forceLandscape", (prev) => !prev);
-          break;
-        case "l":
-          setTvConfig("looping", (prev) => !prev);
-          break;
-        case "s":
-          setTvConfig("showSubtitles", (prev) => !prev);
-          break;
-        case "f":
-          setGlobalState("fullscreen", (prev) => !prev);
-          break;
-        case "p":
-          if (!isPictureInPictureSupported()) return;
-          // Failures are logged; unlike the action button there's nowhere to show a note
-          void togglePictureInPicture(videojsPlayerRef.current);
-          break;
-        default:
-          return;
-      }
+      if (isTypingTarget(e)) return;
+      const action = matchShortcut(e, objectKeys(handlers));
+      if (action) handlers[action]();
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isCurrentVideo, openDeleteConfirmation, sceneInfoOpen, setTvConfig, setGlobalState]);
+  }, [isCurrentVideo, openDeleteConfirmation, sceneInfoOpen, setSceneInfoOpen, setTvConfig, setGlobalState]);
 
   // Every rendered slide calls this but only the current one binds the keys. Markers rate their parent scene.
   useKeyboardRating(scene, { enabled: isCurrentVideo });

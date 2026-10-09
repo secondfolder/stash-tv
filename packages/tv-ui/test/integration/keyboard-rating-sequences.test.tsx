@@ -1,6 +1,6 @@
 /**
- * Keyboard rating shortcuts typed one after another: decimal ratings' two-digit sequences, and the 1s window Stash
- * gives each sequence after its `r`.
+ * Keyboard rating shortcuts typed one after another: decimal ratings' two-digit sequences, and the 1s each key of a
+ * sequence gets after the one before.
  *
  * @see docs/keyboard-shortcuts.md § "Rating shortcuts"
  */
@@ -34,8 +34,7 @@ describe("Keyboard rating shortcuts", () => {
     await app.unmount();
   });
 
-  // The second sequence is pressed as soon as the first lands — typically still inside Stash's 1s window where the
-  // first `r` left the digit keys bound — so both the re-bind on `r` and the re-render after the first update matter.
+  // The second sequence is pressed as soon as the first lands, so the re-render after the first update matters.
   it("applies two star ratings set one after the other", async () => {
     const app = await bootApp();
     const currentSceneId = sceneIdOf(currentSlide(app));
@@ -66,8 +65,8 @@ describe("Keyboard rating shortcuts", () => {
     await app.unmount();
   });
 
-  // Stash's hook ends a sequence 1s after its `r`. Re-pressing `r` must restart that window — otherwise the first
-  // sequence's timeout fires part way through the second one and silently drops it (reproduced against a real
+  // A sequence is forgotten 1s after its last key. The second sequence must get its own windows — Stash's own hook let
+  // the first sequence's timeout fire part way through the second one and silently drop it (reproduced against a real
   // Stash instance, where a second rating started 800–950ms after the first always failed).
   it("applies a second rating whose sequence spans the first sequence's 1s timeout", async () => {
     integration.server.store.uiConfig = {

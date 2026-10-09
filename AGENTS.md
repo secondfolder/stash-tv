@@ -37,7 +37,7 @@ Feature-specific documentation lives under `docs/`. Read the one that covers wha
 | [Scene info panel](docs/scene-info-panel.md) | Touching the scene info panel (`src/components/slide/SceneInfo/`), its fields, or how users customise it |
 | [Line layout editor](docs/line-layout-editor.md) | Touching `src/components/LineLayoutEditor/` (dragging items onto lines, ghosts, insertion lines, right-aligning) or using it for something new |
 | [Entity popovers](docs/entity-popovers.md) | Touching `src/components/entity-popovers/` (a tag's, performer's or studio's popover in the info panel, and its card and buttons) or adding a popover for another kind of entity |
-| [Keyboard shortcuts](docs/keyboard-shortcuts.md) | Adding, removing or rebinding a keyboard shortcut, or touching the shortcut help text                  |
+| [Keyboard shortcuts](docs/keyboard-shortcuts.md) | Adding, removing or changing a keyboard shortcut, or touching the shortcut settings, help text or key matching |
 | [App updates](docs/app-updates.md)       | Touching the new-version notice, how the app detects that a new version is installed, or anything that affects how browsers cache the app |
 | [Stash compatibility](docs/stash-compatibility.md) | Updating the Stash version stash-ui is built from, touching how the app talks to Stash's API (Apollo links, `getApolloClient`), or something works on one Stash version but not another |
 
@@ -170,7 +170,7 @@ Semantic Release, Commitlint, Yarn Workspaces.
 Three Zustand stores, each exposing the same typed `set` / `get` / `setToDefault` / `getDefault` API. Always mutate through these — never `useStore.setState`, which bypasses type safety and, for tvConfig, the persistence routing. 🚫 Never modify state before `tvConfigLoaded` is true. Full details (hybrid storage, adding config options): [state & config](docs/state-and-config.md)
 
 - `tvConfig.ts` — persisted user preferences/plugin settings (hybrid Stash-config + localStorage storage)
-- `globalState.ts` — transient UI state (settings panel, fullscreen, keyboard shortcuts modal, the current slide's media item, which slide's UI is auto-hidden, `tvConfigLoaded`)
+- `globalState.ts` — transient UI state (settings panel and its open section, fullscreen, keyboard shortcuts modal, whether a shortcut's key is being recorded, Stash's rating system for the shortcuts, the current slide's media item, which slide's UI is auto-hidden, `tvConfigLoaded`)
 - `mediaItemState.tsx` — per-slide UI state provided via context (e.g. open action-button folder, o-counter display). Feed pagination is a separate store inside `useMediaItems` (see [media loading](docs/media-loading.md))
 
 ### Key Hooks (`src/hooks/`)
@@ -194,6 +194,7 @@ App.tsx (main entry point)
         └── Controls (playback controls, scrubber, etc.)
 
 Settings & UI Overlays:
+├── CommandPalette (generic palette: text search with results, or custom input like ShortcutRecorder's keys typed)
 ├── GuideOverlay (help/tutorial)
 ├── EditTagsContents (tag editing interface)
 ├── SceneInfo (scene metadata panel, user-customisable layout)
@@ -243,7 +244,7 @@ Settings & UI Overlays:
 - **Video player** built on Stash's ScenePlayer/Video.js — requires many workarounds; see [video player](docs/video-player.md) before touching playback
 - **Gestures** — tap, hold and drag on the video to play/pause, skip and seek (`useGestureControls()`, sharing `useSeeking()` with the arrow keys' `useKeyboardSeeking()`); see [video player](docs/video-player.md) § "Gestures"
 - **Custom media modifier functions** — user-defined JS (stored as a string, parsed via `getFunctionFromString()`) applied to the media list before display
-- **Keyboard shortcuts** — ⚠️ any change that adds, removes or rebinds a shortcut must also update the help text in `KeyboardShortcutsInfo.md` (see [keyboard shortcuts](docs/keyboard-shortcuts.md))
+- **Keyboard shortcuts** — user-configurable (Settings → Keyboard Shortcuts), each a single key or a sequence of keys (`g i`). Every shortcut is an action in `SHORTCUT_DEFINITIONS` and listeners match keys with `matchShortcut()`, never `event.key` directly. ⚠️ Adding a shortcut, or changing what one does, must also update the help rows in `KeyboardShortcutsInfo/help-text.ts` (see [keyboard shortcuts](docs/keyboard-shortcuts.md))
 - **New version notice** — when the app is brought back to the foreground it checks the version installed in Stash and offers to reload into it, since iOS home-screen apps otherwise keep running a cached build ([app updates](docs/app-updates.md))
 - **UI auto-hide** — with a mouse, the current slide's UI and the cursor fade out after a few seconds idle and come back on any interaction, as well as hiding on the `ui-visibility` button ([state & config](docs/state-and-config.md) § "UI visibility & auto-hide")
 - **Gamepad/controller support** (`useGamepad()`), **CRT TV effect** (CSS/shader-based, configurable strength), **forced landscape rotation** (`useViewportRotate()`)

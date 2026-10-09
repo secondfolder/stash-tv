@@ -1,0 +1,20 @@
+.ShortcutRecorder {
+  .shortcut-recorder-key {
+    font-family: var(--font-family-monospace, monospace);
+    margin: 0;
+  }
+
+  .shortcut-recorder-then {
+    opacity: 0.6;
+    white-space: pre;
+  }
+
+  // A little apart, so several are told apart
+  .shortcut-recorder-warning + .shortcut-recorder-warning {
+    margin-top: 0.4em;
+  }
+
+  .command-palette-input-suffix {
+    font-family: var(--font-family-monospace, monospace);
+  }
+}

@@ -1,13 +1,19 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { stashConfigStorage } from '../helpers/stash-config-storage';
+import { RatingSystemType } from 'stash-ui/dist/src/utils/rating';
 import type { SceneInfoEditorPillContent, SceneInfoFieldOptionsConfig, SceneInfoLayout } from '../components/slide/SceneInfo/scene-info-config';
 export type DebuggingInfo = "render-debugging" | "onscreen-info" | "virtualizer-debugging";
 
 export const globalStateStorageKey = 'app-state';
 
+/** The sections of the settings panel */
+export type SettingsSection = "channels" | "media-player" | "ui" | "keyboard-shortcuts" | "help" | "developer-options";
+
 type GlobalState = {
   showSettings: boolean;
+  /** The settings panel's expanded section, or null when they're all collapsed */
+  settingsSection: SettingsSection | null;
   fullscreen: boolean;
   sceneInfoOpen: boolean;
   /**
@@ -18,6 +24,13 @@ type GlobalState = {
   /** What the scene info panel's editor's pills show. Shared, like the draft, so it's kept moving to another slide */
   sceneInfoEditorPillContent: SceneInfoEditorPillContent;
   keyboardShortcutsOpen: boolean;
+  /** Whether a keyboard shortcut's key is being recorded in the settings, when no shortcut may fire */
+  recordingShortcut: boolean;
+  /**
+   * Stash's rating system, kept here (by `useSyncRatingSystem`, from Stash's configuration) for the keyboard shortcuts,
+   * which are matched outside React
+   */
+  ratingSystem: RatingSystemType;
   /** The media item of the feed's current slide, set by `VideoScroller` */
   currentMediaItemId: string | null;
   /**
@@ -38,11 +51,14 @@ type GlobalStateActions = {
 
 const defaults = {
   showSettings: false,
+  settingsSection: "channels",
   fullscreen: false,
   sceneInfoOpen: false,
   sceneInfoDraft: null,
   sceneInfoEditorPillContent: "names",
   keyboardShortcutsOpen: false,
+  recordingShortcut: false,
+  ratingSystem: RatingSystemType.Stars,
   currentMediaItemId: null,
   uiIdleMediaItemId: null,
   tvConfigLoaded: false,

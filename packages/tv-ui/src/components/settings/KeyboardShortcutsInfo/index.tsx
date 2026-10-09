@@ -1,20 +1,26 @@
 import React from "react";
+import { Button } from "react-bootstrap";
 import { Modal } from "../../containers/Modal";
 import { MarkdownPage } from "stash-ui/dist/src/components/Shared/MarkdownPage";
-import { useConfigurationContext } from "stash-ui/dist/src/hooks/Config";
-import { defaultRatingSystemOptions } from "stash-ui/dist/src/utils/rating";
-import content from "./KeyboardShortcutsInfo.md?raw";
-import { filterShortcutsForRatingSystem } from "./filterShortcutsForRatingSystem";
+import { useShortcutBindings } from "../../../hooks/useKeyboardShortcuts";
+import { useGlobalState } from "../../../store/globalState";
+import { shortcutHelpMarkdown } from "./help-text";
 import "./KeyboardShortcutsInfo.css";
 
 export const KeyboardShortcutsInfo: React.FC<{
   show: boolean;
   onHide: () => void;
 }> = ({ show, onHide }) => {
-  const { configuration: stashConfig } = useConfigurationContext();
-  const ratingSystem = stashConfig?.ui?.ratingSystemOptions?.type ?? defaultRatingSystemOptions.type;
-  // MarkdownPage only takes a URL to fetch, so hand it the filtered text as a data URL
-  const pageUrl = `data:text/markdown;charset=utf-8,${encodeURIComponent(filterShortcutsForRatingSystem(content, ratingSystem))}`;
+  const bindings = useShortcutBindings();
+  const { set: setGlobalState, ratingSystem } = useGlobalState();
+  // MarkdownPage only takes a URL to fetch, so hand it the text as a data URL
+  const pageUrl = `data:text/markdown;charset=utf-8,${encodeURIComponent(shortcutHelpMarkdown(bindings, ratingSystem))}`;
+
+  const editShortcuts = () => {
+    onHide();
+    setGlobalState("settingsSection", "keyboard-shortcuts");
+    setGlobalState("showSettings", true);
+  };
 
   return (
     <Modal
@@ -30,6 +36,11 @@ export const KeyboardShortcutsInfo: React.FC<{
         {/* MarkdownPage only fetches once, so remount it if the content changes */}
         <MarkdownPage key={pageUrl} page={pageUrl} />
       </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={editShortcuts}>
+          Edit shortcuts
+        </Button>
+      </Modal.Footer>
     </Modal>
   );
 }

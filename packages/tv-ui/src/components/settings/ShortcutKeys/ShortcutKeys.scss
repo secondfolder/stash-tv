@@ -1,0 +1,7 @@
+.ShortcutKeys {
+  // Joins keys pressed together, so it's lighter than them (it isn't a key itself) and only a little apart from them
+  .shortcut-keys-joiner {
+    margin: 0 0.15em;
+    opacity: 0.5;
+  }
+}

@@ -12,6 +12,8 @@ import hashObject from 'object-hash';
 import { getLogger } from "@logtape/logtape";
 import { useCurrentOpenPopover } from "../PopoverPanel";
 import { useGlobalState } from "../../store/globalState";
+import { matchShortcut } from "../../hooks/useKeyboardShortcuts";
+import { isTypingTarget } from "../../helpers/keyboard-shortcuts/key-combos";
 
 interface VideoScrollerProps {}
 
@@ -234,50 +236,30 @@ const VideoScroller: React.FC<VideoScrollerProps> = memo(() => {
   }, [currentMediaItemId]);
   useEffect(() => () => useGlobalState.getState().set("currentMediaItemId", null), []);
 
-  const [keysDown] = useState<Set<string>>(new Set());
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        e.target instanceof HTMLInputElement
-        || e.target instanceof HTMLTextAreaElement
-        || (e.target instanceof HTMLElement && e.target.getAttribute("role") === "slider")
-      ) return;
-      keysDown.add(e.key);
-      const nextKey = isForceLandscape ? "ArrowRight" : "ArrowDown";
-      const previousKey = isForceLandscape ? "ArrowLeft" : "ArrowUp";
-      const leftKey = isForceLandscape ? "ArrowUp" : "ArrowLeft";
-      const rightKey = isForceLandscape ? "ArrowDown" : "ArrowRight";
-      logger.debug(`VideoScroller Keydown; key=${e.key} nextKey=${nextKey} previousKey=${previousKey}`);
-      const leftOrRightKeyPressed = keysDown.has(leftKey) || keysDown.has(rightKey);
-      if (e.key === previousKey && !leftOrRightKeyPressed) {
-        // Go to the previous item
-        const newIndex = (prevIndex: number) => prevIndex - 1
-        scrollToIndex(newIndex, { behavior: "instant" });
-        setCurrentIndex(newIndex);
-        e.preventDefault();
-      } else if (e.key === nextKey && !leftOrRightKeyPressed) {
-        // Go to the next item
-        const newIndex = (prevIndex: number) => prevIndex + 1
-        scrollToIndex(newIndex, { behavior: "instant" });
-        setCurrentIndex(newIndex);
-        e.preventDefault();
-      }
-    }
-    const handleKeyUp = (e: KeyboardEvent) => {
-      keysDown.delete(e.key);
+      if (isTypingTarget(e)) return;
+      // While a seek key's held, ↑ and ↓ are chords with it (← + ↑), changing the seek speed instead
+      const action = matchShortcut(e, ["next", "previous"]);
+      logger.debug(`VideoScroller Keydown; key=${e.key} action=${action}`);
+      if (!action) return;
+      const newIndex = action === "next"
+        ? (prevIndex: number) => prevIndex + 1
+        : (prevIndex: number) => prevIndex - 1;
+      scrollToIndex(newIndex, { behavior: "instant" });
+      setCurrentIndex(newIndex);
+      e.preventDefault();
     }
     // We use capture so we can stop it propagating to the video player which treats arrow keys as seek commands
     window.addEventListener("keydown", handleKeyDown, {capture: true});
-    window.addEventListener("keyup", handleKeyUp, {capture: true});
     return () => {
       window.removeEventListener("keydown", handleKeyDown, {capture: true});
-      window.removeEventListener("keyup", handleKeyUp, {capture: true});
     };
-  }, [isForceLandscape, setCurrentIndex]);
+  }, [setCurrentIndex]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "c" && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
+      if (!isTypingTarget(e) && matchShortcut(e, ["toggle-crt"])) {
         setTvConfig("crtEffect", (prev) => !prev);
       }
     }

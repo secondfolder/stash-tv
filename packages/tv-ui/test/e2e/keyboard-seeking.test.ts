@@ -13,8 +13,8 @@ import { expect, test } from './helpers/test';
 import { currentSlide } from './helpers/feed';
 
 /**
- * E2E: the arrow keys skip and seek through the current video the way gestures on it do, sharing their seeking and
- * feedback. Holding ← or → seeks, and ↑ and ↓ change the speed while it's held.
+ * E2E: the arrow keys (or the keys the user gives seeking) skip and seek through the current video the way gestures on
+ * it do, sharing their seeking and feedback. Holding ← or → seeks, and ↑ and ↓ change the speed while it's held.
  *
  * @see docs/video-player.md § "Gestures"
  * @see docs/keyboard-shortcuts.md
@@ -237,5 +237,22 @@ test.describe('Seeking with the keyboard in forced landscape', () => {
     await expectFeedback(page, '2s', 'backward');
     await page.keyboard.up('ArrowDown');
     await expectFeedbackGone(page);
+  });
+});
+
+// @see docs/keyboard-shortcuts.md § "The registry"
+test.describe('Seeking with keys the user has given it', () => {
+  test('holds its seek key to seek, and taps its speed key to speed up', async ({ page, request }) => {
+    await bootFeed(page, request, { keyboardShortcuts: { 'seek-forwards': ['k'], 'seek-faster': ['j'] } });
+    await seekCurrentVideo(page, 2);
+
+    await page.keyboard.down('k');
+    await expectFeedback(page, '2x', 'play');
+    await pressFor(page, 'j', '3x', 'play');
+    expect((await videoState(currentSlide(page))).playbackRate).toBe(3);
+
+    await page.keyboard.up('k');
+    await expectFeedbackGone(page);
+    expect(await videoState(currentSlide(page))).toMatchObject({ paused: false, playbackRate: 1 });
   });
 });

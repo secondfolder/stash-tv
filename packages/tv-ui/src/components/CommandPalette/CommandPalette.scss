@@ -1,0 +1,187 @@
+// Stash's $card-bg, which its modals and cards have
+$palette-bg: #30404d;
+
+.CommandPalette {
+  // It appears at once: only the backdrop fades in. (Bootstrap fades modals in and slides their dialogs down)
+  &.modal.fade {
+    transition: none;
+
+    .modal-dialog {
+      transform: none;
+      transition: none;
+    }
+  }
+
+  .modal-dialog {
+    // Near the top of the screen rather than in the middle
+    margin-top: 12vh;
+    max-width: 560px;
+  }
+
+  // Just the bar (and the panel under it when it has anything in it), not a window around them
+  .modal-content {
+    background: none;
+    border: none;
+    box-shadow: none;
+  }
+
+  .command-palette {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .command-palette-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    height: auto;
+    min-height: 3rem;
+    padding: 0.4rem 0.4rem 0.4rem 0.75rem;
+    background-color: $palette-bg;
+    border: none;
+    border-radius: 0.25rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    color: inherit;
+    // Over the panel attached under it, so its focus ring isn't hidden by it
+    position: relative;
+    z-index: 1;
+
+    // The field inside has focus, so the bar looks focused as Stash's text inputs do (.text-input:focus). Only the
+    // bar: the panel is attached to it, not part of it
+    &:focus-within {
+      box-shadow: 0 0 0 1px #137cbd, 0 0 0 3px rgba(19, 124, 189, 0.3), 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+  }
+
+  .command-palette-input-field {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3em;
+    background: none;
+    border: none;
+    color: inherit;
+    outline: none;
+    padding: 0;
+  }
+
+  .command-palette-placeholder {
+    opacity: 0.6;
+  }
+
+  .command-palette-input-suffix {
+    flex: 0 0 auto;
+    opacity: 0.6;
+  }
+
+  .command-palette-action {
+    flex: 0 0 auto;
+  }
+
+  // Hanging from the bottom of the bar with no gap, a little narrower than it
+  .command-palette-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 0 0.75rem;
+    padding: 0.5rem 0.75rem;
+    background-color: $palette-bg;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0 0 0.25rem 0.25rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  }
+
+  .command-palette-status {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25em;
+    font-size: 0.9em;
+  }
+
+  .command-palette-items {
+    list-style: none;
+    margin: 0 -0.5rem;
+    max-height: 50vh;
+    overflow-y: auto;
+    padding: 0;
+  }
+
+  .command-palette-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 1em;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    padding: 0.4em 0.6em;
+
+    &.highlighted {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    &.disabled {
+      cursor: default;
+      opacity: 0.5;
+    }
+  }
+
+  // A token in a custom input (Stash's tag badge), removed by clicking it
+  .command-palette-token {
+    position: relative;
+    margin: 0;
+    border: none;
+    cursor: pointer;
+    overflow: hidden;
+
+    .command-palette-token-remove {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: rgba(0, 0, 0, 0.55);
+      color: #fff;
+      opacity: 0;
+      transition: opacity 0.1s ease;
+    }
+
+    &:hover .command-palette-token-remove {
+      opacity: 1;
+    }
+
+    // Can't be removed
+    &.fixed {
+      cursor: default;
+    }
+  }
+}
+
+// Fades in, darkening the page a little and blurring it slightly. It comes in more gently than it goes: a transition
+// takes the duration of the state it's going to, so entering (adding .show) is slower than leaving
+.modal-backdrop.CommandPalette-backdrop {
+  background-color: rgba(0, 0, 0, 0.35);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  transition: opacity 0.25s ease;
+
+  &.show {
+    opacity: 1;
+    transition-duration: 0.45s;
+  }
+
+  // Not blurred in Firefox, only darkened. On macOS it can hand a playing video to the OS to draw (a video overlay,
+  // depending on e.g. the video's codec), which skips its compositing, so backdrop-filter can't blur that video:
+  // some videos blurred behind the palette and others didn't. (-moz-appearance is only supported by Firefox)
+  @supports (-moz-appearance: none) {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  // Without a backdrop it still has one, unseen, to close it on a click outside
+  &.unseen {
+    background-color: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}

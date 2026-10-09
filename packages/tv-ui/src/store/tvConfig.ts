@@ -10,6 +10,7 @@ import { generateConfigId } from '../helpers/config-ids';
 import { END_POSITION_OPTIONS, START_POSITION_OPTIONS, TV_CONFIG_STORAGE_KEY } from '../constants';
 import { defaultSceneInfoLayout } from '../components/slide/SceneInfo/default-layout';
 import type { SceneInfoFieldOptionsConfig, SceneInfoLayout } from '../components/slide/SceneInfo/scene-info-config';
+import type { ShortcutBindingOverrides } from '../helpers/keyboard-shortcuts/definitions';
 export type DebuggingInfo = "render-debugging" | "onscreen-info" | "virtualizer-debugging";
 
 type TvConfig = {
@@ -49,6 +50,8 @@ type TvConfig = {
   /** Which channel the feed shows when Stash TV loads */
   startupChannel: StartupChannel;
   lastViewedChannelId?: string;
+  /** The keyboard shortcuts the user has changed from their defaults (see docs/keyboard-shortcuts.md) */
+  keyboardShortcuts: ShortcutBindingOverrides;
   // Device specific state
   forceLandscape: boolean;
   // Developer options
@@ -126,6 +129,7 @@ const defaults = {
     {id: "all-scenes", sources: [{type: "all", entityType: "scene", randomise: false}]},
   ],
   startupChannel: 'last-viewed',
+  keyboardShortcuts: {},
   playbackRate: 1,
 } satisfies TvConfig;
 

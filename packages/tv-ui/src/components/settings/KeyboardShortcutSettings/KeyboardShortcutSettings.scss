@@ -1,0 +1,62 @@
+.KeyboardShortcutSettings {
+  .shortcut-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6em;
+  }
+
+  .shortcut {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.2em 1em;
+  }
+
+  .shortcut-title {
+    flex: 1 1 10em;
+  }
+
+  .shortcut-keys {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.3em;
+
+    .tag-item {
+      margin: 0;
+    }
+
+    .btn-sm {
+      line-height: 1;
+      padding: 0.3em 0.5em;
+    }
+  }
+
+  .shortcut-key-label {
+    font-family: var(--font-family-monospace, monospace);
+  }
+
+  .shortcut-notice {
+    flex: 1 1 100%;
+    margin-top: 0;
+  }
+}
+
+.KeyboardShortcutSettings .shortcut-key {
+  // The label is a button, to change the keys, but looks like the badge's text rather than one of Stash's faded badge
+  // buttons
+  .btn.shortcut-key-label {
+    color: inherit;
+    font: inherit;
+    font-family: var(--font-family-monospace, monospace);
+    margin: 0;
+    opacity: 1;
+    padding: 0;
+    text-decoration: none;
+  }
+}

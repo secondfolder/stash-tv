@@ -28,7 +28,8 @@ import { ActionButtonConfig, allButtonDefinition, getActionButtonDefinition } fr
 import { createNewActionButtonConfig } from "../../action-buttons/action-button-config";
 import { Arrow90degRight, ArrowLeft, Folder } from "react-bootstrap-icons";
 import { ActionButtonStackConfig } from "../../action-buttons/ActionButtonStack";
-import { useGlobalState } from "../../../store/globalState";
+import { SettingsSection, useGlobalState } from "../../../store/globalState";
+import { KeyboardShortcutSettings } from "../KeyboardShortcutSettings";
 
 const SettingsTab = memo(() => {
   const logger = getLogger(["stash-tv", "SettingsTab"]);
@@ -68,7 +69,7 @@ const SettingsTab = memo(() => {
     setToDefault: setDefaultAppSetting,
     getDefault: getDefaultAppSetting,
   } = useTvConfig();
-  const { set: setGlobalState } = useGlobalState();
+  const { set: setGlobalState, settingsSection } = useGlobalState();
   const { mediaItems, mediaItemsLoading, mediaItemsNeverLoaded, mediaItemsError } = useMediaItems()
 
   const noMediaItemsAvailable = !mediaItemFiltersLoading && !mediaItemsLoading && mediaItems.length === 0
@@ -343,11 +344,14 @@ const SettingsTab = memo(() => {
         setActionButtonDraft(null)
       }}
     />}
-    <Accordion defaultActiveKey="0">
-      <AccordionToggle eventKey="0">
+    <Accordion
+      activeKey={settingsSection ?? ""}
+      onSelect={(section) => setGlobalState("settingsSection", (section || null) as SettingsSection | null)}
+    >
+      <AccordionToggle eventKey="channels">
         Channels
       </AccordionToggle>
-      <Accordion.Collapse eventKey="0">
+      <Accordion.Collapse eventKey="channels">
         <>
           <ChannelSettings />
           {mediaItemFiltersError ? (
@@ -378,10 +382,10 @@ const SettingsTab = memo(() => {
           </Form.Group>
         </>
       </Accordion.Collapse>
-      <AccordionToggle eventKey="1">
+      <AccordionToggle eventKey="media-player">
         Media Player
       </AccordionToggle>
-      <Accordion.Collapse eventKey="1">
+      <Accordion.Collapse eventKey="media-player">
         <>
           <Form.Group>
             <Switch
@@ -564,10 +568,10 @@ const SettingsTab = memo(() => {
           </Form.Group>
         </>
       </Accordion.Collapse>
-      <AccordionToggle eventKey="2">
+      <AccordionToggle eventKey="ui">
         UI
       </AccordionToggle>
-      <Accordion.Collapse eventKey="2">
+      <Accordion.Collapse eventKey="ui">
         <>
           <Form.Group>
             <Switch
@@ -793,10 +797,16 @@ const SettingsTab = memo(() => {
           </Form.Group>
         </>
       </Accordion.Collapse>
-      <AccordionToggle eventKey="3">
+      <AccordionToggle eventKey="keyboard-shortcuts">
+        Keyboard Shortcuts
+      </AccordionToggle>
+      <Accordion.Collapse eventKey="keyboard-shortcuts">
+        <KeyboardShortcutSettings />
+      </Accordion.Collapse>
+      <AccordionToggle eventKey="help">
         Help / Info
       </AccordionToggle>
-      <Accordion.Collapse eventKey="3">
+      <Accordion.Collapse eventKey="help">
         <>
           <Form.Group className="inline">
             <Button
@@ -830,10 +840,10 @@ const SettingsTab = memo(() => {
 
 
       {showDevOptions && <>
-        <AccordionToggle eventKey="4">
+        <AccordionToggle eventKey="developer-options">
           Developer Options
         </AccordionToggle>
-        <Accordion.Collapse eventKey="4">
+        <Accordion.Collapse eventKey="developer-options">
           <>
             <Form.Group>
               <Switch
@@ -1063,7 +1073,7 @@ const AccordionToggle = (props: any) => {
   const open = contextEventKey === eventKey;
   const decoratedOnClick = useAccordionToggle(eventKey);
   return (
-    <Accordion.Toggle className={cx(className, open ? 'open' : '')} as={Button} variant="link" eventKey={eventKey} {...otherProps}>
+    <Accordion.Toggle className={cx(className, open ? 'open' : '')} as={Button} variant="link" eventKey={eventKey} aria-expanded={open} {...otherProps}>
       <h3>
         <span>{children}</span>
         <FontAwesomeIcon icon={faChevronLeft} />

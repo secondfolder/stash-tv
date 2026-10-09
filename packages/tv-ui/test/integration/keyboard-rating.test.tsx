@@ -16,8 +16,8 @@ import { describe, expect, it } from "vitest";
 import { waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { bootApp } from "./helpers/harness";
-import { currentSlide, goToNextSlide, goToSlide, sceneIdOf, slides } from "./helpers/feed";
-import { setupKeyboardRatingTest, endRatingWindows, initialRatings, serverRating, otherRenderedSceneIds, bootWithRateButtonPinned, displayedRating } from "./helpers/keyboard-rating";
+import { bootWithTvConfig, currentSlide, goToNextSlide, goToSlide, sceneIdOf, slides } from "./helpers/feed";
+import { setupKeyboardRatingTest, endRatingWindows, initialRatings, serverRating, otherRenderedSceneIds, bootWithRateButtonPinned, displayedRating, ratingsSent } from "./helpers/keyboard-rating";
 
 setupKeyboardRatingTest();
 
@@ -82,14 +82,42 @@ describe("Keyboard rating shortcuts", () => {
     await app.unmount();
   });
 
+  // @see docs/keyboard-shortcuts.md § "The registry"
+  it("rates with the rating key the user has given it instead of r", async () => {
+    const app = await bootWithTvConfig((tvConfig) => tvConfig.set("keyboardShortcuts", { "rate": ["g"] }));
+    const currentSceneId = sceneIdOf(currentSlide(app));
+
+    await userEvent.keyboard("r3");
+    await userEvent.keyboard("g4");
+
+    await waitFor(() => expect(serverRating(currentSceneId)).toBe(80));
+    expect(ratingsSent(currentSceneId)).toEqual([80]);
+
+    await app.unmount();
+  });
+
+  // @see docs/keyboard-shortcuts.md § "Key sequences"
+  it("unsets the rating with the keys the user has given it, a sequence of its own", async () => {
+    const app = await bootWithTvConfig((tvConfig) => tvConfig.set("keyboardShortcuts", { "unset-rating": ["u r"] }));
+    const currentSceneId = sceneIdOf(currentSlide(app));
+    await userEvent.keyboard("r5");
+    await waitFor(() => expect(serverRating(currentSceneId)).toBe(100));
+
+    await userEvent.keyboard("ur");
+
+    await waitFor(() => expect(serverRating(currentSceneId)).toBeNull());
+
+    await app.unmount();
+  });
+
   it("unsets the current scene's rating with r 0", async () => {
     // Fixture scene-2 is the only pre-rated scene; rate the current one first so there's something to unset
     const app = await bootApp();
     const currentSceneId = sceneIdOf(currentSlide(app));
     await userEvent.keyboard("r5");
     await waitFor(() => expect(serverRating(currentSceneId)).toBe(100));
-    // Close the first sequence's digit window so `0` starts a fresh sequence
-    expect(endRatingWindows()).toBe(1);
+    // A rating's sequence ends with it, so nothing's left waiting for a next key
+    expect(endRatingWindows()).toBe(0);
 
     await userEvent.keyboard("r0");
 

@@ -11,7 +11,8 @@ const DPAD_BUTTON_MAP_PORTRAIT: Record<number, string> = {
 };
 
 // 90° counter-clockwise rotation to match how forceLandscape remaps arrow keys
-// in VideoScroller and MediaSlide: Up→Left, Down→Right, Left→Down, Right→Up
+// for keyboard shortcuts (`rotateForLandscape`): Up→Left, Down→Right, Left→Down, Right→Up.
+// The d-pad sends arrow keys, so it does whatever the user has bound them to.
 const DPAD_BUTTON_MAP_LANDSCAPE: Record<number, string> = {
   12: "ArrowLeft",
   13: "ArrowRight",
