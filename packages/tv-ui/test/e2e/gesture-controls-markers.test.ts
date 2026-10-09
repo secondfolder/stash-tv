@@ -8,6 +8,7 @@ import {
   videoState,
   type Pointer,
 } from './helpers/gestures';
+import { type Page } from '@playwright/test';
 import { expect, test } from './helpers/test';
 import { currentIndex, currentSlide } from './helpers/feed';
 
@@ -24,6 +25,27 @@ const markersChannel = {
 };
 
 let pointer: Pointer;
+
+/**
+ * Watch the current slide's video for looping round, which `hasLooped` then tells. Every frame is checked for its time
+ * having gone back: polling the time from the test instead can miss a loop, as after one the time is back below where
+ * it was for only a moment.
+ */
+async function watchForLoop(page: Page) {
+  await currentSlide(page).locator('video').first().evaluate((video: HTMLVideoElement) => {
+    const record = window as unknown as { looped: boolean };
+    record.looped = false;
+    let last = video.currentTime;
+    const sample = () => {
+      if (video.currentTime < last) record.looped = true;
+      last = video.currentTime;
+      if (!record.looped) requestAnimationFrame(sample);
+    };
+    requestAnimationFrame(sample);
+  });
+}
+
+const hasLooped = (page: Page) => page.evaluate(() => (window as unknown as { looped: boolean }).looped);
 
 test.afterEach(async ({ request }) => setTvConfig(request, null));
 
@@ -68,8 +90,8 @@ test.describe('Gestures on a looping marker', () => {
     await expectFeedback(page, '1.5x', 'play');
 
     // The first marker's clip is the last 4s of its scene: at 1.5x it loops within 3s
-    const start = (await videoState(currentSlide(page))).currentTime;
-    await expect.poll(async () => (await videoState(currentSlide(page))).currentTime, { timeout: 8000 }).toBeLessThan(start);
+    await watchForLoop(page);
+    await expect.poll(() => hasLooped(page), { timeout: 8000 }).toBe(true);
     expect(await currentIndex(page)).toBe(0);
     await expectFeedback(page, '1.5x', 'play');
     expect(await videoState(currentSlide(page))).toMatchObject({ paused: false, playbackRate: 1.5 });
