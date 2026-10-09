@@ -37,6 +37,16 @@ async function morphDone(page: Page) {
   await expect(infoPanel(page).locator('.morph-layer')).toHaveCount(0);
 }
 
+/**
+ * Check that a test sampling every frame of a morph (given when it sampled one) watched it play out. A morph runs for a
+ * set time (450ms) however many frames a busy machine manages to draw in it, so how long it was sampled for is what's
+ * checked, not how many frames: a loaded CI runner drew under a dozen frames of one.
+ */
+function expectSampledMorph(sampledAt: number[]) {
+  expect(sampledAt.length).toBeGreaterThan(1);
+  expect(sampledAt.at(-1)! - sampledAt[0]).toBeGreaterThan(450 / 2);
+}
+
 /** Switch the open panel to its editor */
 async function clickEdit(page: Page) {
   await infoPanel(page).getByRole('button', { name: 'Customise info panel' }).click();
@@ -1307,13 +1317,13 @@ test.describe('Scene info panel', () => {
     await openInfoPanel(page);
     // Every frame of the morph: whether it's going, and any copy of a field or pill whose text has wrapped
     await page.evaluate(() => {
-      const record = window as unknown as { morphFrames: number, wrapped: Set<string> };
-      record.morphFrames = 0;
+      const record = window as unknown as { morphSampled: number[], wrapped: Set<string> };
+      record.morphSampled = [];
       record.wrapped = new Set();
       const sample = () => {
         const layer = document.querySelector('[data-current-video="true"] .morph-layer');
         if (layer) {
-          record.morphFrames++;
+          record.morphSampled.push(performance.now());
           for (const copy of layer.querySelectorAll<HTMLElement>('.field, .field-pill')) {
             if (copy.scrollHeight > copy.clientHeight + 1) record.wrapped.add(copy.className);
           }
@@ -1326,11 +1336,11 @@ test.describe('Scene info panel', () => {
     await clickEdit(page);
     await saveEdits(page);
 
-    const { morphFrames, wrapped } = await page.evaluate(() => {
-      const { morphFrames, wrapped } = window as unknown as { morphFrames: number, wrapped: Set<string> };
-      return { morphFrames, wrapped: [...wrapped] };
+    const { morphSampled, wrapped } = await page.evaluate(() => {
+      const { morphSampled, wrapped } = window as unknown as { morphSampled: number[], wrapped: Set<string> };
+      return { morphSampled, wrapped: [...wrapped] };
     });
-    expect(morphFrames).toBeGreaterThan(10);
+    expectSampledMorph(morphSampled);
     expect(wrapped).toEqual([]);
     await expect(infoPanel(page).locator('.field-date')).toHaveText('14 February 2025');
   });
@@ -1378,13 +1388,13 @@ test.describe('Scene info panel', () => {
   test('morphs the pills between names and values, without wrapping their text', async ({ page }) => {
     await startEditing(page);
     await page.evaluate(() => {
-      const record = window as unknown as { morphFrames: number, wrapped: Set<string> };
-      record.morphFrames = 0;
+      const record = window as unknown as { morphSampled: number[], wrapped: Set<string> };
+      record.morphSampled = [];
       record.wrapped = new Set();
       const sample = () => {
         const layer = document.querySelector('[data-current-video="true"] .morph-layer');
         if (layer) {
-          record.morphFrames++;
+          record.morphSampled.push(performance.now());
           for (const copy of layer.querySelectorAll<HTMLElement>('.field-pill')) {
             if (copy.scrollHeight > copy.clientHeight + 1) record.wrapped.add(copy.dataset.field ?? '');
           }
@@ -1399,11 +1409,11 @@ test.describe('Scene info panel', () => {
     await morphDone(page);
     await morphDone(page);
 
-    const { morphFrames, wrapped } = await page.evaluate(() => {
-      const { morphFrames, wrapped } = window as unknown as { morphFrames: number, wrapped: Set<string> };
-      return { morphFrames, wrapped: [...wrapped] };
+    const { morphSampled, wrapped } = await page.evaluate(() => {
+      const { morphSampled, wrapped } = window as unknown as { morphSampled: number[], wrapped: Set<string> };
+      return { morphSampled, wrapped: [...wrapped] };
     });
-    expect(morphFrames).toBeGreaterThan(10);
+    expectSampledMorph(morphSampled);
     expect(wrapped).toEqual([]);
     await expect(pill(page, 'date')).toHaveText('14 February 2025');
   });
