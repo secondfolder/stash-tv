@@ -84,6 +84,17 @@ function expectStartedFrom(first: Box, start: Box, end: Box) {
   expect(Math.abs(first.width - start.width)).toBeLessThan(Math.abs(end.width - start.width) * 0.1);
 }
 
+/**
+ * Whether a frame caught the open folder's first icon part way between its width at the start of its animation and at
+ * the end, which shows that it animated rather than jumping. The animation is short (100ms), so a busy machine draws
+ * only a few frames of it: checking for more than a few failed on CI.
+ */
+const isPartWay = (startWidth: number, endWidth: number) => (frame: Frame) => {
+  const margin = Math.abs(endWidth - startWidth) * 0.1;
+  const width = frame.open[0]?.width;
+  return width !== undefined && width > Math.min(startWidth, endWidth) + margin && width < Math.max(startWidth, endWidth) - margin;
+};
+
 /** Whether the open folder's arrow is part way through fading in or out, given how visible it is when shown */
 const isFading = (shownOpacity: number) => (frame: Frame) =>
   frame.arrowOpacity > 0.05 && frame.arrowOpacity < shownOpacity - 0.05;
@@ -136,8 +147,7 @@ test.describe('Action button folder preview', () => {
       firstOpen.open.forEach((box, i) => expectStartedFrom(box, before[i], last.open[i]));
       // It ends up somewhere else, at full size
       expect(last.open[0].width).toBeGreaterThan(before[0].width * 2);
-      expect(frames.filter((frame) => frame.open.length && frame.open[0].width < last.open[0].width).length,
-        'frames spent animating').toBeGreaterThan(3);
+      expect(frames.some(isPartWay(before[0].width, last.open[0].width)), 'icon seen part way').toBe(true);
     });
 
     test('moves each icon from the open folder back into the preview', async ({ page }) => {
@@ -151,8 +161,7 @@ test.describe('Action button folder preview', () => {
       const lastOpen = found(frames.filter((frame) => frame.open.length > 0).at(-1), 'frame with the folder open');
       // The open folder's icons are the ones that move, and the open folder goes once they're in the preview
       lastOpen.open.forEach((box, i) => expectStartedFrom(box, lastOpen.preview[i], before[i]));
-      expect(frames.filter((frame) => frame.open.length && frame.open[0].width < before[0].width).length,
-        'frames spent animating').toBeGreaterThan(3);
+      expect(frames.some(isPartWay(before[0].width, lastOpen.preview[0].width)), 'icon seen part way').toBe(true);
       expect(found(frames.at(-1), 'frame').open).toEqual([]);
     });
 
