@@ -1,3 +1,8 @@
+:root {
+  /* How long the UI takes to fade in or out when shown or hidden. Slower while auto-hidden (.ui-idle) */
+  --ui-toggle-transition-duration: 0.15s;
+}
+
 html {
   scroll-snap-type: y mandatory;
   scroll-behavior: auto;

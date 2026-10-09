@@ -66,7 +66,9 @@ Two things decide whether the UI (everything marked `hide-on-ui-hide` / `dim-on-
 - `tvConfig.uiVisible`: the user's own choice, toggled by the `ui-visibility` action button and persisted. The button's state follows this alone.
 - `globalState.uiIdleMediaItemId`: transient, set by `useUiAutoHide()` (called once by `FeedPage`) to the current slide's media item (`globalState.currentMediaItemId`, kept up to date by `VideoScroller`) when a mouse user has been idle on it for `tvConfig.uiAutoHideDelay` seconds (default 3; 0 turns it off). Set in Settings → UI → **Auto-hide UI**.
 
-⚠️ Anything that shows or hides UI reads `useUiVisible(mediaItemId).shown` (`uiVisible` and not that slide being the idle one; without an id, the current slide), never `uiVisible` directly, or it won't fade with the rest. `MediaSlide` adds `hide-controls` from it, plus `ui-idle` while auto-hidden, which hides the cursor too and makes the fade out slower (1s, against 0.15s when the user hides the UI). The UI comes back at the usual speed, since `ui-idle` is removed as it does.
+⚠️ Anything that shows or hides UI reads `useUiVisible(mediaItemId).shown` (`uiVisible` and not that slide being the idle one; without an id, the current slide), never `uiVisible` directly, or it won't fade with the rest. `MediaSlide` adds `hide-controls` from it, plus `ui-idle` while auto-hidden, which hides the cursor too and makes the fade out slower (1s, against 0.15s when the user hides the UI). The UI comes back at the usual speed, since `ui-idle` is removed as it does. Both durations come from `--ui-toggle-transition-duration` (set on `:root` in `globals.scss`).
+
+⚠️ UI in a portal outside the slide (e.g. an open action-button folder, a react-bootstrap `Overlay`) isn't reached by the slide's `hide-controls` rules, so it needs its own fade: add `ui-idle` to it from `useUiVisible().uiIdle` and transition opacity over `--ui-toggle-transition-duration`, as `.folder-contents-popover` does. Toggling only `visibility` makes it vanish while everything else fades.
 
 How auto-hide behaves:
 

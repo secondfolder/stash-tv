@@ -246,8 +246,24 @@ overflow-x to visible. So we hide it instead to avoid horizontal scrollbars appe
   padding: 0.5em; /* Add some padding so the drop shadow's aren't abruptly cut off by overflow auto */
   overflow: auto;
 
+  /* Fades with the rest of the slide's UI. It's in a portal outside the slide, so the slide's hide-controls rules don't
+  reach it. Two classes, so it wins over .indicators-on-overflow's transition (which it keeps) */
+  &.folder-contents-popover {
+    transition:
+      opacity var(--ui-toggle-transition-duration) ease-in-out,
+      visibility 0s linear 0s,
+      var(--overflow-indicators-transition, --dummy-fallback-var-to-stop-it-braking);
+  }
   &.hide {
+    opacity: 0;
     visibility: hidden;
+    transition:
+      opacity var(--ui-toggle-transition-duration) ease-in-out,
+      visibility 0s linear var(--ui-toggle-transition-duration), /* delay visibility change until after opacity fades */
+      var(--overflow-indicators-transition, --dummy-fallback-var-to-stop-it-braking);
+  }
+  &.ui-idle {
+    --ui-toggle-transition-duration: 1s;
   }
 
   /* Don't clip the icons while they move between it and the folder's preview, which is outside it. The overflow

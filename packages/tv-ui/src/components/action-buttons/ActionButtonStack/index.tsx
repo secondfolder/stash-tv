@@ -43,7 +43,7 @@ export function ActionButtonStack({mediaItem, sceneInfoOpen, setSceneInfoOpen, p
     leftHandedUi,
     actionButtonStackConfig,
   } = useTvConfig();
-  const { shown: uiShown } = useUiVisible(mediaItem.id);
+  const { shown: uiShown, uiIdle } = useUiVisible(mediaItem.id);
 
   const scene = mediaItem.entityType === "scene" ? mediaItem.entity : mediaItem.entity.scene;
 
@@ -81,6 +81,7 @@ export function ActionButtonStack({mediaItem, sceneInfoOpen, setSceneInfoOpen, p
           renderActionButton={renderActionButton}
           playerRef={playerRef}
           uiShown={uiShown}
+          uiIdle={uiIdle}
         />
       )
     }
@@ -117,12 +118,15 @@ const Folder = ({
   renderActionButton,
   playerRef,
   uiShown,
+  uiIdle,
 }: {
   folderConfig: ActionButtonStackFolderConfig,
   renderActionButton: (buttonConfig: ActionButtonConfig) => ReactNode,
   playerRef: React.RefObject<VideoJsPlayer>,
   /** Whether the slide's UI is shown (`useUiVisible().shown`) */
   uiShown: boolean,
+  /** Whether the slide's UI is auto-hidden (`useUiVisible().uiIdle`), which fades it out slowly */
+  uiIdle: boolean,
 }): JSX.Element => {
   const { leftHandedUi } = useTvConfig();
   const preventOverflowModifier = usePreventOverflowModifier({
@@ -234,7 +238,7 @@ const Folder = ({
       }}
     >
       <Popover
-        className={cx("folder-contents-popover", { 'left-handed': leftHandedUi, hide: !uiShown, 'icons-animating': iconsAnimating }, stackScrollClasses)}
+        className={cx("folder-contents-popover", { 'left-handed': leftHandedUi, hide: !uiShown, 'ui-idle': uiIdle, 'icons-animating': iconsAnimating }, stackScrollClasses)}
         id={id}
       >
         {renderFolderButtons(false)}

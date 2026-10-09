@@ -97,6 +97,32 @@ test('the UI fades out more slowly when the mouse goes idle than when the user h
   expect(hideFade).toBeLessThan(idleFade);
 });
 
+test('an open folder fades out with the rest of the UI', async ({ page, request }) => {
+  await bootFeed(page, request, { uiAutoHideDelay: DELAY_SECONDS });
+  // The default action buttons have folders
+  await currentSlide(page).getByRole('button', { name: 'Open folder' }).first().click();
+  const folder = page.locator('.folder-contents-popover');
+  await expect(folder).toBeVisible();
+
+  // Record the open folder's opacity on every frame until it's hidden. It's in a portal outside the slide, so it
+  // doesn't get the slide's fade for free
+  const opacities = folder.evaluate((element, timeout) => new Promise<number[]>((resolve) => {
+    const recorded: number[] = [];
+    const start = performance.now();
+    const record = () => {
+      const { opacity, visibility } = getComputedStyle(element);
+      recorded.push(Number(opacity));
+      if (visibility === 'hidden' || performance.now() - start > timeout) resolve(recorded);
+      else requestAnimationFrame(record);
+    };
+    requestAnimationFrame(record);
+  }), HIDDEN_TIMEOUT);
+  await moveMouseOverVideo(page);
+
+  expect((await opacities).some((opacity) => opacity > 0 && opacity < 1), 'folder seen part way faded').toBe(true);
+  await expect(folder).toBeHidden();
+});
+
 test('the UI stays while the mouse rests over a control', async ({ page, request }) => {
   await bootFeed(page, request, { uiAutoHideDelay: DELAY_SECONDS });
 
