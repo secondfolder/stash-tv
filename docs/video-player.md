@@ -64,7 +64,7 @@ Tapping, holding and dragging on a slide's video plays, skips and seeks through 
 
 - `useSeeking()`: the seek engine. `seek(speed)` seeks at a speed until `seek(null)`, showing it in the feedback overlay; `isSeeking()`. Used by both inputs below.
 - `useGestureControls()`: pointer input, with `@use-gesture/react`, on the video element, or on iOS on a `div` over it (iOS ignores `user-select: none` on a Video.js video, so a long press there selects text).
-- `useKeyboardSeeking()`: the arrow keys and Space (see [keyboard shortcuts](keyboard-shortcuts.md)).
+- `useShortcutSeeking()`: the arrow keys and Space, or a gamepad's controls for them (see [keyboard shortcuts](keyboard-shortcuts.md)), and a gamepad stick direction or trigger bound to seeking, which seeks at a speed set by how far it's pushed or pressed (`analogSeekSpeed()`, see [gamepad](gamepad.md) § "Analog seeking").
 
 - **Tap** (released within 250ms): the left third skips back, the middle plays/pauses, the right third skips forwards (`seekBackwards` / `seekForwards`: about a third of a short video, less for long ones, snapping to a nearby marker). Taps come from `pointerup`, as Video.js stops click events on touch devices. No feedback is shown. ⚠️ While a video is paused its big play button covers the middle third, so taps (and holds) there go to the button, which plays it.
 - **Hold** (250ms or more) seeks until released: rewinding from the left third, paused from the middle, 1.5x from the right. Dragging sideways changes the speed by the 6th power of the distance (a tenth of the video's width changes it by 1), by at most a third of the video's duration either way (`holdSpeed()`). A drag made before the hold registers counts: the hold starts at the speed for where the pointer already is.

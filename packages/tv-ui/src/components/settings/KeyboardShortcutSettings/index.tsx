@@ -8,13 +8,15 @@ import {
   defaultShortcutBindings,
   describeClashes,
   findClashingBindings,
-  getShortcutDefinition,
   heldWithKeys,
+  withActionBindings,
+} from "../../../helpers/keyboard-shortcuts/definitions";
+import {
+  getShortcutAction,
   SHORTCUT_ACTION_IDS,
   SHORTCUT_GROUPS,
-  withActionBindings,
   type ShortcutActionId,
-} from "../../../helpers/keyboard-shortcuts/definitions";
+} from "../../../helpers/shortcut-actions/actions";
 import { formatKeySequence, type KeySequence } from "../../../helpers/keyboard-shortcuts/key-sequences";
 import { describeClashRemoval, ShortcutRecorder } from "../ShortcutRecorder";
 import { ShortcutKeys } from "../ShortcutKeys";
@@ -86,7 +88,7 @@ export function KeyboardShortcutSettings() {
     />}
     {SHORTCUT_GROUPS.map((group) => {
       const groupActions = SHORTCUT_ACTION_IDS.filter((actionId) =>
-        getShortcutDefinition(actionId).group === group
+        getShortcutAction(actionId).group === group
         // Its keys are pressed while holding another action's, which has none, so it can't be used (e.g. the seek speed
         // without seek keys)
         && heldWithKeys(actionId, bindings)?.length !== 0
@@ -95,7 +97,7 @@ export function KeyboardShortcutSettings() {
         <Form.Label as="h4">{group}</Form.Label>
         <ul className="shortcut-list">
           {groupActions.map((actionId) => {
-            const { title } = getShortcutDefinition(actionId);
+            const { title } = getShortcutAction(actionId);
             return <li key={actionId} className="shortcut" data-action={actionId}>
               <span className="shortcut-title">{title}</span>
               <span className="shortcut-keys">

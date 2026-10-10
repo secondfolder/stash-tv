@@ -8,12 +8,13 @@
 
 | Store | Persistence | Purpose |
 |---|---|---|
-| `tvConfig.ts` | Hybrid (Stash plugin config + localStorage) | User preferences & plugin settings: volume, subtitles, playback rate, CRT effect, UI layout, the scene info panel's layout, page size, channels, the keyboard shortcuts the user has changed ([keyboard shortcuts](keyboard-shortcuts.md)), dev options |
+| `tvConfig.ts` | Hybrid (Stash plugin config + localStorage) | User preferences & plugin settings: volume, subtitles, playback rate, CRT effect, UI layout, the scene info panel's layout, page size, channels, the keyboard shortcuts the user has changed ([keyboard shortcuts](keyboard-shortcuts.md)), what a gamepad's controls do (`gamepadMapping`) and whether one's been used (`gamepadUsed`, see [gamepad](gamepad.md)), dev options |
 | `globalState.ts` | None (transient) | UI toggles: settings panel and its expanded section (`settingsSection`), scene info, fullscreen, whether a shortcut's key is being recorded (`recordingShortcut`), Stash's rating system for matching shortcuts (`ratingSystem`), the current slide's media item (`currentMediaItemId`), which slide's UI is auto-hidden (`uiIdleMediaItemId`), `tvConfigLoaded` flag |
 | `mediaItemState.tsx` | None (one store per slide, via context) | Per-slide UI state: open action-button folder, the o-count the slide was shown with, the slide's element. ⚠️ `MediaItemStateContextProvider`'s `initialValues` are only read on mount: they're the slide's starting values, and the o-counter button relies on `preIncrementOCounterValue` not following the live count |
 | Accumulator store (in `useMediaItems`) | None | Feed pagination state — see [media loading](media-loading.md) |
+| `gamepadState.ts` | None | Kept by `useGamepad()`: whether a gamepad is connected, whose names its controls have, and the controls held down — see [gamepad](gamepad.md) |
 
-Every store exposes the same typed `set` / `get` / `setToDefault` / `getDefault` API.
+Every store except `gamepadState` (written only by `useGamepad()`, with setters of its own) exposes the same typed `set` / `get` / `setToDefault` / `getDefault` API.
 
 ### The Typed Setter Pattern (critical)
 
@@ -44,7 +45,7 @@ useTvConfig.setState({ volume: 0.5 });
 `tvConfig` persists to **two backends**, split per key by the `createHybridStorage` in `tvConfig.ts`:
 
 - **Stash plugin config** (via `stashConfigStorage`, stored in the Stash database) — everything by default. Syncs user preferences across devices.
-- **Browser localStorage** (suffixed `-local`) — keys listed in `localStorageKeys`, currently just `forceLandscape`. Device-specific settings that shouldn't sync across devices.
+- **Browser localStorage** (suffixed `-local`) — keys listed in `localStorageKeys`, currently `forceLandscape` and `fakeGamepad` (a pretend gamepad for trying gamepad support, see [gamepad](gamepad.md) § "Trying it without a gamepad"). Device-specific settings that shouldn't sync across devices.
 
 ⚠️ The temporary channel in `channels` isn't persisted at all: tvConfig's `partialize` leaves it out of what's stored (see [channels](channels.md) § "Temporary channel").
 
@@ -87,6 +88,8 @@ The persist `version` and `migrate` in `tvConfig.ts` upgrade users' saved config
 - v1: `audioMuted` → `volume`, the `mute` button → `volume`
 - v2: `actionButtonsConfig` → `actionButtonStackConfig`
 - v3: `currentFilterId` + `isRandomised` → `channels` (see [channels](channels.md) § "Migration")
+
+A gamepad preset changed in a way that would upset people used to it gets a step too, moving them onto a custom mapping of the old one with `keepOldPreset()` (see [gamepad](gamepad.md) § "Changing a preset").
 
 ## Why These Decisions
 

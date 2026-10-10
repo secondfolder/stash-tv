@@ -12,8 +12,7 @@ import hashObject from 'object-hash';
 import { getLogger } from "@logtape/logtape";
 import { useCurrentOpenPopover } from "../PopoverPanel";
 import { useGlobalState } from "../../store/globalState";
-import { matchShortcut } from "../../hooks/useKeyboardShortcuts";
-import { isTypingTarget } from "../../helpers/keyboard-shortcuts/key-combos";
+import { onShortcut } from "../../helpers/shortcut-actions/input";
 
 interface VideoScrollerProps {}
 
@@ -236,38 +235,23 @@ const VideoScroller: React.FC<VideoScrollerProps> = memo(() => {
   }, [currentMediaItemId]);
   useEffect(() => () => useGlobalState.getState().set("currentMediaItemId", null), []);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (isTypingTarget(e)) return;
-      // While a seek key's held, ↑ and ↓ are chords with it (← + ↑), changing the seek speed instead
-      const action = matchShortcut(e, ["next", "previous"]);
-      logger.debug(`VideoScroller Keydown; key=${e.key} action=${action}`);
-      if (!action) return;
-      const newIndex = action === "next"
-        ? (prevIndex: number) => prevIndex + 1
-        : (prevIndex: number) => prevIndex - 1;
-      scrollToIndex(newIndex, { behavior: "instant" });
-      setCurrentIndex(newIndex);
-      e.preventDefault();
-    }
-    // We use capture so we can stop it propagating to the video player which treats arrow keys as seek commands
-    window.addEventListener("keydown", handleKeyDown, {capture: true});
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown, {capture: true});
-    };
-  }, [setCurrentIndex]);
+  // Capturing keys so we can stop them propagating to the video player, which treats arrow keys as seek commands
+  useEffect(() => onShortcut("press", (trigger) => {
+    // While a seek key's held, ↑ and ↓ are chords with it (← + ↑), changing the seek speed instead
+    const action = trigger.match(["next", "previous"]);
+    logger.debug(`VideoScroller shortcut; source=${trigger.source} action=${action}`);
+    if (!action) return;
+    const newIndex = action === "next"
+      ? (prevIndex: number) => prevIndex + 1
+      : (prevIndex: number) => prevIndex - 1;
+    scrollToIndex(newIndex, { behavior: "instant" });
+    setCurrentIndex(newIndex);
+    trigger.preventDefault();
+  }, { capture: true }), [setCurrentIndex]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isTypingTarget(e) && matchShortcut(e, ["toggle-crt"])) {
-        setTvConfig("crtEffect", (prev) => !prev);
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
+  useEffect(() => onShortcut("press", (trigger) => {
+    if (trigger.match(["toggle-crt"])) setTvConfig("crtEffect", (prev) => !prev);
+  }), []);
 
   // Store scroll position when window is resized
   useEffect(() => {

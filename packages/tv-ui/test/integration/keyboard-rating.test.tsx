@@ -1,7 +1,7 @@
 /**
  * Keyboard rating shortcut integration tests.
  *
- * Every rendered MediaSlide calls `useKeyboardRating`, but only the current
+ * Every rendered MediaSlide calls `useRatingShortcuts`, but only the current
  * slide may bind the keys — these tests boot feeds with several slides in the
  * DOM and check the rating lands on the current item's scene (markers rate
  * their parent scene) and nowhere else.

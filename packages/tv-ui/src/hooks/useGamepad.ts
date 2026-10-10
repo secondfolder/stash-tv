@@ -1,118 +1,84 @@
 import { useEffect } from "react";
 import { useGamepadState } from "../store/gamepadState";
-import { objectEntries } from "ts-extras";
+import { useTvConfig } from "../store/tvConfig";
+import { useGlobalState } from "../store/globalState";
+import { resolveGamepadBindings } from "../helpers/gamepad/bindings";
+import { controllerLayout, type ControlId } from "../helpers/gamepad/controls";
+import {
+  controlsDown,
+  initialGamepadReadState,
+  readGamepad,
+  type GamepadReadState,
+} from "../helpers/gamepad/reader";
+import { dispatchGamepadAction } from "../helpers/shortcut-actions/input";
 
-// Standard Gamepad API button indices for d-pad
-const DPAD_BUTTON_MAP_PORTRAIT: Record<number, string> = {
-  12: "ArrowUp",
-  13: "ArrowDown",
-  14: "ArrowLeft",
-  15: "ArrowRight",
-};
+const connectedGamepads = () => navigator.getGamepads().filter((gamepad): gamepad is Gamepad => Boolean(gamepad));
 
-// 90° counter-clockwise rotation to match how forceLandscape remaps arrow keys
-// for keyboard shortcuts (`rotateForLandscape`): Up→Left, Down→Right, Left→Down, Right→Up.
-// The d-pad sends arrow keys, so it does whatever the user has bound them to.
-const DPAD_BUTTON_MAP_LANDSCAPE: Record<number, string> = {
-  12: "ArrowLeft",
-  13: "ArrowRight",
-  14: "ArrowDown",
-  15: "ArrowUp",
-};
-
-import { TOGGLE_VIDEO_EVENT, PAUSE_VIDEO_EVENT } from "../events";
-
-// Button 8 is the Share/Select button — toggles play/pause on the current video
-// Button 17 is the PS touchpad button — pauses the current video
-const BUTTON_ACTION_MAP: Record<number, () => void> = {
-  8: () => window.dispatchEvent(new CustomEvent(TOGGLE_VIDEO_EVENT)),
-  17: () => window.dispatchEvent(new CustomEvent(PAUSE_VIDEO_EVENT)),
-};
+const sameControls = (a: ReadonlySet<ControlId>, b: ReadonlySet<ControlId>) =>
+  a.size === b.size && [...a].every((control) => b.has(control));
 
 /**
- * Maps gamepad buttons to keyboard events or custom actions dispatched on window.
- * This allows existing keyboard event listeners to respond to gamepad input
- * without modification.
+ * Turns gamepads' buttons and sticks into shortcut actions, as the user's gamepad mapping says (tvConfig's
+ * `gamepadMapping`), and keeps `gamepadState` up to date: whether one's connected, what kind it is, and which controls
+ * are held down. It also remembers (tvConfig's `gamepadUsed`) that one's been used. Called once, by `App`.
  *
- * When forceLandscape is true the d-pad mapping is rotated 90° to match the
- * rotated arrow key semantics used throughout the app in landscape mode.
+ * Gamepads can only be polled, so they're read every frame while one's connected. The mapping is read every frame
+ * too, so a change in the settings applies at once.
+ *
+ * @see docs/gamepad.md
  */
-export function useGamepad({ forceLandscape }: { forceLandscape: boolean }) {
-  const setConnected = useGamepadState((state) => state.setConnected);
+export function useGamepad() {
+  // Remember that a gamepad's been used, once the config's loaded so it can be saved: a preset changed later then stays
+  // as it was for this user (see docs/gamepad.md § "Changing a preset"). A fake one doesn't count.
+  const isConnected = useGamepadState((state) => state.isConnected);
+  const tvConfigLoaded = useGlobalState((state) => state.tvConfigLoaded);
+  const gamepadUsed = useTvConfig((state) => state.gamepadUsed);
+  const fakeGamepad = useTvConfig((state) => state.fakeGamepad);
+  useEffect(() => {
+    if (isConnected && tvConfigLoaded && !gamepadUsed && !fakeGamepad) useTvConfig.getState().set("gamepadUsed", true);
+  }, [isConnected, tvConfigLoaded, gamepadUsed, fakeGamepad]);
 
   useEffect(() => {
-    const handleConnect = () => setConnected(true);
-    const handleDisconnect = () =>
-      setConnected(Array.from(navigator.getGamepads()).some(Boolean));
-
-    window.addEventListener("gamepadconnected", handleConnect);
-    window.addEventListener("gamepaddisconnected", handleDisconnect);
-
-    // Sync initial state
-    setConnected(Array.from(navigator.getGamepads()).some(Boolean));
-
-    return () => {
-      window.removeEventListener("gamepadconnected", handleConnect);
-      window.removeEventListener("gamepaddisconnected", handleDisconnect);
-    };
-  }, [setConnected]);
-
-  useEffect(() => {
-    const dpadButtonMap = forceLandscape ? DPAD_BUTTON_MAP_LANDSCAPE : DPAD_BUTTON_MAP_PORTRAIT;
-    const keyButtonMap = { ...dpadButtonMap };
-    const previousButtonStates = new Map<number, boolean>();
-    let animationFrameId: number;
-
-    const dispatchKey = (key: string, type: "keydown" | "keyup") => {
-      window.dispatchEvent(
-        new KeyboardEvent(type, {
-          key,
-          code: key,
-          bubbles: true,
-          cancelable: true,
-          capture: true,
-        } as KeyboardEventInit)
-      );
-    };
+    const { setConnected, setLayout, setPressedControls } = useGamepadState.getState();
+    // What's known of each gamepad (by its index) from the frames before
+    const readStates = new Map<number, GamepadReadState>();
+    let animationFrameId: number | undefined;
 
     const poll = () => {
-      const gamepads = navigator.getGamepads();
-      for (const gamepad of gamepads) {
-        if (!gamepad) continue;
-
-        for (const [buttonIndex, key] of objectEntries(keyButtonMap)) {
-          const index = Number(buttonIndex);
-          const pressed = gamepad.buttons[index]?.pressed ?? false;
-          const wasPressed = previousButtonStates.get(index) ?? false;
-          if (pressed && !wasPressed) dispatchKey(key, "keydown");
-          else if (!pressed && wasPressed) dispatchKey(key, "keyup");
-          previousButtonStates.set(index, pressed);
-        }
-
-        for (const [buttonIndex, action] of objectEntries(BUTTON_ACTION_MAP)) {
-          const index = Number(buttonIndex);
-          const pressed = gamepad.buttons[index]?.pressed ?? false;
-          const wasPressed = previousButtonStates.get(index) ?? false;
-          if (pressed && !wasPressed) action();
-          previousButtonStates.set(index, pressed);
-        }
+      const bindings = resolveGamepadBindings(useTvConfig.getState().gamepadMapping);
+      const gamepads = connectedGamepads();
+      const pressed = new Set<ControlId>();
+      // Gamepads that have gone have everything released, so nothing's left held (seeking forever)
+      const indexes = new Set([...readStates.keys(), ...gamepads.map((gamepad) => gamepad.index)]);
+      for (const index of indexes) {
+        const gamepad = gamepads.find((gamepad) => gamepad.index === index) ?? null;
+        const { state, events } = readGamepad(gamepad, readStates.get(index) ?? initialGamepadReadState, bindings);
+        events.forEach(dispatchGamepadAction);
+        if (gamepad) readStates.set(index, state);
+        else readStates.delete(index);
+        controlsDown(state).forEach((control) => pressed.add(control));
       }
-      animationFrameId = requestAnimationFrame(poll);
+      if (!sameControls(pressed, useGamepadState.getState().pressedControls)) setPressedControls(pressed);
+      animationFrameId = gamepads.length ? requestAnimationFrame(poll) : undefined;
     };
 
-    const handleGamepadConnected = () => {
-      // Restart polling loop on new connection (safe to call if already running)
-      cancelAnimationFrame(animationFrameId);
-      animationFrameId = requestAnimationFrame(poll);
+    const update = () => {
+      const gamepads = connectedGamepads();
+      setConnected(gamepads.length > 0);
+      if (gamepads.length) setLayout(controllerLayout(gamepads[0].id));
+      // Polls until there are no gamepads left (once more after the last goes, releasing what it held)
+      animationFrameId ??= requestAnimationFrame(poll);
     };
 
-    window.addEventListener("gamepadconnected", handleGamepadConnected);
-    // Start polling immediately in case a gamepad is already connected
-    animationFrameId = requestAnimationFrame(poll);
+    window.addEventListener("gamepadconnected", update);
+    window.addEventListener("gamepaddisconnected", update);
+    // One may be connected already
+    update();
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
-      window.removeEventListener("gamepadconnected", handleGamepadConnected);
+      window.removeEventListener("gamepadconnected", update);
+      window.removeEventListener("gamepaddisconnected", update);
+      if (animationFrameId !== undefined) cancelAnimationFrame(animationFrameId);
     };
-  }, [forceLandscape]);
+  }, []);
 }

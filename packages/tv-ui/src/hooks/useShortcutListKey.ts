@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { useGlobalState } from "../store/globalState";
-import { isTypingTarget } from "../helpers/keyboard-shortcuts/key-combos";
-import { matchShortcut } from "./useKeyboardShortcuts";
+import { onShortcut } from "../helpers/shortcut-actions/input";
 
 /**
  * Open the keyboard shortcut list when its shortcut (`?` by default, like Stash's `?` for its manual) is pressed. Not
@@ -10,13 +9,8 @@ import { matchShortcut } from "./useKeyboardShortcuts";
 export function useShortcutListKey() {
   const { set: setGlobalState } = useGlobalState();
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (isTypingTarget(e) || !matchShortcut(e, ["show-shortcuts"])) return;
-      setGlobalState("keyboardShortcutsOpen", true);
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
+    return onShortcut("press", (trigger) => {
+      if (trigger.match(["show-shortcuts"])) setGlobalState("keyboardShortcutsOpen", true);
+    });
   }, [setGlobalState]);
 }

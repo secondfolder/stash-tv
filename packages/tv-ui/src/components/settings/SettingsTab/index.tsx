@@ -30,6 +30,15 @@ import { Arrow90degRight, ArrowLeft, Folder } from "react-bootstrap-icons";
 import { ActionButtonStackConfig } from "../../action-buttons/ActionButtonStack";
 import { SettingsSection, useGlobalState } from "../../../store/globalState";
 import { KeyboardShortcutSettings } from "../KeyboardShortcutSettings";
+import { GamepadSettings } from "../GamepadSettings";
+import { useGamepadStatus } from "../../../hooks/useGamepadStatus";
+
+/** The pretend gamepads that can be connected (see `useFakeGamepad`) */
+const fakeGamepadOptions = [
+  { value: null, label: "None" },
+  { value: "xbox", label: "Xbox" },
+  { value: "playstation", label: "PlayStation" },
+] as const;
 
 const SettingsTab = memo(() => {
   const logger = getLogger(["stash-tv", "SettingsTab"]);
@@ -39,6 +48,8 @@ const SettingsTab = memo(() => {
     mediaItemFiltersError,
     currentMediaItemFilter,
   } = useMediaItemFilters()
+  // Its section is only there while a gamepad's connected
+  const { isConnected: gamepadConnected } = useGamepadStatus()
 
   const {
     crtEffect,
@@ -47,6 +58,7 @@ const SettingsTab = memo(() => {
     markerPreviewOnly,
     onlyShowMatchingOrientation,
     showDevOptions,
+    fakeGamepad,
     videoJsEventsToLog,
     logLevel,
     loggersToShow,
@@ -803,6 +815,14 @@ const SettingsTab = memo(() => {
       <Accordion.Collapse eventKey="keyboard-shortcuts">
         <KeyboardShortcutSettings />
       </Accordion.Collapse>
+      {gamepadConnected && <>
+        <AccordionToggle eventKey="gamepad">
+          Game Controller
+        </AccordionToggle>
+        <Accordion.Collapse eventKey="gamepad">
+          <GamepadSettings />
+        </Accordion.Collapse>
+      </>}
       <AccordionToggle eventKey="help">
         Help / Info
       </AccordionToggle>
@@ -1055,6 +1075,22 @@ const SettingsTab = memo(() => {
               >
                 Reload Page
               </Button>
+            </Form.Group>
+
+            <Form.Group>
+              <label htmlFor="fake-gamepad">Fake gamepad</label>
+              <Select<typeof fakeGamepadOptions[number]>
+                inputId="fake-gamepad"
+                value={fakeGamepadOptions.find(option => option.value === fakeGamepad) ?? null}
+                onChange={(newValue: typeof fakeGamepadOptions[number] | null) => newValue && setTvConfig("fakeGamepad", newValue.value)}
+                options={fakeGamepadOptions}
+              />
+              <Form.Text className="text-muted">
+                Connect a pretend gamepad, to try the gamepad settings without one. Only on this device. Its controls can
+                be pressed from the browser's console with <code>fakeGamepad.press("south")</code>,{" "}
+                <code>fakeGamepad.hold("dpad-right", true)</code> and{" "}
+                <code>fakeGamepad.push("left-stick-right", 0.8)</code>.
+              </Form.Text>
             </Form.Group>
           </>
         </Accordion.Collapse>

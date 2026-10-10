@@ -6,11 +6,10 @@ import { useGlobalState } from "../store/globalState";
 import {
   comboMatchesStep,
   resolveShortcutBindings,
-  SHORTCUT_ACTION_IDS,
   shortcutPatterns,
-  type ShortcutActionId,
   type ShortcutBindings,
 } from "../helpers/keyboard-shortcuts/definitions";
+import { SHORTCUT_ACTION_IDS, type ShortcutActionId } from "../helpers/shortcut-actions/actions";
 import {
   comboFromEvent,
   isTypingTarget,

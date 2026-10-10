@@ -1,11 +1,6 @@
 import { RatingSystemType } from "stash-ui/dist/src/utils/rating";
-import {
-  formatRatingDigitSlots,
-  SHORTCUT_GROUPS,
-  type ShortcutActionId,
-  type ShortcutBindings,
-  type ShortcutGroup,
-} from "../../../helpers/keyboard-shortcuts/definitions";
+import { formatRatingDigitSlots, type ShortcutBindings } from "../../../helpers/keyboard-shortcuts/definitions";
+import { SHORTCUT_GROUPS, type ShortcutActionId, type ShortcutGroup } from "../../../helpers/shortcut-actions/actions";
 import { formatKeySequence } from "../../../helpers/keyboard-shortcuts/key-sequences";
 
 /**

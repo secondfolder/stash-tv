@@ -1,71 +1,42 @@
 import { RatingSystemType } from "stash-ui/dist/src/utils/rating";
 import { formatKeyCombo, withHeldKey, type KeyCombo } from "./key-combos";
 import { formatKeySequence, lastKeyOfSequence, parseKeySequence, type KeySequence } from "./key-sequences";
+import { getShortcutAction, SHORTCUT_ACTION_IDS, type ShortcutActionId } from "../shortcut-actions/actions";
 
 /**
- * Every keyboard shortcut action: what it's called in the settings, the keys it has by default and when it applies.
- * Adding a shortcut means adding it here (and to the help rows in `KeyboardShortcutsInfo`).
+ * Each shortcut action's keys by default. The actions themselves (titles, groups, `heldWith`) are in
+ * `shortcut-actions/actions.ts`, shared with the gamepad.
  *
  * @see docs/keyboard-shortcuts.md
  */
 
-export const SHORTCUT_GROUPS = ["General", "Playback", "Scene/Marker Actions", "Display"] as const;
-export type ShortcutGroup = typeof SHORTCUT_GROUPS[number];
+/** Its keys by default: the same for every rating system, or one set for each */
+type KeyboardDefaults = readonly KeySequence[] | Readonly<Record<RatingSystemType, readonly KeySequence[]>>;
 
-type ShortcutDefinition<ActionId extends string = ShortcutActionId> = {
-  group: ShortcutGroup;
-  /** What the settings call it */
-  title: string;
-  /** Its keys by default: the same for every rating system, or one set for each */
-  defaults: readonly KeySequence[] | Readonly<Record<RatingSystemType, readonly KeySequence[]>>;
-  /**
-   * Actions whose keys are held down while pressing this one's: its keys are pressed while holding the last key of
-   * any of theirs. That part follows those actions' keys, so it isn't part of this one's own (as the rating's digits
-   * aren't)
-   */
-  heldWith?: readonly ActionId[];
-};
-
-export const SHORTCUT_DEFINITIONS = {
-  "show-shortcuts": { group: "General", title: "Show keyboard shortcuts", defaults: ["?"] },
-  "play-pause": { group: "Playback", title: "Play/pause", defaults: ["Space"] },
-  "seek-backwards": { group: "Playback", title: "Jump backwards (hold to rewind)", defaults: ["ArrowLeft"] },
-  "seek-forwards": { group: "Playback", title: "Jump forwards (hold to fast forward)", defaults: ["ArrowRight"] },
-  // Pressed while holding a seek key: they only do anything while rewinding or fast forwarding
-  "seek-faster": {
-    group: "Playback",
-    title: "Speed up while rewinding/fast forwarding",
-    defaults: ["ArrowUp"],
-    heldWith: ["seek-backwards", "seek-forwards"],
-  },
-  "seek-slower": {
-    group: "Playback",
-    title: "Slow down while rewinding/fast forwarding",
-    defaults: ["ArrowDown"],
-    heldWith: ["seek-backwards", "seek-forwards"],
-  },
-  "next": { group: "Playback", title: "Go to next media", defaults: ["ArrowDown"] },
-  "previous": { group: "Playback", title: "Go to previous media", defaults: ["ArrowUp"] },
-  "toggle-looping": { group: "Playback", title: "Toggle looping", defaults: ["l"] },
-  "toggle-mute": { group: "Playback", title: "Mute/unmute", defaults: ["m"] },
-  "rate": { group: "Scene/Marker Actions", title: "Rate", defaults: ["r"] },
-  "unset-rating": {
-    group: "Scene/Marker Actions",
-    title: "Unset rating",
-    // `r 0` would start a decimal rating of `r 0 0` (10.0)
-    defaults: { [RatingSystemType.Stars]: ["r 0"], [RatingSystemType.Decimal]: ["r `"] },
-  },
-  "delete": { group: "Scene/Marker Actions", title: "Delete scene/marker", defaults: ["d"] },
-  "edit-tags": { group: "Scene/Marker Actions", title: "Edit tags", defaults: ["e"] },
-  "toggle-scene-info": { group: "Scene/Marker Actions", title: "Toggle scene info", defaults: ["i"] },
-  "toggle-crt": { group: "Display", title: "Toggle CRT effect", defaults: ["c"] },
-  "toggle-fullscreen": { group: "Display", title: "Toggle fullscreen", defaults: ["f"] },
-  "toggle-landscape": { group: "Display", title: "Toggle forced landscape", defaults: ["o"] },
-  "toggle-pip": { group: "Display", title: "Toggle picture-in-picture", defaults: ["p"] },
-  "toggle-subtitles": { group: "Display", title: "Toggle subtitles", defaults: ["s"] },
-} as const satisfies Record<string, ShortcutDefinition<string>>;
-
-export type ShortcutActionId = keyof typeof SHORTCUT_DEFINITIONS;
+export const KEYBOARD_DEFAULTS = {
+  "show-shortcuts": ["?"],
+  "play-pause": ["Space"],
+  "seek-backwards": ["ArrowLeft"],
+  "seek-forwards": ["ArrowRight"],
+  // Pressed while holding a seek key (see their `heldWith`), so ↑ alone is still the previous media
+  "seek-faster": ["ArrowUp"],
+  "seek-slower": ["ArrowDown"],
+  "next": ["ArrowDown"],
+  "previous": ["ArrowUp"],
+  "toggle-looping": ["l"],
+  "toggle-mute": ["m"],
+  "rate": ["r"],
+  // `r 0` would start a decimal rating of `r 0 0` (10.0)
+  "unset-rating": { [RatingSystemType.Stars]: ["r 0"], [RatingSystemType.Decimal]: ["r `"] },
+  "delete": ["d"],
+  "edit-tags": ["e"],
+  "toggle-scene-info": ["i"],
+  "toggle-crt": ["c"],
+  "toggle-fullscreen": ["f"],
+  "toggle-landscape": ["o"],
+  "toggle-pip": ["p"],
+  "toggle-subtitles": ["s"],
+} as const satisfies Record<ShortcutActionId, KeyboardDefaults>;
 
 /** Each action's key sequences */
 export type ShortcutBindings = Record<ShortcutActionId, readonly KeySequence[]>;
@@ -73,15 +44,9 @@ export type ShortcutBindings = Record<ShortcutActionId, readonly KeySequence[]>;
 /** The user's changes to the default bindings: only the actions they've changed */
 export type ShortcutBindingOverrides = Partial<Record<ShortcutActionId, KeySequence[]>>;
 
-export const SHORTCUT_ACTION_IDS = Object.keys(SHORTCUT_DEFINITIONS) as ShortcutActionId[];
-
-export function getShortcutDefinition(actionId: ShortcutActionId): ShortcutDefinition {
-  return SHORTCUT_DEFINITIONS[actionId];
-}
-
 /** An action's default keys with the given rating system */
 export function defaultShortcutBindings(actionId: ShortcutActionId, ratingSystem: RatingSystemType): readonly KeySequence[] {
-  const defaults = getShortcutDefinition(actionId).defaults;
+  const defaults: KeyboardDefaults = KEYBOARD_DEFAULTS[actionId];
   return Array.isArray(defaults) ? defaults : (defaults as Record<RatingSystemType, readonly KeySequence[]>)[ratingSystem];
 }
 
@@ -138,7 +103,7 @@ export type KeyPatternStep = { combo: KeyCombo } | { digits: readonly string[] }
 
 /** The keys held while pressing an action's keys, if it has any: the last key of each of its `heldWith` actions' keys */
 export function heldWithKeys(actionId: ShortcutActionId, bindings: ShortcutBindings): string[] | null {
-  const heldWith = getShortcutDefinition(actionId).heldWith;
+  const heldWith = getShortcutAction(actionId).heldWith;
   if (!heldWith) return null;
   return [...new Set(heldWith.flatMap((otherId) => bindings[otherId].map(lastKeyOfSequence)))];
 }
@@ -246,7 +211,7 @@ export function describeClashes(
       const shown = formatShortcut(actionId, sequence, ratingSystem, bindings);
       for (const other of findClashingBindings(bindings, ratingSystem, actionId, sequence)) {
         const otherShown = formatShortcut(other.actionId, other.sequence, ratingSystem, bindings);
-        const otherTitle = getShortcutDefinition(other.actionId).title;
+        const otherTitle = getShortcutAction(other.actionId).title;
         (described[actionId] ??= []).push({
           same: `${shown} is also "${otherTitle}"'s key.`,
           starts: `${shown} starts ${otherShown} ("${otherTitle}"), so one of them needs changing.`,

@@ -1,0 +1,155 @@
+// Sizes are in the diagram's own units (see GamepadDiagram): it's drawn about 680 wide, and usually shown about half
+// that, so text 24 high comes out about 12px
+// A control (and its label) hovered over, and a control held down
+// Much lighter than Bootstrap's purple, to stand out on the dark controller
+$hover-colour: color-mix(in srgb, var(--purple, #6f42c1) 40%, white);
+$pressed-colour: var(--yellow, #ffc107);
+
+.GamepadDiagram {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+
+  // Solid, so the shoulders and triggers over its edge look attached to it
+  .body {
+    fill: #3b4a57;
+    stroke: rgba(255, 255, 255, 0.5);
+    stroke-width: 2;
+  }
+
+  .control {
+    fill: #52616e;
+    stroke: rgba(255, 255, 255, 0.55);
+    stroke-width: 1.5;
+    transition: fill 0.1s, stroke 0.1s;
+
+    &.bound {
+      fill: #1d6ea8;
+      stroke: #4fa9e8;
+    }
+
+    &.hovered {
+      fill: $hover-colour;
+      stroke: $hover-colour;
+    }
+
+    &.pressed {
+      fill: $pressed-colour;
+      stroke: $pressed-colour;
+    }
+  }
+
+  // A part of a stick (its middle, its press, or a quarter of the ring around it, a direction), lit up on its own over
+  // the stick
+  .stick-part {
+    fill: transparent;
+    stroke: transparent;
+    stroke-width: 1.5;
+    transition: fill 0.1s, stroke 0.1s;
+
+    &.hovered {
+      fill: $hover-colour;
+    }
+
+    &.pressed {
+      fill: $pressed-colour;
+    }
+  }
+
+  // The middle's outline lights up with it; a quarter's is just its outer edge (below)
+  .stick-press {
+    &.hovered {
+      stroke: $hover-colour;
+    }
+
+    &.pressed {
+      stroke: $pressed-colour;
+    }
+  }
+
+  .stick-part-edge {
+    fill: none;
+    stroke: transparent;
+    stroke-width: 1.5;
+    pointer-events: none;
+    transition: stroke 0.1s;
+
+    &.hovered {
+      stroke: $hover-colour;
+    }
+
+    &.pressed {
+      stroke: $pressed-colour;
+    }
+  }
+
+  .glyph {
+    fill: currentColor;
+    stroke: none;
+    font-size: 17px;
+    font-weight: 600;
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+  }
+
+  // Dark on the light colours of a control hovered over or held down
+  .control.hovered .glyph,
+  .control.pressed .glyph {
+    fill: #212529;
+  }
+
+  .shoulder-glyph {
+    font-size: 15px;
+  }
+
+  .callout-hit-area {
+    fill: none;
+    stroke: transparent;
+    stroke-width: 14;
+    pointer-events: stroke;
+  }
+
+  .callout {
+    cursor: default;
+
+    polyline {
+      fill: none;
+    }
+
+    // Over the controls, but the mouse goes through it to them (its hit area, under them, is hovered over instead)
+    .line {
+      stroke: rgba(255, 255, 255, 0.5);
+      stroke-width: 2;
+      pointer-events: none;
+    }
+
+    text {
+      fill: currentColor;
+      font-size: 24px;
+      dominant-baseline: central;
+    }
+
+    &.pressed {
+      .line {
+        stroke: $pressed-colour;
+      }
+
+      text {
+        fill: $pressed-colour;
+      }
+    }
+
+    &.hovered {
+      .line {
+        stroke: $hover-colour;
+        stroke-width: 3;
+      }
+
+      text {
+        fill: $hover-colour;
+      }
+    }
+  }
+}

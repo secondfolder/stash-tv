@@ -8,7 +8,8 @@ export type DebuggingInfo = "render-debugging" | "onscreen-info" | "virtualizer-
 export const globalStateStorageKey = 'app-state';
 
 /** The sections of the settings panel */
-export type SettingsSection = "channels" | "media-player" | "ui" | "keyboard-shortcuts" | "help" | "developer-options";
+export type SettingsSection =
+  "channels" | "media-player" | "ui" | "keyboard-shortcuts" | "gamepad" | "help" | "developer-options";
 
 type GlobalState = {
   showSettings: boolean;

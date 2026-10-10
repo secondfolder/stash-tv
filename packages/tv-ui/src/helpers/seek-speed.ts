@@ -1,8 +1,8 @@
 import { clamp, roundTo, roundToNearest } from ".";
 
 /**
- * Seeking through a video at a speed, for gestures and the arrow keys. A speed is how many seconds of the video pass
- * per second: 1 is normal, negative is backwards. @see docs/video-player.md § "Gestures"
+ * Seeking through a video at a speed, for gestures, the arrow keys and gamepad sticks. A speed is how many seconds of
+ * the video pass per second: 1 is normal, negative is backwards. @see docs/video-player.md § "Gestures"
  */
 
 /** Which third of the video a gesture started in */
@@ -70,6 +70,25 @@ export function holdSpeed(area: GestureArea, offsetX: number, width: number, dur
   const baseSpeed = { left: -1.5, middle: 0, right: 1.5 }[area];
   const dragChange = Math.sign(offsetX) * ((offsetX / width) * 10) ** 6;
   return baseSpeed + clamp(-duration / 3, dragChange, duration / 3);
+}
+
+/**
+ * How far a gamepad's stick has to be pushed (or trigger pressed), of the way from 0 to 1, before it counts: a stick at
+ * rest rarely reads exactly 0
+ */
+export const analogDeadzone = 0.2;
+
+/**
+ * The speed of a gamepad control bound to seeking (a stick direction or trigger) pushed or pressed `deflection` of the
+ * way (negative to seek backwards, positive forwards): 1.5x either way just past the deadzone, as a hold from the left
+ * or right is, changed by the 4th power of how much further it's pushed (a quarter of the way further changes it by 1,
+ * all of the way by 256), by at most a third of the video's duration. 0 in the deadzone.
+ */
+export function analogSeekSpeed(deflection: number, duration: number) {
+  const distance = Math.abs(deflection);
+  if (distance < analogDeadzone) return 0;
+  const pushedFurther = Math.min(1, (distance - analogDeadzone) / (1 - analogDeadzone));
+  return Math.sign(deflection) * (1.5 + Math.min(duration / 3, (pushedFurther * 4) ** 4));
 }
 
 /** Whether a video seeking at a (discrete) speed plays at it, rather than being paused and its time skipped */

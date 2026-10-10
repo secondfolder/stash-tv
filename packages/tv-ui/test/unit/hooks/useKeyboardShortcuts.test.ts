@@ -7,7 +7,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RatingSystemType } from "stash-ui/dist/src/utils/rating";
 import { matchShortcut, shortcutDigits, trackHeldKeys } from "../../../src/hooks/useKeyboardShortcuts";
-import type { ShortcutActionId } from "../../../src/helpers/keyboard-shortcuts/definitions";
+import type { ShortcutActionId } from "../../../src/helpers/shortcut-actions/actions";
 import { useGlobalState } from "../../../src/store/globalState";
 import { useTvConfig } from "../../../src/store/tvConfig";
 import { resetStores } from "../helpers/stores";

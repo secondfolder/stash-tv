@@ -4,20 +4,22 @@ How Stash TV's keyboard shortcuts are wired, how users change them, and the rule
 
 ## The registry
 
-Every shortcut is an **action** in `SHORTCUT_DEFINITIONS` (`src/helpers/keyboard-shortcuts/definitions.ts`). An action has:
+Every shortcut is an **action** in `SHORTCUT_ACTIONS` (`src/helpers/shortcut-actions/actions.ts`), shared by the keyboard and gamepads (see [gamepad](gamepad.md)). An action has:
 - a title, shown in the settings
+- a short title, for the gamepad diagram's labels
 - a group (General, Playback, Scene/Marker Actions, Display), the same groups as the help
-- its default keys, either one set or one per rating system (`unset-rating` is `r 0` for stars, but ``r ` `` for decimal, where `r 0` starts `r 0 0`)
 - optionally, `heldWith`: actions whose keys are held down while pressing this one's (see [Held keys](#held-keys))
+
+Its default keys are in `KEYBOARD_DEFAULTS` (`src/helpers/keyboard-shortcuts/definitions.ts`), either one set or one per rating system (`unset-rating` is `r 0` for stars, but ``r ` `` for decimal, where `r 0` starts `r 0 0`). Everything else in `keyboard-shortcuts/` is about keys too: bindings, matching, clashes, formatting.
 
 The user's keys are tvConfig's `keyboardShortcuts`, which is synced through Stash's config like most settings. It holds **only the actions the user has changed**: an action left out has its defaults. So a new action, or a new default, reaches users who never touched it. Resetting an action deletes its entry (`withActionBindings()` does this whenever an action is given its defaults). An empty list turns a shortcut off.
 
 To add a shortcut:
-1. Add an action to `SHORTCUT_DEFINITIONS`.
+1. Add an action to `SHORTCUT_ACTIONS`, and its default keys to `KEYBOARD_DEFAULTS`.
 2. Add a row for it to `HELP_ENTRIES` (see [Help text](#help-text)).
-3. Handle it in a listener with `matchShortcut(event, [actionId])` (see [Where shortcuts live](#where-shortcuts-live)).
+3. Handle it in a listener with `onShortcut()` and `trigger.match([actionId])` (see [Where shortcuts live](#where-shortcuts-live)).
 
-Settings list every action, so nothing else needs to change.
+Settings list every action, for the keyboard and for gamepads, so nothing else needs to change.
 
 ## Key sequences
 
@@ -43,7 +45,7 @@ A combo is a normalised string of modifiers (`Ctrl`, `Alt`, `Meta`, `Shift`, in 
 - **`heldWith`:** a definition can say its keys are pressed while holding another action's keys. Its own binding is just the key pressed (↑), and the held part follows those actions' keys:
   - It's expanded to one chord per held key (`ArrowLeft+ArrowUp`, `ArrowRight+ArrowUp`) for matching and clashes (`shortcutPatterns()`).
   - It's shown as a fixed part before the keys: `{←/→}+↑` (`formatHeldWithKeys()`).
-  - Speed up and slow down use it, held with the seek keys. Rebinding seek to `j`/`l` makes speed up `{j/l}+↑` with no other change. They only do anything while rewinding or fast forwarding: `useKeyboardSeeking` ignores them otherwise.
+  - Speed up and slow down use it, held with the seek keys. Rebinding seek to `j`/`l` makes speed up `{j/l}+↑` with no other change. They only do anything while rewinding or fast forwarding: `useShortcutSeeking` ignores them otherwise.
   - Since ↑ held with a seek key is a different combo from ↑ alone, it never goes to the previous media while seeking.
   - An action whose `heldWith` actions have no keys between them can't be used, so the settings hide it (the seek speed with no seek keys). It comes back with its keys when they get some.
 
@@ -76,19 +78,24 @@ Rules:
 
 ## Where shortcuts live
 
-The listeners, each using `matchShortcut`:
+Listeners don't listen for keys themselves. `onShortcut(phase, handler, { capture })` (`src/helpers/shortcut-actions/input.ts`) calls them for every press (or release) of a key or a gamepad control, with a `ShortcutTrigger`:
+- `trigger.match(actionIds)` gives which of the actions it's for. For a key press that's `matchShortcut()`, for a release `matchShortcutKey()`, and for a gamepad the actions it sent (see [gamepad](gamepad.md)).
+- `source` (`"keyboard"` or `"gamepad"`), `repeat`, and `digits()` (the rating's, keyboard only).
+- `preventDefault()`, and `handled()`, which also stops the key reaching anything else (Video.js). They do nothing for a gamepad.
+- `capture` listens for keys in the capture phase.
 
-- **Next/previous and the CRT toggle**: `VideoScroller`, as plain `window` keydown listeners.
-- **Per-slide shortcuts** (delete, tag edit, info, mute, looping, subtitles, fullscreen, picture-in-picture, landscape): `MediaSlide`, as `window` keydown listeners registered only while `isCurrentVideo` is true. An action → handler map.
-- **Seeking and play/pause** (seek backwards/forwards, speed up/slow down while seeking, play/pause): `useKeyboardSeeking()` (`src/hooks/`), called by `MediaSlide`, likewise only while `isCurrentVideo`.
+So every shortcut works from a gamepad with no code of its own. The listeners:
+
+- **Next/previous and the CRT toggle**: `VideoScroller`.
+- **Per-slide shortcuts** (delete, tag edit, info, mute, looping, subtitles, fullscreen, picture-in-picture, landscape): `MediaSlide`, registered only while `isCurrentVideo` is true. An action → handler map.
+- **Seeking and play/pause** (seek backwards/forwards, speed up/slow down while seeking, play/pause): `useShortcutSeeking()` (`src/hooks/`), called by `MediaSlide`, likewise only while `isCurrentVideo`.
   - Its listeners use the capture phase, so Video.js never sees the arrow keys.
   - Holding is about the last key of the sequence.
+  - It also handles a gamepad stick direction or trigger bound to seeking (see [gamepad](gamepad.md) § "Analog seeking").
   - It shares its seeking with gestures (see [video player](video-player.md) § "Gestures").
-- **Help**: `useShortcutListKey()` (`src/hooks/`), called by `FeedPage`. It's a `window` keydown listener, `?` by default, mirroring Stash's `?` (which opens Stash's manual).
+- **Help**: `useShortcutListKey()` (`src/hooks/`), called by `FeedPage`, `?` by default, mirroring Stash's `?` (which opens Stash's manual).
   - It sets `globalState.keyboardShortcutsOpen`, which also backs the Settings → "Show Keyboard Shortcuts" button, so the modal is rendered by `FeedPage` rather than inside `SettingsTab`.
-- **Rating**: `useKeyboardRating()` (`src/hooks/rating/`). See [Rating shortcuts](#rating-shortcuts).
-
-⚠️ **Gamepads:** `useGamepad()` turns the d-pad into arrow key events, so the d-pad does whatever the arrow keys are bound to. If the user moves next/previous or seeking off the arrows, the d-pad stops doing them.
+- **Rating**: `useRatingShortcuts()` (`src/hooks/rating/`). See [Rating shortcuts](#rating-shortcuts).
 
 ⚠️ **Video.js's own hotkeys** (Stash's `handleHotkeys`: arrows, Space, m, f, l, digits…) still apply while the player itself has focus. Our seeking listener captures the keys it's bound to before Video.js sees them, so those never reach it. But a key the user has unbound can.
 
@@ -149,7 +156,8 @@ Which applies follows Stash's configured rating system. The digits are slots in 
 
 **Unset rating** is an action of its own, an ordinary sequence: `r 0` for stars and ``r ` `` for decimal by default.
 
-`useKeyboardRating(scene, { enabled })` (`src/hooks/rating/`) listens for both actions, turning the digits (`shortcutDigits()`) into a rating100 as Stash's own shortcuts do:
+`useRatingShortcuts(scene, { enabled })` (`src/hooks/rating/`) listens for both actions, turning the digits (`trigger.digits()`, from `shortcutDigits()`) into a rating100 as Stash's own shortcuts do:
+- A gamepad's unset works the same, but a gamepad can't type digits, so it can't rate (see [gamepad](gamepad.md) § "Rating").
 - It's safe to call from every slide: only an `enabled` instance listens. `MediaSlide` passes `enabled: isCurrentVideo`.
 - ⚠️ Callers must keep at most one instance enabled at a time. Hand-over between slides relies on both slides' `isCurrentVideo` changing in the same React commit (React 17 runs all effect cleanups before any new effects), which `VideoScroller` guarantees by deriving it from a single `currentIndex`.
 

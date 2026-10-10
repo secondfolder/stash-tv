@@ -3,9 +3,9 @@ import type { RatingSystemType } from "stash-ui/dist/src/utils/rating";
 import {
   formatHeldWithKeys,
   formatRatingDigitSlots,
-  type ShortcutActionId,
   type ShortcutBindings,
 } from "../../../helpers/keyboard-shortcuts/definitions";
+import type { ShortcutActionId } from "../../../helpers/shortcut-actions/actions";
 import { formatKeyComboParts } from "../../../helpers/keyboard-shortcuts/key-combos";
 import { parseKeySequence, type KeySequence } from "../../../helpers/keyboard-shortcuts/key-sequences";
 import "./ShortcutKeys.scss";

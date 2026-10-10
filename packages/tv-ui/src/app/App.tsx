@@ -17,6 +17,7 @@ import NewVersionNotice from "../components/NewVersionNotice";
 import { useDevConsoleHelpers } from "../hooks/useDevConsoleHelpers";
 import { useGlobalState } from "../store/globalState";
 import { useGamepad } from "../hooks/useGamepad";
+import { useFakeGamepad } from "../hooks/useFakeGamepad";
 
 await setupLogging()
 
@@ -45,7 +46,8 @@ const App = () => {
   const language = stashConfig.data?.configuration?.interface?.language ?? undefined;
 
   useDevConsoleHelpers()
-  useGamepad({ forceLandscape })
+  useFakeGamepad()
+  useGamepad()
 
   if (!tvConfigLoaded) return null
 

@@ -3,7 +3,7 @@ import { useLatest } from "react-use";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import { RatingSystemType } from "stash-ui/dist/src/utils/rating";
 import { useGlobalState } from "../../store/globalState";
-import { matchShortcut, shortcutDigits } from "../useKeyboardShortcuts";
+import { onShortcut } from "../../helpers/shortcut-actions/input";
 import { useSetRating } from "./useSetRating";
 
 /** The rating each digit sets with star ratings */
@@ -17,29 +17,27 @@ function ratingFromDigits(digits: string[], ratingSystem: RatingSystemType): num
 }
 
 /**
- * Binds the rating keyboard shortcuts (`r {1-5}` / `r {0-9} {0-9}`, and `r 0` / ``r ` `` to unset, by default) to rate
- * the given scene.
+ * Binds the rating shortcuts (`r {1-5}` / `r {0-9} {0-9}`, and `r 0` / ``r ` `` to unset, by default) to rate the given
+ * scene. A gamepad can unset the rating too, but can't rate (it can't type the digits).
  *
  * Safe to call from any number of mounted components at once (e.g. every rendered MediaSlide): only instances with
  * `enabled` set listen. Callers must ensure at most one instance is enabled at a time (for slides, the current one).
  *
  * @see docs/keyboard-shortcuts.md § "Rating shortcuts"
  */
-export function useKeyboardRating(scene: GQL.SceneDataFragment, { enabled }: { enabled: boolean }) {
+export function useRatingShortcuts(scene: GQL.SceneDataFragment, { enabled }: { enabled: boolean }) {
   const setRating = useLatest(useSetRating(scene));
 
   useEffect(() => {
     if (!enabled) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const action = matchShortcut(event, ["rate", "unset-rating"]);
+    return onShortcut("press", (trigger) => {
+      const action = trigger.match(["rate", "unset-rating"]);
       if (action === "unset-rating") {
         setRating.current(null);
       } else if (action === "rate") {
-        const rating = ratingFromDigits(shortcutDigits(event), useGlobalState.getState().ratingSystem);
+        const rating = ratingFromDigits(trigger.digits(), useGlobalState.getState().ratingSystem);
         if (rating !== undefined) setRating.current(rating);
       }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    });
   }, [enabled]);
 }

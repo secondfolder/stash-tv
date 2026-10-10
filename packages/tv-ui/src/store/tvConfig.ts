@@ -11,6 +11,8 @@ import { END_POSITION_OPTIONS, START_POSITION_OPTIONS, TV_CONFIG_STORAGE_KEY } f
 import { defaultSceneInfoLayout } from '../components/slide/SceneInfo/default-layout';
 import type { SceneInfoFieldOptionsConfig, SceneInfoLayout } from '../components/slide/SceneInfo/scene-info-config';
 import type { ShortcutBindingOverrides } from '../helpers/keyboard-shortcuts/definitions';
+import type { GamepadMapping } from '../helpers/gamepad/bindings';
+import type { ControllerLayout } from '../helpers/gamepad/controls';
 export type DebuggingInfo = "render-debugging" | "onscreen-info" | "virtualizer-debugging";
 
 type TvConfig = {
@@ -52,8 +54,17 @@ type TvConfig = {
   lastViewedChannelId?: string;
   /** The keyboard shortcuts the user has changed from their defaults (see docs/keyboard-shortcuts.md) */
   keyboardShortcuts: ShortcutBindingOverrides;
+  /** What a gamepad's controls do: a preset's mapping, or the user's own (see docs/gamepad.md) */
+  gamepadMapping: GamepadMapping;
+  /**
+   * Whether a gamepad has ever been connected, so a preset changed later stays as it was for someone used to it (see
+   * docs/gamepad.md § "Changing a preset")
+   */
+  gamepadUsed: boolean;
   // Device specific state
   forceLandscape: boolean;
+  /** A pretend gamepad connected for trying gamepad support without one (see `useFakeGamepad`), or null for none */
+  fakeGamepad: ControllerLayout | null;
   // Developer options
   showDevOptions: boolean;
   renderedMediaItemsBuffer: number;
@@ -77,6 +88,7 @@ const defaults = {
   showSubtitles: false,
   letterboxing: false,
   forceLandscape: false,
+  fakeGamepad: null,
   looping: false,
   uiVisible: true,
   uiAutoHideDelay: 3,
@@ -130,12 +142,15 @@ const defaults = {
   ],
   startupChannel: 'last-viewed',
   keyboardShortcuts: {},
+  gamepadMapping: { preset: "standard", custom: null },
+  gamepadUsed: false,
   playbackRate: 1,
 } satisfies TvConfig;
 
 // Keys that should be stored in localStorage (device-specific)
 const localStorageKeys: (keyof TvConfig)[] = [
   'forceLandscape',
+  'fakeGamepad',
 ]
 
 // Custom storage that routes keys to different storage backends

@@ -16,7 +16,7 @@ import CrtEffect from "../../CrtEffect";
 import { defaultMarkerLength, MediaItem, MediaItemRef } from "../../../hooks/useMediaItems";
 import { useLiveMediaItem } from "../../../hooks/useLiveMediaItem";
 import { useUiVisible } from "../../../hooks/useUiVisible";
-import { useKeyboardRating } from "../../../hooks/rating/useKeyboardRating";
+import { useRatingShortcuts } from "../../../hooks/rating/useRatingShortcuts";
 import { getSceneStreamsKey } from '../../../helpers/getSceneStreamsKey';
 import { createPortal } from "react-dom";
 import { useGetterRef } from "../../../hooks/useGetterRef";
@@ -35,12 +35,10 @@ import { faGamepad } from "@fortawesome/free-solid-svg-icons";
 import { useGamepadStatus } from "../../../hooks/useGamepadStatus";
 import { useSeeking } from "../../../hooks/useSeeking";
 import { useGestureControls } from "../../../hooks/useGestureControls";
-import { useKeyboardSeeking } from "../../../hooks/useKeyboardSeeking";
-import { matchShortcut } from "../../../hooks/useKeyboardShortcuts";
-import { isTypingTarget } from "../../../helpers/keyboard-shortcuts/key-combos";
-import type { ShortcutActionId } from "../../../helpers/keyboard-shortcuts/definitions";
+import { useShortcutSeeking } from "../../../hooks/useShortcutSeeking";
+import { onShortcut } from "../../../helpers/shortcut-actions/input";
+import type { ShortcutActionId } from "../../../helpers/shortcut-actions/actions";
 import { objectKeys } from "ts-extras";
-import { TOGGLE_VIDEO_EVENT, PAUSE_VIDEO_EVENT } from "../../../events";
 import { useConfigurationContext } from "stash-ui/dist/src/hooks/Config";
 import { useFirstMountState } from "react-use";
 import { MediaItemStateContextProvider } from "../../../store/mediaItemState";
@@ -476,29 +474,13 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
     seekBackwards,
     logger,
   })
-  useKeyboardSeeking({
+  useShortcutSeeking({
     isCurrentVideo,
     playerRef: videojsPlayerRef,
     seeking,
     seekForwards,
     seekBackwards,
   })
-
-  useEffect(() => {
-    if (!isCurrentVideo) return;
-    const handleToggle = () => {
-      videojsPlayerRef.current?.paused()
-        ? videojsPlayerRef.current?.play()
-        : videojsPlayerRef.current?.pause();
-    };
-    const handlePause = () => videojsPlayerRef.current?.pause();
-    window.addEventListener(TOGGLE_VIDEO_EVENT, handleToggle);
-    window.addEventListener(PAUSE_VIDEO_EVENT, handlePause);
-    return () => {
-      window.removeEventListener(TOGGLE_VIDEO_EVENT, handleToggle);
-      window.removeEventListener(PAUSE_VIDEO_EVENT, handlePause);
-    };
-  }, [isCurrentVideo]);
 
   // These classes allow us to better control when the big play button shows to avoid showing it if we're likely to
   // immediately hide it again such as when auto-playing
@@ -590,19 +572,14 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
         void togglePictureInPicture(videojsPlayerRef.current);
       },
     } satisfies Partial<Record<ShortcutActionId, () => void>>;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (isTypingTarget(e)) return;
-      const action = matchShortcut(e, objectKeys(handlers));
+    return onShortcut("press", (trigger) => {
+      const action = trigger.match(objectKeys(handlers));
       if (action) handlers[action]();
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
+    });
   }, [isCurrentVideo, openDeleteConfirmation, sceneInfoOpen, setSceneInfoOpen, setTvConfig, setGlobalState]);
 
   // Every rendered slide calls this but only the current one binds the keys. Markers rate their parent scene.
-  useKeyboardRating(scene, { enabled: isCurrentVideo });
+  useRatingShortcuts(scene, { enabled: isCurrentVideo });
 
   /* -------------------------------- Subtitles ------------------------------- */
   // Update the subtitles track via the ref object

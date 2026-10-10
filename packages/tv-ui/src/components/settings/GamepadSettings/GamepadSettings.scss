@@ -1,0 +1,117 @@
+// The space between groups of the custom controls (and between them and the diagrams above)
+$group-gap: 1.5rem;
+
+// The diagram's hover colour (GamepadDiagram.scss), see-through behind a field
+$hovered-background: color-mix(in srgb, color-mix(in srgb, var(--purple, #6f42c1) 40%, white) 45%, transparent);
+
+.GamepadSettings {
+  .presets {
+    display: flex;
+    width: 100%;
+
+    .preset {
+      flex: 1 1 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.3em;
+      padding: 0.5em;
+    }
+  }
+
+  .preset-description {
+    margin-top: 0.75rem;
+  }
+
+  .GamepadDiagram.mapping {
+    max-width: 640px;
+    margin: 0 auto;
+
+    // The top edge, under the front
+    &.view-top {
+      margin-top: 1rem;
+    }
+  }
+
+  // Each group of controls (and the reset button) spaced from the next, its heading closer to it than to the one above
+  .custom-controls {
+    display: flex;
+    flex-direction: column;
+    gap: $group-gap;
+    // As far from the diagrams above as the groups are from each other
+    margin-top: $group-gap;
+
+    > .form-group {
+      margin: 0;
+    }
+  }
+
+  .group-heading {
+    margin: 0 0 0.4rem;
+  }
+
+  .control-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4em;
+  }
+
+  // Each control's name, with its dropdown beside it taking the rest of the line
+  .control {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    margin: 0 -0.4em;
+    padding: 0.2em 0.4em;
+    border-radius: 0.25rem;
+    transition: background-color 0.1s;
+
+    // Its control in the diagram hovered over: lit up in the diagram's hover colour until it isn't
+    &.hovered {
+      background-color: $hovered-background;
+    }
+
+    // Clicked in the diagram: lit up in the same colour for 1.5s, then fading out over 1s
+    &.flashing {
+      animation: gamepad-control-flash 2.5s ease-in;
+    }
+
+    &.pressed {
+      // The diagram's colour for a control held down
+      background-color: color-mix(in srgb, var(--yellow, #ffc107) 35%, transparent);
+    }
+
+    // At least wide enough for a short name (L1, R2…), so their dropdowns line up
+    .control-title {
+      flex: 0 1 auto;
+      min-width: 1.5em;
+      max-width: 50%;
+      margin: 0;
+      font-size: 1.1rem;
+    }
+
+    // Just an arrow
+    &.direction .control-title {
+      flex: 0 0 1.5em;
+    }
+
+    .Select {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+  }
+}
+
+@keyframes gamepad-control-flash {
+  0%,
+  60% {
+    background-color: $hovered-background;
+  }
+
+  100% {
+    background-color: transparent;
+  }
+}

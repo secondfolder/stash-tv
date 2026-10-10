@@ -9,12 +9,11 @@ import {
   heldWithKeys,
   formatRatingDigitSlotList,
   formatShortcut,
-  getShortcutDefinition,
   shortcutPatterns,
-  type ShortcutActionId,
   type ShortcutBindings,
   type ShortcutClash,
 } from "../../../helpers/keyboard-shortcuts/definitions";
+import { getShortcutAction, type ShortcutActionId } from "../../../helpers/shortcut-actions/actions";
 import {
   comboFromEvent,
   formatKeyCombo,
@@ -37,7 +36,7 @@ export function describeClashRemoval(
   bindings: ShortcutBindings,
   tense: "will" | "was",
 ) {
-  const title = getShortcutDefinition(clash.actionId).title;
+  const title = getShortcutAction(clash.actionId).title;
   const removed = `The "${formatShortcut(clash.actionId, clash.sequence, ratingSystem, bindings)}" shortcut for "${title}" ${tense === "will" ? "will be" : "was"} removed`;
   // The keys they share: all of the shorter one's (the rating's digits included)
   const length = (b: { actionId: ShortcutActionId, sequence: KeySequence }) =>
@@ -85,7 +84,7 @@ export function ShortcutRecorder({
 }) {
   const forceLandscape = useTvConfig((state) => state.forceLandscape);
   const [combos, setCombos] = useState<KeyCombo[]>(() => initial ? parseKeySequence(initial) : []);
-  const { title } = getShortcutDefinition(actionId);
+  const { title } = getShortcutAction(actionId);
 
   // No shortcut fires while it's open
   useEffect(() => {

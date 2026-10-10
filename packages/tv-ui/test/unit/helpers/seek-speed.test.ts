@@ -5,6 +5,7 @@ import {
   isPlayedSpeed,
   seekFeedback,
   showsThumbnail,
+  analogSeekSpeed,
   toDiscreteSeekSpeed,
 } from "../../../src/helpers/seek-speed";
 
@@ -76,6 +77,33 @@ describe("holdSpeed", () => {
   it("changes by at most a third of the video's duration", () => {
     expect(holdSpeed("right", 500, 1000, 12)).toBe(5.5);
     expect(holdSpeed("left", -500, 1000, 12)).toBe(-5.5);
+  });
+});
+
+/** @see docs/gamepad.md § "Analog seeking" */
+describe("analogSeekSpeed", () => {
+  it("is 0 in the deadzone", () => {
+    expect(analogSeekSpeed(0.1, 600)).toBe(0);
+    expect(analogSeekSpeed(-0.19, 600)).toBe(0);
+  });
+
+  it("is 1.5x either way just past the deadzone, as a hold from the left or right is", () => {
+    expect(analogSeekSpeed(0.2, 600)).toBe(1.5);
+    expect(analogSeekSpeed(-0.2, 600)).toBe(-1.5);
+  });
+
+  it("rises with the 4th power of how much further it's pushed", () => {
+    // A quarter of the rest of the way further: +1
+    expect(analogSeekSpeed(0.4, 600)).toBeCloseTo(2.5);
+    // Half of it: +16
+    expect(analogSeekSpeed(-0.6, 600)).toBeCloseTo(-17.5);
+    // All of it: +256
+    expect(analogSeekSpeed(1, 6000)).toBeCloseTo(257.5);
+  });
+
+  it("changes by at most a third of the video's duration", () => {
+    expect(analogSeekSpeed(1, 30)).toBe(11.5);
+    expect(analogSeekSpeed(-1, 30)).toBe(-11.5);
   });
 });
 
