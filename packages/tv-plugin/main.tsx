@@ -13,6 +13,15 @@ const graphqlClient = PluginApi.utils.StashService.getClient()
 
 const appLink = "/plugin/" + PLUGIN_NAMESPACE + "/assets/app/";
 
+/**
+ * The next in an "instead" patch's chain (`Original`) from the arguments after its props. It's always the last of them,
+ * but not always the second: another plugin's "before" patch can change how many arguments there are, and taking it by
+ * position got `undefined` with AI Overhaul's, which blanked all of Stash's UI (see `InsteadArgs`).
+ */
+function originalFrom<T>(args: [...unknown[], T]): T {
+  return args[args.length - 1] as T;
+}
+
 // Run setup if first time the plugin is loaded
 updateTvConfig(
   async (tvConfig) => {
@@ -28,7 +37,8 @@ updateTvConfig(
 // Show Stash TV in the menu bar if it's been enabled in the plugin config
 PluginApi.patch.instead(
   "PluginSettings",
-  function (props, _, Original) {
+  function (props, ...args) {
+    const Original = originalFrom(args);
     const [settingResetComplete, setSettingResetComplete] = React.useState(false);
     const [stashTvConfig, setStashTvConfig] = PluginApi.React.useState<StashTvConfig | null>(null);
 
@@ -112,7 +122,8 @@ PluginApi.patch.instead(
 // Show Stash TV in the menu bar if it's been enabled in the plugin config
 PluginApi.patch.instead(
   "MainNavBar.MenuItems",
-  function ({ children, ...props }, _, Original) {
+  function ({ children, ...props }, ...args) {
+    const Original = originalFrom(args);
     const { data: stashConfig, loading: stashConfigLoading } = PluginApi.GQL.useConfigurationQuery();
     const showNavButton = stashConfig?.configuration?.interface?.menuItems?.includes('tv')
 
@@ -172,7 +183,8 @@ const StashTVButtonInner = () => {
 // itself, so the button is put in its controls once they're rendered.
 PluginApi.patch.instead(
   "ScenePage",
-  function (props, _, Original) {
+  function (props, ...args) {
+    const Original = originalFrom(args);
     // A single element rather than an array: Stash passes the result on to "after" patches with `args.concat(result)`,
     // which spreads an array, so another plugin's after patch reading its last argument would get only the button.
     return (
@@ -224,7 +236,8 @@ type SceneListProps = { filter: ListFilterModel, selectedIds: Set<string> }
 // patchable itself, so the scene list is patched to put the item in the menu once it's rendered.
 PluginApi.patch.instead(
   "SceneList",
-  function (props, _, Original) {
+  function (props, ...args) {
+    const Original = originalFrom(args);
     // A single element rather than an array, as with the ScenePage patch above
     return (
       <>

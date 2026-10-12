@@ -9,6 +9,15 @@ import type { ListFilterModel } from "stash-ui/dist/src/models/list-filter/filte
  */
 type PatchRender = React.ReactElement | null;
 
+/**
+ * What an "instead" patch is passed after the props: whatever other arguments the component was called with, then the
+ * next in the chain of patches (`Original`, the component itself at the end of it), always last. React calls a
+ * component with a second argument as well, but another plugin's "before" patch can return fewer or more arguments
+ * than it's passed (AI Overhaul's on `MainNavBar.MenuItems` returns only the props), so `Original` isn't always third.
+ * Take it with `originalFrom(args)`.
+ */
+type InsteadArgs = [...unknown[], React.JSX];
+
 
 
 declare global {
@@ -27,8 +36,7 @@ declare global {
                 pluginID: string;
                 settings: GQL.PluginSetting[];
               }>,
-              _: object,
-              Original: React.JSX
+              ...args: InsteadArgs
             ) => PatchRender,
           ): void,
           (
@@ -38,16 +46,14 @@ declare global {
                 filter: ListFilterModel;
                 selectedIds: Set<string>;
               }>,
-              _: object,
-              Original: React.JSX
+              ...args: InsteadArgs
             ) => PatchRender,
           ): void,
           (
             component: string,
             fn: (
               props: React.PropsWithChildren<{}>,
-              _: object,
-              Original: React.JSX
+              ...args: InsteadArgs
             ) => PatchRender
           ): void,
         }

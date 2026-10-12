@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { afterPatchArgs, type MockReactElement } from "./plugin-api-mock";
+import { afterPatchArgs, flatten, type MockReactElement } from "./plugin-api-mock";
 import { importPlugin } from "./test-harness";
 
 const Original = () => "original";
@@ -24,16 +24,6 @@ function stashConfigWithAppState(showDevOptions: boolean) {
     },
     interface: { menuItems: [] },
   };
-}
-
-/** Recursively collect all elements in a mock React tree. */
-function flatten(node: unknown): MockReactElement[] {
-  if (Array.isArray(node)) return node.flatMap(flatten);
-  if (node && typeof node === "object" && "type" in node && "props" in node) {
-    const element = node as MockReactElement;
-    return [element, ...flatten(element.props.children)];
-  }
-  return [];
 }
 
 /** Let pending promise chains (config fetch → setState) settle. */

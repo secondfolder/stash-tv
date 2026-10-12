@@ -7,18 +7,8 @@
  */
 
 import { describe, it, expect } from "vitest";
-import type { MockReactElement } from "./plugin-api-mock";
+import { flatten, type MockReactElement } from "./plugin-api-mock";
 import { importPlugin } from "./test-harness";
-
-/** Recursively collect all elements in a mock React tree. */
-function flatten(node: unknown): MockReactElement[] {
-  if (Array.isArray(node)) return node.flatMap(flatten);
-  if (node && typeof node === "object" && "type" in node && "props" in node) {
-    const element = node as MockReactElement;
-    return [element, ...flatten(element.props.children)];
-  }
-  return [];
-}
 
 const Original = () => "original";
 

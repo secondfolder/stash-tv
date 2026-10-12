@@ -321,6 +321,8 @@ Conventional Commits (Commitlint-enforced); Semantic Release automates versionin
 
 ⚠️ **A `PluginApi.patch.instead` must return a single element, never an array** — wrap several in a Fragment (its type in `packages/tv-ui/types/stashPlugin.d.ts` rules arrays out). Stash hands the result to `after` patches as `args.concat(result)`, which spreads an array, so another plugin's after patch reading its last argument gets only the last element (role-tagger's on `ScenePage` dropped the whole scene page this way).
 
+⚠️ **In a `PluginApi.patch.instead`, take `Original` with `originalFrom(args)`, never as the third parameter.** Stash passes it after the component's arguments, and another plugin's `before` patch can change how many of those there are. AI Overhaul's on `MainNavBar.MenuItems` returns only the props, so a fixed `(props, _, Original)` got `undefined` and blanked all of Stash's UI (issue #9). Its type in `stashPlugin.d.ts` (`InsteadArgs`) only promises that `Original` is last.
+
 ### 4. Type Imports
 
 ⚠️ **Always import types from `stash-ui/dist/src/core/generated-graphql` for Stash API types.** Do not redefine or copy types.

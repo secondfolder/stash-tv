@@ -7,6 +7,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
+import { flatten } from "./plugin-api-mock";
 import { importPlugin } from "./test-harness";
 
 // Modules the plugin must not load: see the test below
@@ -42,6 +43,27 @@ describe("Plugin initialization", () => {
       "instead:SceneList",
       "instead:ScenePage",
     ]);
+  });
+
+  // Stash passes an "instead" patch the component's arguments followed by the next in the chain (`Original`). React
+  // calls a component with two, but another plugin's "before" patch can change how many there are: AI Overhaul's on
+  // MainNavBar.MenuItems returns only the props. Taking Original as the third argument got undefined, and rendering
+  // that blanked all of Stash's UI (issue #9).
+  describe.each([
+    ["React's two arguments", [{}, undefined]],
+    ["only the props, as AI Overhaul's before patch leaves", [{}]],
+    ["an extra argument", [{}, undefined, "extra"]],
+  ])("with %s before Original", (_, componentArgs) => {
+    it.each(["PluginSettings", "MainNavBar.MenuItems", "ScenePage", "SceneList"])("%s renders Original", async (target) => {
+      const mock = await importPlugin({ plugins: { "stash-tv": { initialSetupComplete: true } } });
+      mock.useConfigurationQuery.mockReturnValue({ data: undefined, loading: false });
+      const Original = () => "original";
+
+      mock.react.beginRender();
+      const result = mock.patchFor(target).implementation(...componentArgs, Original);
+
+      expect(flatten(result).some((element) => element.type === Original)).toBe(true);
+    });
   });
 
   it("adds tv to menu items via ConfigureInterface on first run", async () => {
