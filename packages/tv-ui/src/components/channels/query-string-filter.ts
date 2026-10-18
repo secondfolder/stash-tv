@@ -6,8 +6,9 @@ import { QUERY_STRING_FILTER_ENTITY_TYPE_PARAM, QUERY_STRING_FILTER_PARAMS } fro
 /**
  * Letting another plugin link into the feed with a filter, as the temporary channel, via Stash TV's own page URL.
  * Reuses Stash's own filter query-string format (the same params a native Scenes or Scene Markers page URL has), so a
- * filter can be shown without first being saved in Stash. Mirrors `getStashQueue`, for a general filter rather than
- * Stash's own scene-page queue.
+ * filter can be shown without first being saved in Stash. Similar to `getStashQueue`, for a general filter rather
+ * than Stash's own scene-page queue - but unlike it, its params are left on the URL, so reloading or sharing the
+ * link shows the same filter again.
  *
  * @see docs/channels.md § "Opening with a filter from another plugin"
  */
@@ -38,11 +39,4 @@ export function getQueryStringFilter(params: URLSearchParams): { filter: Tempora
       object_filter: filter.makeSavedFilter(),
     },
   };
-}
-
-/** Take the filter's params off the page's URL, once it's showing, so reloading goes back to the startup channel */
-export function removeQueryStringFilterParamsFromUrl() {
-  const url = new URL(window.location.href);
-  for (const param of [...QUERY_STRING_FILTER_PARAMS, QUERY_STRING_FILTER_ENTITY_TYPE_PARAM]) url.searchParams.delete(param);
-  window.history.replaceState(window.history.state, "", url);
 }

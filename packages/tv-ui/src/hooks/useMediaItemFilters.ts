@@ -21,7 +21,7 @@ import {
   withTemporaryChannel,
 } from "../components/channels/channel-config";
 import { getStashQueue, removeStashQueueParamsFromUrl } from "../components/channels/stash-queue";
-import { getQueryStringFilter, removeQueryStringFilterParamsFromUrl } from "../components/channels/query-string-filter";
+import { getQueryStringFilter } from "../components/channels/query-string-filter";
 import { startFeedAt } from "./useMediaItems";
 
 /** In Stash a filter has a different format when it's saved vs when it's used in a search. The stash codebase doesn't
@@ -194,11 +194,11 @@ export function useMediaItemFilters() {
         return
       }
       // Opened with a filter from another plugin, in Stash's own filter query-string format: show it rather than
-      // the startup channel, for this page load only.
+      // the startup channel. Unlike Stash's own queue, its params are left on the URL, so reloading (or sharing the
+      // link) shows the same filter again.
       const queryStringFilter = getQueryStringFilter(new URLSearchParams(window.location.search))
       if (queryStringFilter) {
         showTemporaryFilter(queryStringFilter.filter)
-        removeQueryStringFilterParamsFromUrl()
         return
       }
       useGlobalFilterState.setState({

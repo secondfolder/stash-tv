@@ -1,6 +1,6 @@
 /**
  * Linking into the feed from another plugin: Stash TV opened with a filter in Stash's own filter query-string format
- * shows it as the temporary channel, for that page load only.
+ * shows it as the temporary channel, kept on the URL so reloading shows it again.
  *
  * @see docs/channels.md § "Opening with a filter from another plugin"
  */
@@ -22,7 +22,7 @@ afterEach(() => {
 });
 
 describe("Opening with a filter from another plugin", () => {
-  it("shows a filter from the page's query string, then forgets it", async () => {
+  it("shows a filter from the page's query string, keeping it on the URL", async () => {
     // Every scene tagged Delta, as another plugin would link to it in Stash's own filter query-string format
     window.history.replaceState(
       null,
@@ -36,8 +36,12 @@ describe("Opening with a filter from another plugin", () => {
 
     const config = await tvConfig();
     expect(config.channels.at(-1)?.sources[0]).toMatchObject({ type: "temporary-filter", filter: { name: "From URL" } });
-    // The filter's own params are taken off the URL, so reloading shows the startup channel. Others are left alone.
-    expect(window.location.search).toBe("?t=5");
+    // Unlike Stash's own queue, the filter's params stay on the URL (along with others, like "t"), so reloading
+    // shows it again
+    const params = new URLSearchParams(window.location.search);
+    expect(params.get("t")).toBe("5");
+    expect(params.get("sortby")).toBe("title");
+    expect(params.has("c")).toBe(true);
     expect(savedTvConfig(integration).channels).toEqual([alphaChannel]);
     expect(savedTvConfig(integration).lastViewedChannelId).toBe("alpha");
 

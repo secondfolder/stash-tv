@@ -101,9 +101,10 @@ saved filter in Stash first, by putting the filter straight in Stash TV's own pa
   left off for a scene filter.
 - The page is left out, as `getStashQueue` also leaves it out: the feed paginates itself from the top of the filter's
   results.
-- **Read once, on startup, same as Stash's own queue** (see "Opening Stash's queue" above): checked right after it,
-  so a URL with both shows Stash's own queue. If there's a filter, `useMediaItemFilters` shows it (`showTemporaryFilter()`)
-  instead of the startup channel, for that page load only, then takes its params off the URL (`history.replaceState`).
+- **Read on every load, unlike Stash's own queue**: checked right after it in the same startup effect (so a URL with
+  both shows Stash's own queue), but its params are left on the URL rather than taken off. So reloading - or opening
+  a bookmarked or shared link - shows the same filter again, rather than falling back to the startup channel the way
+  a one-off queue link does.
 
 ### Filtering by an entity
 
