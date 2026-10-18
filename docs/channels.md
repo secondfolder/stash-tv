@@ -82,6 +82,29 @@ The plugin adds an "Open in Stash TV" item to the end of the operations menu (th
 - **What's queued follows Stash's own "Play"**: the selected scenes (as `qs` ids) if any are selected, otherwise everything the list's filter matches, including what the page adds to it (e.g. an entity's Scenes tab only showing its scenes). The link is built by `getSceneListTvLink()`, in the format Stash puts queues in its scene page URLs. Stash's `SceneQueue`, which makes those, isn't in the `PluginApi`, so the plugin builds it from the filter's `getEncodedParams()`. The filter's page is always `qfp=1`: Stash only recognises a filter queue by it, and the feed starts at the top anyway.
 - ⚠️ The menu isn't patchable (`ListOperations` and its `OperationDropdown` aren't wrapped in `PatchComponent`), so the plugin patches `SceneList`, which is and gets the list's filter and selection, to render a `SceneListTvMenuItem` beside it. The menu is put in the page's body (`menuPortalTarget`) and only rendered once it's first opened, so the item keeps a container of its own last in `.dropdown-menu.scene-list-operations-dropdown`, as the queue button does. Not being one of the menu's own items, clicking it doesn't close the menu, so it clicks the menu's toggle (the menu's `aria-labelledby`).
 
+### Opening with a filter from another plugin
+
+Another Stash plugin can open/link to Stash TV with a specific filter already active, without needing to create a
+saved filter in Stash first, by putting the filter straight in Stash TV's own page query string.
+
+- **Reuses Stash's own filter query-string format** - the same `c`, `sortby`, `sortdir`, `disp`, `q`, `p`, `z`,
+  `perPage` params a native Scenes or Scene Markers page URL already has (`QUERY_STRING_FILTER_PARAMS` in
+  `src/constants`). The easiest way to build one: open the Scenes (or Scene Markers) page in Stash with the
+  filter/sort wanted, copy the query string straight out of the address bar, and append it to Stash TV's URL
+  unchanged.
+- **Read with `getQueryStringFilter()`** (`src/components/channels/query-string-filter.ts`), using Stash's own
+  `ListFilterModel.configureFromQueryString()` to parse it, the same class Stash's own filter UI uses - so malformed
+  or unknown params degrade the same way they would on a native Stash page (an unrecognised criterion is skipped with
+  a `console.error` rather than crashing; an invalid page/zoom number is dropped, falling back to its default).
+- Since that query-string format doesn't say on its own whether it's a scene or a scene marker filter,
+  `QUERY_STRING_FILTER_ENTITY_TYPE_PARAM` (`tvEntityType=marker`) disambiguates - scenes is the default, so it can be
+  left off for a scene filter.
+- The page is left out, as `getStashQueue` also leaves it out: the feed paginates itself from the top of the filter's
+  results.
+- **Read once, on startup, same as Stash's own queue** (see "Opening Stash's queue" above): checked right after it,
+  so a URL with both shows Stash's own queue. If there's a filter, `useMediaItemFilters` shows it (`showTemporaryFilter()`)
+  instead of the startup channel, for that page load only, then takes its params off the URL (`history.replaceState`).
+
 ### Filtering by an entity
 
 `src/components/channels/temporary-filter.ts` makes the temporary channel's filters from entities (tags, performers and studios):

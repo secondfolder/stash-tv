@@ -38,6 +38,18 @@ export const STASH_QUEUE_PARAMS = ["qsort", "qsortd", "qfq", "qfc", "qfp", "qs"]
 /** The URL param the plugin passes the scene Stash was playing from the queue in, for the feed to start at */
 export const STASH_QUEUE_SCENE_PARAM = "scene";
 
+/**
+ * The URL params Stash's own filter query string is made of (the same ones a native Scenes or Scene Markers page URL
+ * has). Another plugin can link into the feed with a filter in this format (see `getQueryStringFilter`).
+ */
+export const QUERY_STRING_FILTER_PARAMS = ["c", "sortby", "sortdir", "disp", "q", "p", "z", "perPage"];
+
+/**
+ * The URL param saying whether the query string filter is for scenes or scene markers, since Stash's own filter
+ * query-string format doesn't say on its own. Scenes is the default.
+ */
+export const QUERY_STRING_FILTER_ENTITY_TYPE_PARAM = "tvEntityType";
+
 export const proxyPrefix = "/stash";
 
 /** Values a playback position option's `label` or `shortLabel` can be built
