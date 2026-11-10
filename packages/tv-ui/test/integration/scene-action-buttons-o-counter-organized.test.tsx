@@ -103,7 +103,8 @@ describe("O-counter button", () => {
     click(within(sidePanel()).getByRole("button", { name: "Decrease O-count" }));
     await waitFor(() => expect(serverScene(firstScene.id).o_history).toHaveLength(0));
 
-    expect(within(sidePanel()).getByRole("button", { name: "Decrease O-count" })).toBeDisabled();
+    // The server has the change before the app has its response
+    await waitFor(() => expect(within(sidePanel()).getByRole("button", { name: "Decrease O-count" })).toBeDisabled());
     expect(displayedSideInfo(app, "o-counter")).toBeNull();
 
     await app.unmount();

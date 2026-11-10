@@ -1,4 +1,4 @@
-import React, { ReactNode, useEffect, useRef, useState } from "react";
+import React, { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTvConfig } from "../../../store/tvConfig";
 import cx from "classnames";
 import "./ActionButtonStack.css";
@@ -180,9 +180,12 @@ const Folder = ({
     if (await animateIcons({from: "current", to: "preview"})) setClosing(false)
   }
 
-  // Opening the scene info panel closes the folder, so the two aren't on screen together
+  // Opening the scene info panel closes the folder, so the two aren't on screen together.
+  // ⚠️ A layout effect so close()'s updates are rendered together: the media item store's update is always rendered
+  // synchronously, but state set in a passive effect isn't, so it'd be rendered first, with the folder neither open nor
+  // closing. That unmounts it, cancelling the animation that would end the closing, and it'd stay on screen.
   const { sceneInfoOpen } = useGlobalState()
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (sceneInfoOpen && isOpen) close()
   }, [sceneInfoOpen])
 

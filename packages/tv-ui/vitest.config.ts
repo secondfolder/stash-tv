@@ -10,10 +10,6 @@ const sharedPlugins = [svgr()];
 // Projects don't inherit the root `resolve` either, so each project sets it too.
 const sharedResolve = {
   alias: {
-    // React 17's CJS builds don't resolve extensionless ESM subpath imports
-    // (e.g. from Radix's .mjs dist) — point them at the CJS files.
-    "react/jsx-runtime": path.resolve(__dirname, "../../node_modules/react/jsx-runtime.js"),
-    "react/jsx-dev-runtime": path.resolve(__dirname, "../../node_modules/react/jsx-dev-runtime.js"),
     // Its CJS build require()s webvr-polyfill's extensionless ESM source, which Node can't follow. Its ES build,
     // inlined (below), goes through vite's resolver instead.
     "@blaineam/videojs-vr": path.resolve(__dirname, "../../node_modules/@blaineam/videojs-vr/dist/videojs-vr.es.js"),
@@ -21,13 +17,11 @@ const sharedResolve = {
 };
 
 const sharedTestOptions = {
-  // Radix's ESM dist imports "react/jsx-runtime" extensionless, which Node's CJS
-  // React 17 can't resolve — inlining it through vite lets the alias above apply.
-  // Likewise Stash's VR plugin (@blaineam/videojs-vr, aliased above) imports
-  // webvr-polyfill's extensionless ESM source, which only vite's resolver can follow.
+  // Stash's VR plugin (@blaineam/videojs-vr, aliased above) imports webvr-polyfill's extensionless ESM source, which
+  // only vite's resolver can follow.
   server: {
     deps: {
-      inline: [/@radix-ui\/\.*/, /@blaineam\/videojs-vr/, /webvr-polyfill/],
+      inline: [/@blaineam\/videojs-vr/, /webvr-polyfill/],
     },
   },
   environment: "jsdom",
@@ -37,8 +31,8 @@ const sharedTestOptions = {
       url: "http://localhost:3000/",
     },
   },
-  // React 17 + jsdom + websocket-heavy app code: forked processes isolate the
-  // module-level stores (accumulator, filter state) and play nicer with TLA modules.
+  // jsdom + websocket-heavy app code: forked processes isolate the module-level
+  // stores (accumulator, filter state) and play nicer with TLA modules.
   pool: "forks",
   // Tests run in parallel. Apollo WebSocket clients are tracked and disposed in
   // test/setup.ts (global afterAll), so no reconnection storms at teardown.

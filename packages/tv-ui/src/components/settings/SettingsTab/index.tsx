@@ -892,7 +892,7 @@ const SettingsTab = memo(() => {
               <label htmlFor="loggers-to-show">
                 Loggers to Show
               </label>
-              <Select<{ value: string[]; label: string }, true>
+              <Select<{ value: readonly string[]; label: string }, true>
                 inputId="loggers-to-show"
                 expandWidthToFit={true}
                 options={loggerOptions}
@@ -903,7 +903,7 @@ const SettingsTab = memo(() => {
                     )
                   )
                 )}
-                onChange={(newValues: readonly { value: string[]; label: string }[]) => setTvConfig("loggersToShow", newValues.map((option) => option.value))}
+                onChange={(newValues: readonly { value: readonly string[]; label: string }[]) => setTvConfig("loggersToShow", newValues.map((option) => option.value))}
                 isMulti={true}
                 closeMenuOnSelect={false}
               />
@@ -914,7 +914,7 @@ const SettingsTab = memo(() => {
               <label htmlFor="loggers-to-hide">
                 Loggers to Hide
               </label>
-              <Select<{ value: string[]; label: string }, true>
+              <Select<{ value: readonly string[]; label: string }, true>
                 inputId="loggers-to-hide"
                 expandWidthToFit={true}
                 options={loggerOptions}
@@ -926,7 +926,7 @@ const SettingsTab = memo(() => {
                   )
                 )}
                 placeholder="All loggers"
-                onChange={(newValues: readonly { value: string[]; label: string }[]) => setTvConfig("loggersToHide", newValues.map((option) => option.value))}
+                onChange={(newValues: readonly { value: readonly string[]; label: string }[]) => setTvConfig("loggersToHide", newValues.map((option) => option.value))}
                 isMulti={true}
                 closeMenuOnSelect={false}
               />

@@ -16,6 +16,8 @@
 
 Every store except `gamepadState` (written only by `useGamepad()`, with setters of its own) exposes the same typed `set` / `get` / `setToDefault` / `getDefault` API.
 
+⚠️ **A store's update is rendered on its own, before React state set in a passive effect.** Zustand's stores update components through `useSyncExternalStore`, whose updates React 18 always renders synchronously. State set in a `useEffect` isn't, so changing a store and React state together from an effect renders twice, with the store's change but not the state's in between. Where that in-between render matters, change them from an event handler or a `useLayoutEffect`, whose updates are rendered together (e.g. a folder in the action button stack closing as the scene info panel opens: in between it was neither open nor closing, which stopped it ever closing).
+
 ### The Typed Setter Pattern (critical)
 
 Store mutations go through the typed setter methods, never direct state modification:

@@ -159,7 +159,7 @@ Which applies follows Stash's configured rating system. The digits are slots in 
 `useRatingShortcuts(scene, { enabled })` (`src/hooks/rating/`) listens for both actions, turning the digits (`trigger.digits()`, from `shortcutDigits()`) into a rating100 as Stash's own shortcuts do:
 - A gamepad's unset works the same, but a gamepad can't type digits, so it can't rate (see [gamepad](gamepad.md) § "Rating").
 - It's safe to call from every slide: only an `enabled` instance listens. `MediaSlide` passes `enabled: isCurrentVideo`.
-- ⚠️ Callers must keep at most one instance enabled at a time. Hand-over between slides relies on both slides' `isCurrentVideo` changing in the same React commit (React 17 runs all effect cleanups before any new effects), which `VideoScroller` guarantees by deriving it from a single `currentIndex`.
+- ⚠️ Callers must keep at most one instance enabled at a time. Hand-over between slides relies on both slides' `isCurrentVideo` changing in the same React commit (React runs all of a commit's effect cleanups before any of its new effects), which `VideoScroller` guarantees by deriving it from a single `currentIndex`.
 
 How this differs from Stash's own `useRatingKeybinds`, which Stash TV used to use:
 - Stash's hardcodes its keys and binds them with Mousetrap. Ours go through the tracker like every other shortcut.

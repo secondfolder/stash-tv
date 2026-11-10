@@ -1,7 +1,6 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useId } from "react";
 import cx from "classnames";
 import "./PopoverPanel.css";
-import { useUID } from "react-uid";
 import { OverlayTrigger, Popover } from "react-bootstrap";
 import { OverlayTriggerProps } from "react-bootstrap/esm/OverlayTrigger";
 import { create } from "zustand";
@@ -47,7 +46,7 @@ export const PopoverPanel = ({
 }): JSX.Element => {
   const currentOpenPopover = useCurrentOpenPopover()
   const { leftHandedUi } = useTvConfig();
-  const id = `popover-panel-${useUID()}`
+  const id = `popover-panel-${useId()}`
   const isOpen = id === currentOpenPopover
   let boundary
   // Action buttons can be placed outside of a MediaSlide instance

@@ -1,6 +1,6 @@
 import React, { useContext } from "react";
 import { MenuShouldScrollIntoViewContext } from "stash-ui/dist/src/components/Shared/FilterSelect";
-import RSSelect, { GroupBase, Props as StateManagerProps, SelectInstance, CSSObjectWithLabel, ClassNamesState, ContainerProps } from "react-select";
+import RSSelect, { GroupBase, Props as StateManagerProps, CSSObjectWithLabel, ContainerProps, MenuProps, MenuListProps } from "react-select";
 import { useMedia } from "react-use";
 import cx from "classnames";
 import "./Select.css"
@@ -15,9 +15,12 @@ type AdditionalProps = {
   expandWidthToFit?: boolean;
 }
 
+export type SelectProps<Option = unknown, IsMulti extends boolean = false, Group extends GroupBase<Option> = GroupBase<Option>> =
+  StateManagerProps<Option, IsMulti, Group> & AdditionalProps;
+
 // Define Select as a generic function component with explicit type parameters
 function Select<Option = unknown, IsMulti extends boolean = false, Group extends GroupBase<Option> = GroupBase<Option>>(
-  props: StateManagerProps<Option, IsMulti, Group> & AdditionalProps
+  props: SelectProps<Option, IsMulti, Group>
 ): React.ReactElement {
   const {className, expandWidthToFit, styles, ...otherProps} = props
   const hasTouchScreen = useMedia("(pointer: coarse)");
@@ -40,29 +43,29 @@ function Select<Option = unknown, IsMulti extends boolean = false, Group extends
         const lifted = { ...provided, zIndex: state.isFocused ? 10 : provided.zIndex };
         return styles?.container ? styles.container(lifted, state) : lifted;
       },
-      menu: (provided: CSSObjectWithLabel) => ({
+      menu: (provided: CSSObjectWithLabel, state: MenuProps<Option, IsMulti, Group>) => ({
         ...(expandWidthToFit ? {
           'maxWidth': 'calc(var(--x-unit-small) * 90)',
           'minWidth': 'max-content',
           ...(leftHandedUi ? { left: 0 } : {right: 0}),
         } : {}),
         ...(styles?.menu
-          ? styles.menu(provided)
+          ? styles.menu(provided, state)
           : provided),
       }),
-      menuList: (provided: CSSObjectWithLabel) => ({
+      menuList: (provided: CSSObjectWithLabel, state: MenuListProps<Option, IsMulti, Group>) => ({
         ...(expandWidthToFit ? {
           scrollbarGutter: 'stable',
         } : {}),
         ...(styles?.menuList
-          ? styles.menuList(provided)
+          ? styles.menuList(provided, state)
           : provided),
       }),
     }}
     classNamePrefix="react-select"
     isSearchable={isSearchable}
     classNames={{
-      menu: (state: ClassNamesState) => (state as any).placement === 'top' ? 'menu-above' : 'menu-below'
+      menu: (state) => state.placement === 'top' ? 'menu-above' : 'menu-below'
     }}
     menuPortalTarget={document.body}
     menuPosition="fixed"
@@ -73,5 +76,5 @@ function Select<Option = unknown, IsMulti extends boolean = false, Group extends
 
 // Export with proper generic signature for TypeScript
 export default Select as <Option = unknown, IsMulti extends boolean = false, Group extends GroupBase<Option> = GroupBase<Option>>(
-  props: StateManagerProps<Option, IsMulti, Group> & AdditionalProps
+  props: SelectProps<Option, IsMulti, Group>
 ) => React.ReactElement;

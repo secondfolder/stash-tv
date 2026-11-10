@@ -53,7 +53,6 @@ export function ResolutionActionButton({
   const { preferredStreamLabel, set: setTvConfig } = useTvConfig();
 
   const [currentlyChanging, setCurrentlyChanging] = React.useState(false);
-  const currentlyChangingAllowenceTimer = React.useRef<NodeJS.Timeout | null>(null);
 
   const { selectedStream, availableStreams, preferredStream } = useSceneStreamSelection({
     playerRef,
@@ -63,13 +62,11 @@ export function ResolutionActionButton({
     setCurrentlyChanging(false)
   }, [selectedStream]);
 
+  // A change of stream that hasn't come through after a second is no longer shown as happening
   useEffect(() => {
-    if (currentlyChangingAllowenceTimer.current) {
-      clearTimeout(currentlyChangingAllowenceTimer.current);
-    }
-    currentlyChangingAllowenceTimer.current = setTimeout(() => {
-      setCurrentlyChanging(false)
-    }, 1000)
+    if (!currentlyChanging) return
+    const timer = setTimeout(() => setCurrentlyChanging(false), 1000)
+    return () => clearTimeout(timer)
   }, [currentlyChanging])
 
   function handleStreamSelection(source: VideoSource) {

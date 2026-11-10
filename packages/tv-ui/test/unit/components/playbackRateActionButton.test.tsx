@@ -34,6 +34,9 @@ function createPlayer(initialRate = 1) {
     on: vi.fn((event: string, listener: () => void) => {
       if (event === "ratechange") listeners.add(listener)
     }),
+    off: vi.fn((event: string, listener: () => void) => {
+      if (event === "ratechange") listeners.delete(listener)
+    }),
   }
   return { player, playerRef: { current: player as unknown as VideoJsPlayer } }
 }

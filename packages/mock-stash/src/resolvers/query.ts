@@ -118,7 +118,7 @@ export const queryResolvers = {
       ...ctx.store.jobs.values(),
     ],
     version: () => ({
-      version: "v0.31.1-175-ge7d33c9b",
+      version: "v0.32.0-8-gaefc9373",
       hash: "0000000000000000000000000000000000000000",
       build_time: "2024-01-01 00:00:00",
     }),

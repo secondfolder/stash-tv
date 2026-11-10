@@ -3,17 +3,15 @@ import "stash-ui/dist/theme-variables.css";
 import "./styles/globals.scss";
 import "./helpers/renderDebugger";
 import React from "react";
-import ReactDOM from "react-dom";
+import { createRoot } from "react-dom/client";
 import App from "./app/App";
 
 import { ApolloProvider } from "@apollo/client";
 import { getApolloClient } from "./hooks/getApolloClient";
 
 
-const container = document.getElementById("app");
-ReactDOM.render(
+createRoot(document.getElementById("app")!).render(
     <ApolloProvider client={getApolloClient()}>
         <App />
-    </ApolloProvider>,
-    container
+    </ApolloProvider>
 );

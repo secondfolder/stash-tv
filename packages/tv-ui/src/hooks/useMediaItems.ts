@@ -209,17 +209,23 @@ export function useMediaItems() {
   const loading = useFeedStore(state => state.loading)
   const error = useFeedStore(state => state.error)
   const start = useFeedStore(state => state.start)
+  const sourceKey = useFeedStore(state => state.source?.key)
+
+  // What the feed would be loaded from: when it differs from the feed's source, the feed is reset below
+  const filterKey = useMemo(() => {
+    if (!lastLoadedCurrentMediaItemFilter) return undefined;
+    const { entityType, generalFilter, entityFilter } = lastLoadedCurrentMediaItemFilter
+    return hashObject({ entityType, generalFilter, entityFilter, pageSize })
+  }, [lastLoadedCurrentMediaItemFilter, pageSize])
 
   useEffect(() => {
-    if (!lastLoadedCurrentMediaItemFilter) return;
-    const { entityType, generalFilter, entityFilter } = lastLoadedCurrentMediaItemFilter
-    const key = hashObject({ entityType, generalFilter, entityFilter, pageSize })
+    if (!lastLoadedCurrentMediaItemFilter || !filterKey) return;
     // Every useMediaItems() instance runs this, but only the first to see a change resets the shared feed
-    if (useFeedStore.getState().source?.key === key) return;
+    if (useFeedStore.getState().source?.key === filterKey) return;
     logger.debug(`Filter changed to "${lastLoadedCurrentMediaItemFilter.savedFilter?.name}", resetting media items`)
-    resetFeed(client, { key, filter: lastLoadedCurrentMediaItemFilter, pageSize })
+    resetFeed(client, { key: filterKey, filter: lastLoadedCurrentMediaItemFilter, pageSize })
     loadNextPage(client)
-  }, [client, lastLoadedCurrentMediaItemFilter, pageSize])
+  }, [client, lastLoadedCurrentMediaItemFilter, filterKey, pageSize])
 
   const loadMoreMediaItems = useCallback(() => loadNextPage(client), [client])
   const removeMediaItem = useCallback((id: string) => removeFromFeed(client, id), [client])
@@ -273,7 +279,9 @@ export function useMediaItems() {
     removeMediaItem,
     loadMoreMediaItems,
     mediaItemsError: error,
-    mediaItemsLoading: loading,
+    // Loading too until the effect above has reset the feed for a new filter, rather than briefly showing the old
+    // filter's state (e.g. an empty feed, as if nothing matched)
+    mediaItemsLoading: loading || (filterKey !== undefined && filterKey !== sourceKey),
     mediaItemsNeverLoaded: neverLoaded,
     waitingForMediaItemsFilter: !lastLoadedCurrentMediaItemFilter,
     /** The index of the item the feed should start at, once it's loaded (see `FeedStart`) */

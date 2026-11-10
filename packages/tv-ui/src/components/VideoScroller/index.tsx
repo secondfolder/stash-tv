@@ -397,7 +397,7 @@ const VideoScroller: React.FC<VideoScrollerProps> = memo(() => {
   }, [rowVirtualizer.getVirtualItems().map(v => v.index).join(","), itemsToRenderFrozen]);
 
 
-  const changeItemHandler = useCallback((newIndex, scrollOptions) => {
+  const changeItemHandler = useCallback((newIndex: React.SetStateAction<number>, scrollOptions?: ScrollToIndexOptions) => {
     scrollToIndex(newIndex, scrollOptions);
     setCurrentIndex(newIndex);
   }, [scrollToIndex, setCurrentIndex]);

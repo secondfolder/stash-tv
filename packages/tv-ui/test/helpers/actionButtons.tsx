@@ -1,5 +1,6 @@
 import React from "react";
-import ReactDOM from "react-dom";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
 import { fireEvent, waitFor } from "@testing-library/react";
 import type { ActionButtonDefinition } from "../../src/components/action-buttons/buttons";
 
@@ -34,9 +35,10 @@ function renderIconMarkup(
   state: string
 ) {
   const container = document.createElement("div");
-  ReactDOM.render(<ActionButtonIcon iconDefinition={icon} state={state} />, container);
+  const root = createRoot(container);
+  flushSync(() => root.render(<ActionButtonIcon iconDefinition={icon} state={state} />));
   const markup = container.innerHTML;
-  ReactDOM.unmountComponentAtNode(container);
+  root.unmount();
   return markup;
 }
 

@@ -1,7 +1,6 @@
-import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState, useId } from "react";
 import cx from "classnames";
 import { Button, Overlay, Popover } from "react-bootstrap";
-import { useUID } from "react-uid";
 import { Options as PopperOptions } from "@popperjs/core";
 import { useCurrentOpenPopover } from "../../PopoverPanel";
 import { hasMediaItemStateContext, useMediaItemState } from "../../../store/mediaItemState";
@@ -80,7 +79,7 @@ export function EntityPopover({
   className?: string
   children: (props: EntityPopoverTriggerProps) => JSX.Element
 }) {
-  const id = `entity-popover-${useUID()}`
+  const id = `entity-popover-${useId()}`
   const [triggerElement, setTriggerElement] = useState<HTMLElement | null>(null)
   const [hovered, setHovered] = useState(false)
   const pinned = useCurrentOpenPopover() === id

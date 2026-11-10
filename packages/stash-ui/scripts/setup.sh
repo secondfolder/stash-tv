@@ -8,7 +8,7 @@ IFS=$'\n\t'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/fingerprint.sh"
 
-STASH_VERSION="e7d33c9bd131f1f5d781b850de30735943fa1195" # develop
+STASH_VERSION="aefc9373fe57e5cb32fbbb7215fd508ed799743f" # develop
 # The latest Stash release. Stash TV supports it as well as STASH_VERSION, so its schema is extracted for the tests
 # that check that (see docs/stash-compatibility.md)
 STASH_RELEASE_VERSION="v0.32.0"

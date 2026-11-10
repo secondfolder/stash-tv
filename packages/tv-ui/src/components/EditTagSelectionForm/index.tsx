@@ -48,7 +48,8 @@ export function EditTagSelectionForm(
     <div className="main">
       <TagSelect
         isMulti
-        values={selectedTags}
+        // TagSelect reads its values' aliases only if they're there, and never their stash_ids
+        values={selectedTags as Tag[]}
         onSelect={(tags: Tag[]) => setSelectedTags(tags)}
         hoverPlacement="top"
       />

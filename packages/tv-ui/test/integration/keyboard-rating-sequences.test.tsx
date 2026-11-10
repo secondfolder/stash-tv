@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { waitFor } from "@testing-library/react";
+import { act, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { bootApp } from "./helpers/harness";
 import { currentSlide, sceneIdOf } from "./helpers/feed";
@@ -108,8 +108,9 @@ describe("Keyboard rating shortcuts", () => {
     // goToNextSlide, but typed with the clock-advancing userEvent. VideoScroller throttles index changes to one per
     // 100ms, so let that window pass for a trailing update to land
     await user.keyboard("{ArrowDown}");
-    vi.advanceTimersByTime(100);
-    await waitFor(() => expect(currentSlide(app).dataset.index).not.toBe(firstIndex));
+    // In act(), so the new slide is rendered without waiting (waitFor would advance the frozen clock as it polls)
+    act(() => vi.advanceTimersByTime(100));
+    expect(currentSlide(app).dataset.index).not.toBe(firstIndex);
     const secondSceneId = sceneIdOf(currentSlide(app));
     expect(secondSceneId).not.toBe(firstSceneId);
     // Start the second sequence shortly before the first one's timeout (850ms in, counting the 100ms above) and

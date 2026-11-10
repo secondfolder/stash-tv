@@ -77,16 +77,8 @@ const FeedPage: React.FC<FeedPageProps> = memo(({className}) => {
     if (mediaItemFiltersLoading || (waitingForMediaItemsFilter && !mediaItemFiltersError)) return <LoadingIndicator message="Loading media filters..." />
     if (mediaItemsLoading) return <LoadingIndicator message="Loading filters..." />
     if (mediaItemFiltersError || mediaItemsError) {
-      let message
-      if (mediaItemFiltersError) {
-        message = typeof mediaItemFiltersError === "object" && 'message' in mediaItemFiltersError
-          ? mediaItemFiltersError.message
-          : mediaItemFiltersError
-      } else {
-        message = typeof mediaItemsError === "object" && 'message' in mediaItemsError
-          ? mediaItemsError.message
-          : mediaItemsError
-      }
+      const error = mediaItemFiltersError || mediaItemsError
+      const message = String(typeof error === "object" && error && 'message' in error ? error.message : error)
       console.error("Error loading media items:", message);
       return (
         <ErrorMessage error={message} />

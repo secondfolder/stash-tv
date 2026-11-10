@@ -46,6 +46,7 @@ The feed is keyed by a hash of the filter's contents plus the page size, not by 
 ### Data flow
 
 1. **Initial load:** when the filter (or page size) changes, the first `useMediaItems()` instance to notice resets the feed and fetches page 1
+   - `mediaItemsLoading` is true from the render the filter changes in, not only once the feed is reset (which happens in an effect, after that render): until then the feed still holds the old filter's items, or none, and showing that as loaded flashed "No media found"
 2. **Pagination:** VideoScroller calls `loadMoreMediaItems()` when the current item is within 5 of the end. The next page starts at `loaded items + skipped markers` (see below), so deleting an item, which shifts every later item back one place on the server, neither skips nor repeats items. When that offset isn't on a page boundary the fetched page overlaps what's loaded, and duplicates are dropped
 3. **End of list:** no more fetches once the offset reaches the server's reported `count`
 4. **Filtering:** applied via GraphQL variables from the active channel's source, resolved to a saved filter by `useMediaItemFilters()` (see [channels](channels.md))

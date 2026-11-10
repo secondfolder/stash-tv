@@ -1,4 +1,4 @@
-import React, { ReactNode, useEffect, useRef, useState } from "react";
+import React, { ReactNode, useEffect, useId, useRef, useState } from "react";
 import { Button } from "react-bootstrap";
 import { XLg } from "react-bootstrap-icons";
 import type { ButtonVariant } from "react-bootstrap/esm/types";
@@ -57,9 +57,6 @@ export type CommandPaletteProps = {
   backdrop?: boolean;
   className?: string;
 };
-
-/** Gives each palette's elements ids of their own (React 17 has no useId) */
-let paletteCount = 0;
 
 const isEmpty = (content: ReactNode) =>
   content === null || content === undefined || content === false || content === "" || (Array.isArray(content) && content.length === 0);
@@ -124,7 +121,7 @@ export function CommandPalette({
   backdrop = true,
   className,
 }: CommandPaletteProps) {
-  const [id] = useState(() => `CommandPalette-${++paletteCount}`);
+  const id = `CommandPalette-${useId()}`;
   const inputRef = useRef<HTMLInputElement & HTMLDivElement>(null);
   const [highlighted, setHighlighted] = useState(0);
   const customInput = inputContent !== undefined;

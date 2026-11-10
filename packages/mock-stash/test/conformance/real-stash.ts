@@ -11,13 +11,13 @@ export const MEDIA_DIR = path.resolve(here, "../../src/media");
 
 /**
  * The real Stash for each version Stash TV supports (see docs/stash-compatibility.md):
- * - `pinned` matches the stash submodule in stash-ui (develop at e7d33c9b, v0.31.1-175-ge7d33c9b). Stash only
+ * - `pinned` matches the stash submodule in stash-ui (develop at aefc9373, v0.32.0-8-gaefc9373). Stash only
  *   publishes develop as the moving `development` tag, so it's pinned by digest: the image pushed right after that
  *   commit.
  * - `latest-stable-release` matches `STASH_RELEASE_VERSION` in stash-ui's setup.sh.
  */
 export const STASH_IMAGES: Record<MockStashVersion, string> = {
-  pinned: "stashapp/stash:development@sha256:1d9758bad8df69f27ab7110de12191e5b1cf2548343076be6e895746824f3bf5",
+  pinned: "stashapp/stash:development@sha256:4a95e1721522798769ff9b881eb2eb4059e07fc19699dc8319b24adfd0255bb3",
   "latest-stable-release": "stashapp/stash:v0.32.0",
 };
 const STASH_PORT = 9999;

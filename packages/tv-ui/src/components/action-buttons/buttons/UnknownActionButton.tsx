@@ -17,7 +17,7 @@ const id = "unknown-action-button";
  */
 export const unknownActionButtonDefinition = {
   id,
-  title: ({config}) => <>Unknown button: "{config?.buttonType || "<unknown type>"}"</>,
+  title: ({config}) => <>Unknown button: "{config?.buttonType ? String(config.buttonType) : "<unknown type>"}"</>,
   icon: { active: faTriangleExclamation, inactive: faTriangleExclamation },
   components: { button: UnknownActionButton },
   configSchema: sharedActionButtonSchema.shape({

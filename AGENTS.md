@@ -123,7 +123,7 @@ The project uses a monorepo structure with Yarn workspaces containing three pack
 
 #### **1. `packages/tv-ui`** (Main Application)
 - **Purpose:** The core React application for Stash TV
-- **Technology:** React 17, TypeScript, Vite, Zustand (state management)
+- **Technology:** React 18, TypeScript, Vite, Zustand (state management)
 - **Key Directories:**
   - `src/components/` - Reusable React components (CrtEffect, DraggableList, channels, VideoScroller, ScenePlayer, tags, controls, etc.)
   - `src/hooks/` - Custom React hooks for data fetching, state, and UI behavior
@@ -154,9 +154,9 @@ The project uses a monorepo structure with Yarn workspaces containing three pack
 
 ### Core Dependencies
 
-React 17.0.2, TypeScript (ES2023), Vite 7.x, Zustand 4.x, Apollo Client 3.x, React Bootstrap 1.x, Framer Motion 6.5.1, React Spring 10.x, Radix UI (slider), Video.js (+ `videojs-offset`), FontAwesome 6.x, Logtape (structured logging), react-intl (English only — `IntlProvider` is required by reused Stash components).
+React 18.3.1, TypeScript (ES2023), Vite 7.x, Zustand 4.x, Apollo Client 3.x, React Bootstrap 1.x, Framer Motion 6.5.1, React Spring 10.x, Radix UI (slider), Video.js (+ `videojs-offset`), FontAwesome 6.x, Logtape (structured logging), react-intl (English only — `IntlProvider` is required by reused Stash components).
 
-⚠️ React and Apollo Client versions are pinned to match the Stash frontend.
+⚠️ React and Apollo Client versions are pinned to match the Stash frontend stash-ui is built from.
 
 ### Build & Development Tools
 
@@ -305,7 +305,7 @@ Conventional Commits (Commitlint-enforced); Semantic Release automates versionin
 
 ### 1. Stash Compatibility
 
-⚠️ **React 17 is required** - Matched with the Stash frontend stash-ui is built from (still React 17). Do not upgrade to React 18+ without updating Stash compatibility. Stash itself moved to React 18 in v0.32.0, so the plugin's injected UI in `tv-plugin/main.tsx` renders with React 18 there; the app is a page of its own with its own React ([Stash compatibility](docs/stash-compatibility.md) § "React").
+⚠️ **React must match the Stash frontend stash-ui is built from** (React 18 since Stash v0.32.0). Upgrade it only along with the pinned Stash version. The plugin's injected UI in `tv-plugin/main.tsx` renders with Stash's own React, whatever its version; the app is a page of its own with its own React ([Stash compatibility](docs/stash-compatibility.md) § "React").
 
 ⚠️ **Apollo Client version matters** - Stash uses specific version. Upgrading may break GraphQL functionality.
 
@@ -383,7 +383,7 @@ Where the perf-critical work lives:
 - Update `AGENTS.md` and the `docs/` topic docs when you learn something new, spot an inconsistency, or change something documented
 
 ⚠️ **Ask first:**
-- Upgrading dependencies — especially React (must stay on 17) or Apollo Client (Stash compatibility)
+- Upgrading dependencies — especially React or Apollo Client (they must match Stash's, see [Stash compatibility](docs/stash-compatibility.md))
 - Changing release/versioning setup (`release.config.js`, versions in `package.json` / `source.yml` — releases are automated on merge to `main`)
 - Modifying `packages/stash-ui/patches/` or re-running its extraction/build scripts
 - Changing which config keys persist to localStorage vs Stash config (affects users' saved settings)

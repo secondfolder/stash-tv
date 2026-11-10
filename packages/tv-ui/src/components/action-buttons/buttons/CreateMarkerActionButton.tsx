@@ -204,7 +204,7 @@ function CreateMarkerQuickAddForm({formik}: { formik: ReturnType<typeof useFormi
   if (!markerDefaults) return null;
   const { iconId: iconIdError } = formik.errors
   // Formik doesn't type the nested markerDefaults correctly so we have to cast it
-  const { title: titleError, primaryTagId: primaryTagIdError, tags: tagsError, ...otherErrors } = formik.errors.markerDefaults as { title?: string; primaryTagId?: string; tags?: string } || {}
+  const { title: titleError, primaryTagId: primaryTagIdError, tags: tagsError, ...otherErrors } = formik.errors.markerDefaults as Record<string, string | undefined> | undefined || {}
   const touched = formik.touched.markerDefaults as { title?: boolean; primaryTagId?: boolean; tags?: boolean } | undefined || {}
   return <>
     <Form.Group>

@@ -1,7 +1,6 @@
 import "./LineLayoutEditor.css";
 import React, { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { LayoutGroup, motion } from "framer-motion";
-import { unstable_batchedUpdates } from "react-dom";
 import cx from "classnames";
 import { Badge, Button } from "react-bootstrap";
 import { ArrowReturnLeft, ArrowReturnRight, PlusLg, XLg } from "react-bootstrap-icons";
@@ -504,33 +503,29 @@ export function LineLayoutEditor<T>({
     end: (event) => {
       const current = dragRef.current;
       if (!current || event.pointerId !== current.pointerId) return;
-      // In one render: dropping the item and ending the drag. Rendered one at a time, the new layout would briefly be
-      // shown with the old drag's ghost and target.
-      unstable_batchedUpdates(() => {
-        const ignoreClick = () => {
-          ignoreClickRef.current = true;
-          setTimeout(() => ignoreClickRef.current = false);
-        };
-        if (current.active) {
-          ignoreClick();
-          const next = current.target && placeItem(baseLayout, current.item, null, current.target);
-          if (next) onChange(next);
-          settleDropped(current, !!next && JSON.stringify(next) !== JSON.stringify(layout));
-        } else if (!current.hovered && !current.pressedButton) {
-          // Tapped with a pointer that wasn't hovering over it (e.g. a touch), so its controls show only once it's tapped
-          ignoreClick();
-          setRevealedKey(revealed => revealed === current.pressedKey ? null : current.pressedKey);
-        }
-        setDrag(null);
-      });
+      // Dropping the item and ending the drag are rendered together (React batches them). Rendered one at a time, the
+      // new layout would briefly be shown with the old drag's ghost and target.
+      const ignoreClick = () => {
+        ignoreClickRef.current = true;
+        setTimeout(() => ignoreClickRef.current = false);
+      };
+      if (current.active) {
+        ignoreClick();
+        const next = current.target && placeItem(baseLayout, current.item, null, current.target);
+        if (next) onChange(next);
+        settleDropped(current, !!next && JSON.stringify(next) !== JSON.stringify(layout));
+      } else if (!current.hovered && !current.pressedButton) {
+        // Tapped with a pointer that wasn't hovering over it (e.g. a touch), so its controls show only once it's tapped
+        ignoreClick();
+        setRevealedKey(revealed => revealed === current.pressedKey ? null : current.pressedKey);
+      }
+      setDrag(null);
     },
     cancel: () => {
       const current = dragRef.current;
       if (!current) return;
-      unstable_batchedUpdates(() => {
-        if (current.active) settleDropped(current, false);
-        setDrag(null);
-      });
+      if (current.active) settleDropped(current, false);
+      setDrag(null);
     },
   };
 
