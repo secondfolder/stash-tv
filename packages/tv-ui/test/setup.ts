@@ -2,6 +2,7 @@ import { afterEach, afterAll, vi } from "vitest";
 // Adds jest-dom's matchers to vitest's `expect`, and their types to its `Assertion`
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
+import { ApolloClient, InMemoryCache } from "@apollo/client";
 import type { Client } from "graphql-ws";
 
 // --- Apollo WebSocket client lifecycle management ----------------------------
@@ -62,6 +63,22 @@ afterAll(async () => {
     new Promise((resolve) => setTimeout(resolve, 5000)),
   ]);
 });
+// -----------------------------------------------------------------------------
+
+// --- Apollo's devtools suggestion ----------------------------------------------
+//
+// The first ApolloClient made in development sets a 10s timer to suggest
+// installing Apollo's devtools, and the timer reads `window`. A test file that
+// ends within 10s of making its first client leaves it to fire after jsdom
+// teardown: "window is not defined", failing the run though every test passed.
+// Apollo only suggests once, so use that up here, on a fake clock, and drop the
+// timer. Then tidy away what the client registered on `window` for devtools.
+vi.useFakeTimers({ toFake: ["setTimeout"] });
+new ApolloClient({ cache: new InMemoryCache(), devtools: { enabled: true } });
+vi.clearAllTimers();
+vi.useRealTimers();
+delete (window as { __APOLLO_CLIENT__?: unknown }).__APOLLO_CLIENT__;
+delete (window as unknown as Record<symbol, unknown>)[Symbol.for("apollo.devtools")];
 // -----------------------------------------------------------------------------
 
 // Testing Library only recognises Jest's fake timers (it looks for a `jest` global). After every user-event call it

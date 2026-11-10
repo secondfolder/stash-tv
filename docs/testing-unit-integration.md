@@ -43,12 +43,13 @@ Tests that change the mock server's scenes or markers (rating, o-count, deleting
 
 ## Why teardown is clean (parallel execution history)
 
-The suite runs fully parallel with zero unhandled errors. Getting there required four independent fixes; if regressions appear, check these first:
+The suite runs fully parallel with zero unhandled errors. Getting there required five independent fixes; if regressions appear, check these first:
 
 1. **Unhandled rejections in app code** — `updateTvConfig` in `tv-ui/src/helpers/stash-config-storage.ts` runs without a caller awaiting it, so any API failure must be caught there or it surfaces as an unhandled rejection.
 2. **Unit tests making real Apollo requests** — the tvConfig store hydrates through `stashConfigStorage`, which builds a real Apollo client. Even caught failures can leak unhandled rejections through Apollo's internal promises, so unit tests mock the client entirely (see "Test-only exceptions").
 3. **`graphql-ws` disposal** — see the disposal gotcha below.
 4. **XHRs settling after teardown** — Stash's VTT thumbnails plugin loads its `.vtt` with `XMLHttpRequest` and touches `window` when it loads; one landing after jsdom teardown fails the run with "window is not defined". `test/setup.ts` tracks in-flight XHRs and awaits them (bounded) in `afterAll`. ⚠️ Vitest 3.2 has no `onUnhandledError`/`onUnhandledRejection` config option — an earlier attempt to filter this error in `vitest.config.ts` was silently ignored, so fix such errors at the source rather than filtering.
+5. **Apollo's devtools suggestion** — the first `ApolloClient` made in development sets a 10s timer, suggesting Apollo's devtools, that reads `window`. A test file ending within 10s of making its first client (only sometimes, as how long a file takes varies with load) left it to fire after jsdom teardown: "window is not defined". Apollo only suggests once, so `test/setup.ts` uses that up on a fake clock and drops the timer.
 
 Full history of the investigation (including attempts that failed) lives in `docs/historical-plans/2026-08-30-websocket-cleanup-problem-handoff.md`.
 
