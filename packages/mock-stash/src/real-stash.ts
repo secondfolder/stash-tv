@@ -3,6 +3,7 @@ import { cpSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
 import { MEDIA_DIR, MEDIA_SPECS } from "./fixtures";
+import { ensureMediaFixtures } from "./generate-media";
 import { stashVersionDetails, type StashVersion } from "./stash-versions";
 
 /**
@@ -63,6 +64,9 @@ export async function startRealStash(version: StashVersion, options: StartRealSt
     tempDirs.push(dir);
     return dir;
   };
+  // The media fixtures are generated rather than committed, and only the mock generates them as it starts, which a
+  // test using just a real Stash (e.g. tv-plugin's) never does
+  ensureMediaFixtures();
   // Only the main media files — previews/screenshots must not be scanned as scenes.
   const mediaDir = makeTempDir("stash-media-");
   for (const spec of MEDIA_SPECS) {
