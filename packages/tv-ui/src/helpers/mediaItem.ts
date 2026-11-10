@@ -12,9 +12,7 @@ export type MediaItem = {
   } |
   {
     entityType: "marker";
-    entity: MarkerForTv & {
-      duration: number;
-    }
+    entity: MarkerForTv;
   }
 )
 
@@ -29,7 +27,25 @@ export type MediaItemRef = {
   cacheId: string;
 }
 
-export const defaultMarkerLength = 20;
+/**
+ * Stash's own default for its "Default marker preview duration" setting, for Stash releases older than the setting,
+ * which don't send it. Use useDefaultMarkerLength() rather than this.
+ */
+export const stashDefaultMarkerLength = 20;
+
+/**
+ * When a marker ends: its end time, or if it has none, `defaultMarkerLength` (see useDefaultMarkerLength) after it
+ * starts, but not past the end of its scene.
+ *
+ * @see docs/media-loading.md § "Marker length"
+ */
+export function markerEndTime(
+  marker: Pick<GQL.SceneMarkerDataFragment, "seconds" | "end_seconds">,
+  sceneDuration: number,
+  defaultMarkerLength: number,
+) {
+  return marker.end_seconds ?? Math.min(marker.seconds + defaultMarkerLength, sceneDuration)
+}
 
 // Same selection as a marker in FindSceneMarkersForTv, so a marker read back from the cache is a complete MarkerForTv
 const MarkerForTvFragmentDoc = gql`
@@ -55,17 +71,7 @@ export function sceneMediaItem(scene: GQL.SceneDataFragment): MediaItem {
 }
 
 export function markerMediaItem(marker: MarkerForTv): MediaItem {
-  return {
-    id: `marker:${marker.id}`,
-    entityType: "marker",
-    entity: {
-      ...marker,
-      get duration() {
-        const endTime = marker.end_seconds ?? Math.min(marker.seconds + defaultMarkerLength, marker.scene.files[0].duration);
-        return endTime - marker.seconds;
-      }
-    }
-  }
+  return { id: `marker:${marker.id}`, entityType: "marker", entity: marker }
 }
 
 export function mediaItemFromEntity(

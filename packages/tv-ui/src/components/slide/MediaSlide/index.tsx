@@ -13,7 +13,9 @@ import { type VideoJsPlayer } from "video.js";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import { useTvConfig } from "../../../store/tvConfig";
 import CrtEffect from "../../CrtEffect";
-import { defaultMarkerLength, MediaItem, MediaItemRef } from "../../../hooks/useMediaItems";
+import { MediaItem, MediaItemRef } from "../../../hooks/useMediaItems";
+import { markerEndTime } from "../../../helpers/mediaItem";
+import { useDefaultMarkerLength } from "../../../hooks/useDefaultMarkerLength";
 import { useLiveMediaItem } from "../../../hooks/useLiveMediaItem";
 import { useUiVisible } from "../../../hooks/useUiVisible";
 import { useRatingShortcuts } from "../../../hooks/rating/useRatingShortcuts";
@@ -107,6 +109,7 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
   const mediaSlideElementRef = useRef<HTMLDivElement>(null)
 
   const { configuration: stashConfig } = useConfigurationContext()
+  const defaultMarkerLength = useDefaultMarkerLength()
   const { connectedAt: gamepadConnectedAt } = useGamepadStatus();
   const gamepadConnectedAWhileAgo = (Date.now() - (gamepadConnectedAt ?? 0)) > 6000
 
@@ -132,7 +135,13 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
   // a new expires/signature for every stream each time. That remounted the player and restarted playback.
   const sceneStreamsKey = useMemo(() => getSceneStreamsKey(scene.sceneStreams), [scene.sceneStreams]);
 
-  const getMediaItemDuration = () => props.mediaItem.entityType === "marker" ? props.mediaItem.entity.duration : props.mediaItem.entity.files[0]?.duration;
+  // A marker plays only its own stretch of the scene, unless preview-only mode swapped the scene for the marker's preview
+  const markerEnd = props.mediaItem.entityType === "marker" && !markerPreviewOnly
+    ? markerEndTime(props.mediaItem.entity, scene.files[0].duration, defaultMarkerLength)
+    : undefined
+  const getMediaItemDuration = () => props.mediaItem.entityType === "marker" && markerEnd !== undefined
+    ? markerEnd - props.mediaItem.entity.seconds
+    : scene.files[0]?.duration;
 
   // Stash itself has a "maximum loop duration" setting: videos shorter than it auto-loop regardless of our own
   // loop toggle. Respect that alongside our own setting whenever it's set to something other than 0 (disabled).
@@ -630,7 +639,7 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
       const markers = scene.scene_markers.filter(marker => {
         const markerStartSearchTime = marker.seconds;
         const nextMarker = scene.scene_markers.find(m => m.seconds > markerStartSearchTime);
-        const makerEndTime = marker.end_seconds ?? marker.seconds + defaultMarkerLength;
+        const makerEndTime = markerEndTime(marker, scene.files[0].duration, defaultMarkerLength);
         const makerEndSearchTime = Math.min(makerEndTime, nextMarker?.seconds ?? Infinity);
         return markerStartSearchTime <= currentTime && makerEndSearchTime > currentTime
       });
@@ -761,7 +770,7 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
                 ...(props.mediaItem.entityType === "marker" && !markerPreviewOnly ? {
                   offset: {
                     start: props.mediaItem.entity.seconds,
-                    end: props.mediaItem.entity.seconds + props.mediaItem.entity.duration,
+                    end: markerEnd,
                     // This moves the play head to the start of the marker clip but does not resume play even if loop is
                     // true so we handle that ourselves in an onEnded handler
                     restart_beginning: true

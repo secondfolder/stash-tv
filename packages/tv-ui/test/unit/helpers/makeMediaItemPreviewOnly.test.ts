@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from "vitest";
 import { makeMediaItemPreviewOnly } from "../../../src/helpers/makeMediaItemPreviewOnly";
-import { defaultMarkerLength } from "../../../src/helpers/mediaItem";
+import { stashDefaultMarkerLength } from "../../../src/helpers/mediaItem";
 import { markerMediaItem, sceneMediaItem } from "../support/mediaItems";
 
 const PREVIEW = "https://stash.test/scene/1/preview";
@@ -63,7 +63,13 @@ describe("makeMediaItemPreviewOnly", () => {
 
     expect(item.entityType).toBe("marker");
     expect(sceneOf(item).sceneStreams.map((stream) => stream.url)).toEqual([markerStream]);
-    expect(sceneOf(item).files[0].duration).toBe(defaultMarkerLength);
+    expect(sceneOf(item).files[0].duration).toBe(stashDefaultMarkerLength);
+  });
+
+  it("estimates a marker's preview as long as Stash's default marker preview duration setting", () => {
+    const item = makeMediaItemPreviewOnly(markerMediaItem({ stream: "https://stash.test/scene/1/scene_marker/1/stream", scene: scene(600) }), { defaultMarkerLength: 35 });
+
+    expect(sceneOf(item).files[0].duration).toBe(35);
   });
 
   it("leaves an item without a preview as it is", () => {

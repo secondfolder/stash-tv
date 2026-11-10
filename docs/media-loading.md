@@ -79,13 +79,19 @@ item.entity.title; // TS error: entity is a union of scene and marker fragments
 
 `useMediaItems()` returns `MediaItemRef[]`. Only slides (and the helpers below) deal in full `MediaItem`s.
 
+### Marker length
+
+A marker without an end time lasts as long as Stash's "Default marker preview duration" setting (Settings → System), read with `useDefaultMarkerLength()`. That's how long Stash makes such a marker's preview, so the slide plays the same stretch the preview shows. `markerEndTime()` (`src/helpers/mediaItem.ts`) works out where a marker slide stops playing, and which of a scene's markers is playing. The same length is the estimate for a marker's preview in preview-only mode. A marker's end isn't stored on its `MediaItem`: it's worked out where it's needed, so nothing that only loads or passes items around depends on Stash's config. In preview-only mode a marker slide plays the whole preview, so its length comes from the preview, as a scene's does.
+
+⚠️ Stash releases older than the setting leave it out, so it reads `null`; it then falls back to Stash's own default, `stashDefaultMarkerLength` (20s).
+
 ---
 
 ## Preview-only modes
 
 `scenePreviewOnly` / `markerPreviewOnly` play only a scene's preview (or a marker's stream). Rather than teach ScenePlayer about previews, `makeMediaItemPreviewOnly()` (`src/helpers/makeMediaItemPreviewOnly.ts`) rewrites the item so the preview is its only "stream". It also estimates the duration and clears `resume_time`, captions and markers.
 
-Stash doesn't report preview lengths, so `useTrackPreviewLengths()` (`src/hooks/usePreviewLengths.ts`) records each preview video's real duration when its metadata loads. Until then the duration is estimated from Stash's preview segment config. The rewrite is applied per slide in `useLiveMediaItem`, memoised so unrelated updates don't create new objects.
+Stash doesn't report preview lengths, so `useTrackPreviewLengths()` (`src/hooks/usePreviewLengths.ts`) records each preview video's real duration when its metadata loads. Until then the duration is estimated from Stash's preview segment config, or for a marker from its [default length](#marker-length). The rewrite is applied per slide in `useLiveMediaItem`, memoised so unrelated updates don't create new objects.
 
 ---
 

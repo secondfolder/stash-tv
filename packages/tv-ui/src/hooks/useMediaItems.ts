@@ -11,7 +11,6 @@ import { MediaItem, MediaItemRef, markerMediaItem, readMediaItem, sceneMediaItem
 import { useTrackPreviewLengths } from "./usePreviewLengths";
 
 export type { MediaItem, MediaItemRef } from "../helpers/mediaItem";
-export { defaultMarkerLength } from "../helpers/mediaItem";
 
 declare global {
   interface Window {

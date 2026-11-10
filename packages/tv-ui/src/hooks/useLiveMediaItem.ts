@@ -7,6 +7,7 @@ import { MarkerForTv, MediaItem, MediaItemRef, mediaItemFragment, mediaItemFromE
 import { makeMediaItemPreviewOnly } from "../helpers/makeMediaItemPreviewOnly";
 import { useTvConfig } from "../store/tvConfig";
 import { usePreviewLengths } from "./usePreviewLengths";
+import { useDefaultMarkerLength } from "./useDefaultMarkerLength";
 
 const logger = getLogger(["stash-tv", "useLiveMediaItem"]);
 
@@ -58,11 +59,12 @@ export function useLiveMediaItem(ref: MediaItemRef): MediaItem | undefined {
   const { configuration: stashConfig } = useConfigurationContext()
   const previewSegmentDuration = stashConfig?.general.previewSegmentDuration ?? undefined
   const previewSegments = stashConfig?.general.previewSegments ?? undefined
+  const defaultMarkerLength = useDefaultMarkerLength()
 
   return useMemo(
     () => mediaItem && previewOnly
-      ? makeMediaItemPreviewOnly(mediaItem, {previewLength, previewSegmentDuration, previewSegments})
+      ? makeMediaItemPreviewOnly(mediaItem, {previewLength, previewSegmentDuration, previewSegments, defaultMarkerLength})
       : mediaItem,
-    [mediaItem, previewOnly, previewLength, previewSegmentDuration, previewSegments]
+    [mediaItem, previewOnly, previewLength, previewSegmentDuration, previewSegments, defaultMarkerLength]
   )
 }

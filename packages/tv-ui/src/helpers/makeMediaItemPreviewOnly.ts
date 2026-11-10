@@ -1,5 +1,5 @@
 import { getLogger } from "@logtape/logtape";
-import { defaultMarkerLength, MediaItem } from "./mediaItem";
+import { MediaItem, stashDefaultMarkerLength } from "./mediaItem";
 
 const logger = getLogger(["stash-tv", "makeMediaItemPreviewOnly"]);
 
@@ -10,13 +10,15 @@ const logger = getLogger(["stash-tv", "makeMediaItemPreviewOnly"]);
  * available stream is the preview.
  *
  * @param previewLength the preview video's real length if known yet (see usePreviewLengths), otherwise it's estimated
+ * @param defaultMarkerLength how long a marker's preview is estimated to be (see useDefaultMarkerLength)
  */
 export function makeMediaItemPreviewOnly(
   mediaItem: MediaItem,
-  {previewLength, previewSegmentDuration = 0.75, previewSegments = 12}: {
+  {previewLength, previewSegmentDuration = 0.75, previewSegments = 12, defaultMarkerLength = stashDefaultMarkerLength}: {
     previewLength?: number,
     previewSegmentDuration?: number,
     previewSegments?: number,
+    defaultMarkerLength?: number,
   },
 ): MediaItem {
   let previewUrl
