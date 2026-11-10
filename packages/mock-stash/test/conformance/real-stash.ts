@@ -18,7 +18,7 @@ export const MEDIA_DIR = path.resolve(here, "../../src/media");
  */
 export const STASH_IMAGES: Record<MockStashVersion, string> = {
   pinned: "stashapp/stash:development@sha256:1d9758bad8df69f27ab7110de12191e5b1cf2548343076be6e895746824f3bf5",
-  "latest-stable-release": "stashapp/stash:v0.31.1",
+  "latest-stable-release": "stashapp/stash:v0.32.0",
 };
 const STASH_PORT = 9999;
 

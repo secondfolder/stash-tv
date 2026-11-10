@@ -13,6 +13,15 @@ Stash TV supports two Stash versions at once:
 
 The plugin runs against whatever Stash it's installed in, but it bundles one copy of Stash's UI code, with that version's GraphQL queries. Stash only adds to its schema, so queries from an older version work on a newer one, but not the other way round: a server rejects a whole query that asks for one field it doesn't have. Built from develop, the app's first query (Stash's `Configuration`) would fail on the latest release, and with it the app.
 
+## React
+
+Stash moved from React 17 to React 18 in v0.32.0, after the commit stash-ui is pinned to. Stash TV uses two copies of React:
+
+- **The app** (`/plugin/stash-tv/assets/app/`) is a page of its own, bundling React 17 along with the Stash UI code it reuses, so the Stash version it's installed in doesn't matter.
+- **The plugin's injected UI** (`tv-plugin/main.tsx`: the nav bar link, the queue button, the scene list menu item, the plugin settings) is rendered by Stash's own React, so React 17 on releases before v0.32.0 and React 18 from it. It uses `PluginApi.React` for hooks and only creates plain elements otherwise, which both render.
+
+⚠️ Moving the pinned version past v0.32.0 brings Stash's UI code on React 18, so tv-ui (and its testing-library pins, see [testing](testing.md)) would have to move to React 18 too. Ask first.
+
 ## Adapting queries to the server
 
 `src/helpers/stash-schema-compat.ts` adapts each operation to the connected server:
@@ -39,4 +48,4 @@ The plugin runs against whatever Stash it's installed in, but it bundles one cop
 ## Updating the versions
 
 - **New pinned version:** see [stash-ui package](stash-ui-package.md) § "Automatic Setup & Build". Then run the tests above.
-- **New Stash release:** set `STASH_RELEASE_VERSION` in `setup.sh` and the `latest-stable-release` image in `real-stash.ts`, run setup, and run the tests. Once a release includes everything the pinned version has, the latest release and pinned version have the same schema and adapting changes nothing.
+- **New Stash release:** set `STASH_RELEASE_VERSION` in `setup.sh` and the `latest-stable-release` image in `real-stash.ts`, run setup, and run the tests. Once a release includes everything the pinned version has, the latest release and pinned version have the same schema and adapting changes nothing. (Since v0.32.0, which is the pinned commit plus a few fixes, that's the case.) Also check the plugin's injected UI in a real Stash of the new release, if it changes the components `main.tsx` patches or the React version.

@@ -50,8 +50,8 @@ describe("Stash's operations", () => {
   });
 
   it("include the ones Stash TV sends on startup, which the latest release can run once adapted", () => {
+    // These needn't need adapting: once a release includes everything the pinned version has, nothing does
     for (const document of [GQL.ConfigurationDocument, GQL.FindFullScenesForTvDocument, GQL.FindSceneMarkersForTvDocument]) {
-      expect(validate(latestStableReleaseSchema, document)).not.toEqual([]);
       expect(validate(latestStableReleaseSchema, adaptDocumentToSchema(document, latestStableReleaseSchema))).toEqual([]);
     }
   });

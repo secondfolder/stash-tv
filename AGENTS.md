@@ -305,7 +305,7 @@ Conventional Commits (Commitlint-enforced); Semantic Release automates versionin
 
 ### 1. Stash Compatibility
 
-⚠️ **React 17 is required** - Matched with Stash frontend. Do not upgrade to React 18+ without updating Stash compatibility.
+⚠️ **React 17 is required** - Matched with the Stash frontend stash-ui is built from (still React 17). Do not upgrade to React 18+ without updating Stash compatibility. Stash itself moved to React 18 in v0.32.0, so the plugin's injected UI in `tv-plugin/main.tsx` renders with React 18 there; the app is a page of its own with its own React ([Stash compatibility](docs/stash-compatibility.md) § "React").
 
 ⚠️ **Apollo Client version matters** - Stash uses specific version. Upgrading may break GraphQL functionality.
 

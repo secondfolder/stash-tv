@@ -11,7 +11,7 @@ source "$SCRIPT_DIR/fingerprint.sh"
 STASH_VERSION="e7d33c9bd131f1f5d781b850de30735943fa1195" # develop
 # The latest Stash release. Stash TV supports it as well as STASH_VERSION, so its schema is extracted for the tests
 # that check that (see docs/stash-compatibility.md)
-STASH_RELEASE_VERSION="v0.31.1"
+STASH_RELEASE_VERSION="v0.32.0"
 
 # Clear the stamp so a failed setup isn't mistaken for a completed one
 rm -f "$SETUP_STAMP"
