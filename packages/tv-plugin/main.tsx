@@ -341,7 +341,8 @@ async function updateTvConfig(
         variables: {
           plugin_id: PLUGIN_NAMESPACE,
           input: newConfig,
-        }
+        },
+        update: evictConfiguration,
       })
     })
 }
@@ -359,9 +360,19 @@ async function updateInterfaceConfig(configUpdate: Partial<ConfigInterfaceResult
         mutation: PluginApi.GQL.ConfigureInterfaceDocument,
         variables: {
           input: newInterfaceConfig,
-        }
+        },
+        update: evictConfiguration,
       })
     })
+}
+
+/**
+ * Drops Stash's cached configuration after changing it, so whatever shows it (e.g. the nav bar, through its
+ * Configuration query) fetches it again, as Stash's own settings do. Without it, the TV link the first run adds to the
+ * nav bar only appeared once the page was reloaded.
+ */
+function evictConfiguration(cache: Parameters<typeof PluginApi.utils.StashService.evictQueries>[0]) {
+  PluginApi.utils.StashService.evictQueries(cache, [PluginApi.GQL.ConfigurationDocument]);
 }
 
 async function getStashConfig() {
