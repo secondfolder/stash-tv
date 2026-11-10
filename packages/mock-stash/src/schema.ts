@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { makeExecutableSchema } from "@graphql-tools/schema";
 import type { GraphQLSchema } from "graphql";
 import { resolvers } from "./resolvers";
+import type { StashVersion } from "./stash-versions";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -12,16 +13,16 @@ const here = path.dirname(fileURLToPath(import.meta.url));
  * stays structurally faithful to the real API. `test/conformance` compares responses against a real Stash instance to
  * keep the resolver *behaviour* faithful too.
  *
- * Stash TV supports two Stash versions (see docs/stash-compatibility.md), so it can serve either's schema:
- * - `"pinned"`: the one from the `stash` git submodule pinned in stash-ui, which Stash TV is built against
- * - `"latest-stable-release"`: the latest Stash release's, which stash-ui's setup.sh extracts to `release-schema/`
+ * It serves the schema of any Stash version Stash TV is tested against (see `stash-versions.ts`):
+ * - `develop`: the one in the `stash` git submodule in stash-ui, which Stash TV is built against
+ * - a release (`latest-release`, `previous-release`): its schema, which stash-ui's setup.sh copies out of the release's
+ *   git tag into `release-schemas/<version>/` for the tests
  */
-export type MockStashVersion = "pinned" | "latest-stable-release";
-
-const SCHEMA_DIRS: Record<MockStashVersion, string> = {
-  pinned: path.resolve(here, "../../stash-ui/stash/graphql/schema"),
-  "latest-stable-release": path.resolve(here, "../../stash-ui/release-schema"),
-};
+function schemaDir(version: StashVersion): string {
+  return version === "develop"
+    ? path.resolve(here, "../../stash-ui/stash/graphql/schema")
+    : path.resolve(here, "../../stash-ui/release-schemas", version);
+}
 
 function readGraphqlFiles(dir: string): string {
   let contents = "";
@@ -36,27 +37,27 @@ function readGraphqlFiles(dir: string): string {
   return contents;
 }
 
-const typeDefs = new Map<MockStashVersion, string>();
-export function loadStashTypeDefinitions(version: MockStashVersion = "pinned"): string {
+const typeDefs = new Map<StashVersion, string>();
+export function loadStashTypeDefinitions(version: StashVersion = "develop"): string {
   let versionTypeDefs = typeDefs.get(version);
   if (versionTypeDefs === undefined) {
-    versionTypeDefs = readGraphqlFiles(SCHEMA_DIRS[version]);
+    versionTypeDefs = readGraphqlFiles(schemaDir(version));
     typeDefs.set(version, versionTypeDefs);
   }
   return versionTypeDefs;
 }
 
-const schemas = new Map<MockStashVersion, GraphQLSchema>();
+const schemas = new Map<StashVersion, GraphQLSchema>();
 /** The schema is context-driven (resolvers read everything from the per-server context),
  * so a single schema instance per version can safely be shared by every server. */
-export function getStashSchema(version: MockStashVersion = "pinned"): GraphQLSchema {
+export function getStashSchema(version: StashVersion = "develop"): GraphQLSchema {
   let schema = schemas.get(version);
   if (!schema) {
     schema = makeExecutableSchema({
       typeDefs: loadStashTypeDefinitions(version),
       resolvers,
-      // The resolvers are written for the pinned version, so some are for fields an older release doesn't have
-      resolverValidationOptions: { requireResolversToMatchSchema: version === "pinned" ? "error" : "ignore" },
+      // The resolvers are written for develop, so some are for fields a release doesn't have
+      resolverValidationOptions: { requireResolversToMatchSchema: version === "develop" ? "error" : "ignore" },
     });
     schemas.set(version, schema);
   }

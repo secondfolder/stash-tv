@@ -36,7 +36,7 @@ Feature-specific documentation lives under `docs/`. Read the one that covers wha
 | [Testing](docs/testing.md)              | Writing or modifying any test, or running the suites: the tiers, where tests and helpers go, the standards every test follows |
 | [Unit & integration tests](docs/testing-unit-integration.md) | Writing tv-ui's unit or integration tests, or touching their set-up (`test/setup.ts`, `vitest.config.ts`, the integration harness, jsdom polyfills) |
 | [E2E tests](docs/testing-e2e.md)        | Writing tv-ui's Playwright E2E tests or changing how they're run                                       |
-| [mock-stash tests](docs/testing-mock-stash.md) | Changing mock-stash, its fixtures, or its tests, including the conformance tests against a real Stash |
+| [mock-stash tests](docs/testing-mock-stash.md) | Changing mock-stash, its fixtures, or its tests, including the conformance tests against a real Stash, or the tests of the built plugin in a real Stash |
 | [Scene info panel](docs/scene-info-panel.md) | Touching the scene info panel (`src/components/slide/SceneInfo/`), its fields, or how users customise it |
 | [Line layout editor](docs/line-layout-editor.md) | Touching `src/components/LineLayoutEditor/` (dragging items onto lines, ghosts, insertion lines, right-aligning) or using it for something new |
 | [Entity popovers](docs/entity-popovers.md) | Touching `src/components/entity-popovers/` (a tag's, performer's or studio's popover in the info panel, and its card and buttons) or adding a popover for another kind of entity |
@@ -141,7 +141,7 @@ The project uses a monorepo structure with Yarn workspaces containing three pack
 - **Purpose:** Packages the tv-ui application into a Stash plugin format
 - **Technology:** Vite, static asset copy plugin
 - **Responsibilities:**
-  - Bundles tv-ui as a UMD library (`stash-tv.umd.js`)
+  - Bundles tv-ui as a UMD library (`stash-tv.umd.js`, the name `source.yml` loads, set in `vite.config.ts`: by default it follows the package's module type, and tv-plugin is an ES module package)
   - Provides plugin injection UI into Stash's native interface: the nav bar's TV link, a button in a scene page's queue controls opening the queue in Stash TV, and an item in a scene list's "…" menu opening the list in it ([channels](docs/channels.md) § "Opening Stash's queue" and § "Opening a scene list")
   - Handles plugin settings and configuration in Stash
   - Manages plugin initialization and setup
@@ -210,7 +210,7 @@ Settings & UI Overlays:
 
 - **Client:** Apollo Client 3.x with subscriptions support via graphql-ws
 - **Schema:** Generated TypeScript types from Stash GraphQL schema
-- **Two Stash versions:** stash-ui is built from Stash's develop branch, but the plugin also supports the latest Stash release. A link adapts every operation to the connected server's schema, leaving out what it lacks; the integration suite runs against both ([Stash compatibility](docs/stash-compatibility.md))
+- **Several Stash versions:** stash-ui is built from Stash's develop branch, but the plugin supports the two latest Stash releases (and develop, best-effort), all in `packages/stash-ui/stash-versions.json`. A link adapts every operation to the connected server's schema, leaving out what it lacks; the tests run against each version ([Stash compatibility](docs/stash-compatibility.md))
 - **Customization:** Small wrapper around Apollo to:
   - Add Stash origin detection
   - Modify request headers for dev proxy
@@ -293,7 +293,7 @@ Full testing reference — tiers, commands, standards, and gotchas: [testing](do
 ### Current Status
 
 - **Linting:** No ESLint configuration present (not enforced)
-- **Testing:** Vitest suites in `packages/tv-ui` (unit + integration, jsdom), `packages/mock-stash` (meta + Docker conformance), and `packages/repo` (docs validation). Run everything with `yarn test` at the root.
+- **Testing:** Vitest suites in `packages/tv-ui` (unit + integration, jsdom), `packages/mock-stash` (meta + Docker conformance), `packages/tv-plugin` (unit) and `packages/repo` (docs and CI validation), plus Playwright suites for tv-ui (E2E) and the built plugin in a real Stash (`yarn test:real-stash`). Run the Vitest suites with `yarn test` at the root; the integration, conformance, plugin and E2E tests run once per Stash version.
 - **Type Checking:** `yarn typecheck` from the repo root checks every package (a bare `tsc` covers only one tsconfig). Running tests doesn't typecheck them (no pre-commit hook; vitest strips types). See [testing](docs/testing.md) § "Gotchas".
 
 ---
@@ -321,6 +321,8 @@ Conventional Commits (Commitlint-enforced); Semantic Release automates versionin
 ⚠️ **Plugin runs in Stash's iframe context.** Access to Stash APIs via `window.PluginApi`. Some browser features may be restricted.
 
 ⚠️ **`packages/tv-plugin/main.tsx` runs in every Stash page, so import only side-effect-free modules from tv-ui** (e.g. `src/constants`, types). Everything it imports is bundled into the plugin. Importing the tvConfig store once pulled in the store, Apollo and a second copy of Stash's `StashService`, and started them up inside Stash's own UI. Use `PluginApi` for Stash's client and components. A tv-plugin test fails if the store or `StashService` gets loaded.
+
+⚠️ **After changing Stash's config, evict its cached `Configuration` query** (`PluginApi.utils.StashService.evictQueries`, as `evictConfiguration()` in `main.tsx` does), as Stash's own settings do. Otherwise what shows it, like the nav bar, keeps the old config until the page reloads: the TV link the plugin adds on its first run didn't appear until then.
 
 ⚠️ **A `PluginApi.patch.instead` must return a single element, never an array** — wrap several in a Fragment (its type in `packages/tv-ui/types/stashPlugin.d.ts` rules arrays out). Stash hands the result to `after` patches as `args.concat(result)`, which spreads an array, so another plugin's after patch reading its last argument gets only the last element (role-tagger's on `ScenePage` dropped the whole scene page this way).
 

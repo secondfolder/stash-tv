@@ -1,10 +1,12 @@
 import { beforeAll, it, expect } from "vitest";
 import { startMockStash, type MockStashServer } from "./src/server";
+import { stashVersionFromEnv } from "./src/stash-versions";
 
 /**
  * Boots mock-stash for Playwright E2E tests on `MOCK_STASH_PORT` (default 4000).
  * Run with `yarn test:e2e-server` (see vitest.e2e-server.config.ts for why this
- * runs through Vitest). The test holds the process open until killed.
+ * runs through Vitest). The test holds the process open until killed. It serves the
+ * Stash version `MOCK_STASH_VERSION` names (playwright.config.ts sets it).
  */
 
 const preferredPort = Number(process.env.MOCK_STASH_PORT ?? 4000);
@@ -12,7 +14,7 @@ const preferredPort = Number(process.env.MOCK_STASH_PORT ?? 4000);
 async function startOnFreePort(): Promise<MockStashServer> {
   for (let port = preferredPort; port < preferredPort + 100; port++) {
     try {
-      const server = await startMockStash({ port });
+      const server = await startMockStash({ port, stashVersion: stashVersionFromEnv() });
       if (port !== preferredPort) {
         console.log(`Note: port ${preferredPort} is in use, using port ${port} instead.`);
       }

@@ -1,13 +1,13 @@
 /**
- * Stash TV is built against one Stash version and supports the latest release too, by adapting each query to the
- * connected server's schema.
+ * Stash TV is built against Stash's develop branch and supports the latest Stash releases too, by adapting each query
+ * to the connected server's schema.
  *
  * @see docs/stash-compatibility.md § "Adapting queries to the server"
  */
 
 import { describe, expect, it } from "vitest";
 import { buildSchema, Kind, parse, print, validate, type DocumentNode } from "graphql";
-import { loadStashTypeDefinitions } from "mock-stash";
+import { loadStashTypeDefinitions, STASH_VERSIONS } from "mock-stash";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import {
   adaptDocumentToSchema,
@@ -15,8 +15,8 @@ import {
   fillMissingFields,
 } from "../../../src/helpers/stash-schema-compat";
 
-const pinnedSchema = buildSchema(loadStashTypeDefinitions("pinned"), { assumeValidSDL: true });
-const latestStableReleaseSchema = buildSchema(loadStashTypeDefinitions("latest-stable-release"), { assumeValidSDL: true });
+const developSchema = buildSchema(loadStashTypeDefinitions("develop"), { assumeValidSDL: true });
+const releases = STASH_VERSIONS.filter((version) => version !== "develop");
 
 /** Every query, mutation and subscription Stash's UI (and so Stash TV) can send */
 const stashOperations = Object.entries(GQL)
@@ -32,28 +32,33 @@ describe("Stash's operations", () => {
     expect(stashOperations.length).toBeGreaterThan(100);
   });
 
-  it("are valid against the latest Stash release once adapted to it", () => {
-    const invalid = stashOperations
-      // An operation using a query or mutation the release doesn't have can't be adapted; nothing Stash TV shows
-      // sends one
-      .filter(([, document]) => validate(latestStableReleaseSchema, document).every((error) => !/on type "(Query|Mutation|Subscription)"|Unknown type/.test(error.message)))
-      .map(([name, document]) => [name, validate(latestStableReleaseSchema, adaptDocumentToSchema(document, latestStableReleaseSchema)).map((error) => error.message)] as const)
-      .filter(([, errors]) => errors.length > 0);
-    expect(invalid).toEqual([]);
-  });
-
+  // Even when develop's other tests are left out (its commit is a release's), the app's queries come from it
   it("are left as they are against the Stash version Stash TV is built against", () => {
     const changed = stashOperations
-      .filter(([, document]) => adaptDocumentToSchema(document, pinnedSchema) !== document)
+      .filter(([, document]) => adaptDocumentToSchema(document, developSchema) !== document)
       .map(([name]) => name);
     expect(changed).toEqual([]);
   });
 
-  it("include the ones Stash TV sends on startup, which the latest release can run once adapted", () => {
-    // These needn't need adapting: once a release includes everything the pinned version has, nothing does
-    for (const document of [GQL.ConfigurationDocument, GQL.FindFullScenesForTvDocument, GQL.FindSceneMarkersForTvDocument]) {
-      expect(validate(latestStableReleaseSchema, adaptDocumentToSchema(document, latestStableReleaseSchema))).toEqual([]);
-    }
+  describe.each(releases)("against the %s", (release) => {
+    const releaseSchema = buildSchema(loadStashTypeDefinitions(release), { assumeValidSDL: true });
+
+    it("are valid once adapted to it", () => {
+      const invalid = stashOperations
+        // An operation using a query or mutation the release doesn't have can't be adapted; nothing Stash TV shows
+        // sends one
+        .filter(([, document]) => validate(releaseSchema, document).every((error) => !/on type "(Query|Mutation|Subscription)"|Unknown type/.test(error.message)))
+        .map(([name, document]) => [name, validate(releaseSchema, adaptDocumentToSchema(document, releaseSchema)).map((error) => error.message)] as const)
+        .filter(([, errors]) => errors.length > 0);
+      expect(invalid).toEqual([]);
+    });
+
+    it("include the ones Stash TV sends on startup, which it can run once adapted", () => {
+      // These needn't need adapting: once a release includes everything develop has, nothing does
+      for (const document of [GQL.ConfigurationDocument, GQL.FindFullScenesForTvDocument, GQL.FindSceneMarkersForTvDocument]) {
+        expect(validate(releaseSchema, adaptDocumentToSchema(document, releaseSchema))).toEqual([]);
+      }
+    });
   });
 });
 

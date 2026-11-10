@@ -68,30 +68,142 @@ jobs:
           path: ~/.npm/_logs/*
           if-no-files-found: ignore
 
+  # Each Stash version's tests run in jobs of their own, all in parallel (see docs/stash-compatibility.md). Develop is
+  # supported on a best-effort basis: its jobs run and show their result, but can't block a release. A job for develop
+  # stops straight away when develop's commit is one of the releases', whose jobs cover it.
   integration:
-    name: Integration tests (${{ matrix.project }})
+    name: Integration tests (Stash ${{ matrix.version }})
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: ${{ matrix.version == 'develop' }}
     strategy:
-      # Let both finish, so a failure shows which Stash versions it affects
+      # Let them all finish, so a failure shows which Stash versions it affects
       fail-fast: false
       matrix:
-        project: [integration-stash-develop, integration-stash-stable]
+        version: [develop, latest-release, previous-release]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Check Stash version is tested
+        id: version
+        uses: ./.github/actions/check-stash-version
+        with:
+          version: ${{ matrix.version }}
+
       - name: Set up project
+        if: steps.version.outputs.tested == 'true'
         uses: ./.github/actions/setup
 
       - name: Run integration tests
-        run: yarn --cwd packages/tv-ui test --project ${{ matrix.project }}
+        if: steps.version.outputs.tested == 'true'
+        run: yarn --cwd packages/tv-ui test --project integration-stash-${{ matrix.version }}
 
-  e2e:
-    name: E2E tests (shard ${{ matrix.shard }} of 4)
+  # mock-stash against the real Stash of each version, in Docker
+  conformance:
+    name: Conformance tests (Stash ${{ matrix.version }})
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: ${{ matrix.version == 'develop' }}
     strategy:
       fail-fast: false
       matrix:
+        version: [develop, latest-release, previous-release]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Check Stash version is tested
+        id: version
+        uses: ./.github/actions/check-stash-version
+        with:
+          version: ${{ matrix.version }}
+
+      - name: Set up project
+        if: steps.version.outputs.tested == 'true'
+        uses: ./.github/actions/setup
+
+      - name: Run conformance tests
+        if: steps.version.outputs.tested == 'true'
+        env:
+          # Fail rather than skip if Docker isn't available
+          REQUIRE_DOCKER: 1
+        run: yarn --cwd packages/mock-stash test:conformance --project conformance-stash-${{ matrix.version }}
+
+  # The built plugin in the real Stash of each version, in Docker
+  plugin:
+    name: Plugin in Stash (Stash ${{ matrix.version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: ${{ matrix.version == 'develop' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        version: [develop, latest-release, previous-release]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Check Stash version is tested
+        id: version
+        uses: ./.github/actions/check-stash-version
+        with:
+          version: ${{ matrix.version }}
+
+      - name: Set up project
+        if: steps.version.outputs.tested == 'true'
+        uses: ./.github/actions/setup
+
+      # Built here rather than waiting for the build job's, which would hold up every plugin job. stash-ui is already
+      # built by the setup.
+      - name: Build plugin
+        if: steps.version.outputs.tested == 'true'
+        run: |
+          yarn --cwd packages/tv-ui build
+          yarn --cwd packages/tv-plugin build
+
+      - name: Get Playwright version
+        id: playwright
+        if: steps.version.outputs.tested == 'true'
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Playwright's browsers
+        if: steps.version.outputs.tested == 'true'
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - name: Install browser
+        if: steps.version.outputs.tested == 'true'
+        working-directory: packages/tv-plugin
+        run: npx playwright install --with-deps chromium
+
+      - name: Run plugin tests
+        if: steps.version.outputs.tested == 'true'
+        env:
+          REQUIRE_DOCKER: 1
+        run: yarn --cwd packages/tv-plugin test:real-stash --project stash-${{ matrix.version }}
+
+      - name: Upload report on failure
+        if: failure() && steps.version.outputs.tested == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: plugin-report-${{ matrix.version }}
+          path: |
+            packages/tv-plugin/playwright-report
+            packages/tv-plugin/test-results
+          if-no-files-found: ignore
+
+  # Against each release, not develop: the other tiers cover develop, and these are the slowest tests to run again
+  e2e:
+    name: E2E tests (Stash ${{ matrix.version }}, shard ${{ matrix.shard }} of 4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        version: [latest-release, previous-release]
         shard: [1, 2, 3, 4]
     steps:
       - name: Checkout
@@ -120,13 +232,14 @@ jobs:
         env:
           # The runner has 4 cores, and each worker runs a browser playing video
           E2E_WORKERS: 2
+          E2E_STASH_VERSION: ${{ matrix.version }}
         run: yarn test:e2e --shard=${{ matrix.shard }}/4
 
       - name: Upload E2E report on failure
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: e2e-report-shard-${{ matrix.shard }}
+          name: e2e-report-${{ matrix.version }}-shard-${{ matrix.shard }}
           path: |
             packages/tv-ui/playwright-report
             packages/tv-ui/test-results
@@ -134,7 +247,7 @@ jobs:
 
   release:
     name: Release
-    needs: [build, integration, e2e]
+    needs: [build, integration, conformance, plugin, e2e]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')
     runs-on: ubuntu-latest
     steps:

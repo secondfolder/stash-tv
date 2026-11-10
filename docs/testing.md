@@ -4,20 +4,21 @@ How Stash TV is tested: the tiers, where tests go, the standards every test foll
 
 - [Unit & integration tests](testing-unit-integration.md): tv-ui's Vitest suites, in jsdom, the integration tests against mock-stash
 - [E2E tests](testing-e2e.md): tv-ui in a real browser with Playwright
-- [mock-stash tests](testing-mock-stash.md): the mock Stash server's own tests, and its conformance tests against a real Stash
+- [mock-stash tests](testing-mock-stash.md): the mock Stash server's own tests, its conformance tests against a real Stash, and the built plugin tested in a real Stash
 
 ## Tiers & commands
 
 | Tier | Where | Runner | Command |
 | --- | --- | --- | --- |
 | Unit | `packages/tv-ui/test/unit/` | Vitest + RTL (jsdom) | `yarn --cwd packages/tv-ui test` |
-| Integration | `packages/tv-ui/test/integration/` | Vitest + RTL against a real in-memory mock Stash API, run twice: against the Stash version stash-ui is built from (`integration-stash-develop` project) and the latest Stash release (`integration-stash-stable`, see [Stash compatibility](stash-compatibility.md)) | same command as unit |
-| Mock server meta/conformance | `packages/mock-stash/test/` | Vitest (node env; conformance uses Docker, auto-skips without it, and runs once per supported Stash version) | `yarn --cwd packages/mock-stash test` / `test:conformance` |
+| Integration | `packages/tv-ui/test/integration/` | Vitest + RTL against a real in-memory mock Stash API, once per tested Stash version (`integration-stash-<version>` projects, see [Stash compatibility](stash-compatibility.md)) | same command as unit |
+| Mock server meta/conformance | `packages/mock-stash/test/` | Vitest (node env; conformance uses Docker, skips itself without it unless `REQUIRE_DOCKER` is set, and runs once per tested Stash version) | `yarn --cwd packages/mock-stash test` / `yarn test:conformance` |
+| Plugin in a real Stash | `packages/tv-plugin/test/real-stash/` | Playwright + Chromium against a real Stash in Docker, once per tested Stash version (`stash-<version>` projects). Needs the plugin built first (`yarn build`) | `yarn test:real-stash` |
 | Docs validation | `packages/repo/test/` | Vitest | `yarn --cwd packages/repo test` |
 | Plugin | `packages/tv-plugin/test/unit/` | Vitest (node env) | `yarn --cwd packages/tv-plugin test` |
-| E2E | `packages/tv-ui/test/e2e/` | Playwright + Chromium | `yarn test:e2e` |
+| E2E | `packages/tv-ui/test/e2e/` | Playwright + Chromium, against mock-stash serving one Stash version (`E2E_STASH_VERSION`, the latest release by default) | `yarn test:e2e` |
 
-`yarn test` at the repo root runs repo + mock-stash + tv-ui + tv-plugin. CI (`.github/workflows/verify-and-publish-if-needed.yml`) splits the same tests across parallel jobs so no one job takes long: the build job runs everything but tv-ui's integration tests, each integration project gets a job of its own, and the E2E tests are split into 4 shards (`yarn test:e2e --shard=N/4`, each on 2 workers, the runner having 4 cores). An E2E shard that fails uploads Playwright's report and failures' screenshots, videos and traces as its `e2e-report-shard-N` artifact. Every job sets itself up with `.github/actions/setup`, which caches `node_modules` (keyed on `yarn.lock`) and stash-ui's build (keyed on the fingerprint `ensure-ready` checks, so a restored build counts as up to date); the E2E jobs also cache Playwright's browsers. ⚠️ The build job lists the root `test` script's packages itself, so a package added there must be added to the job too. A failing test in any job blocks a release.
+`yarn test` at the repo root runs repo + mock-stash + tv-ui + tv-plugin. CI (`.github/workflows/verify-and-publish-if-needed.yml`) splits the tests across parallel jobs so no one job takes long: the build job runs everything but the tests run per Stash version; the integration, conformance and plugin tests get a job per tested Stash version; and the E2E tests run against each release, split into 4 shards each (`yarn test:e2e --shard=N/4`, each on 2 workers, the runner having 4 cores). An E2E shard or plugin job that fails uploads Playwright's report and failures' screenshots, videos and traces as an artifact (`e2e-report-<version>-shard-N`, `plugin-report-<version>`). How the Stash versions are tested, and why develop's jobs can't block a release: [Stash compatibility](stash-compatibility.md) § "Tests". Every job sets itself up with `.github/actions/setup`, which caches `node_modules` (keyed on `yarn.lock`) and stash-ui's build (keyed on the fingerprint `ensure-ready` checks, so a restored build counts as up to date); the E2E jobs also cache Playwright's browsers. ⚠️ The build job lists the root `test` script's packages itself, so a package added there must be added to the job too. A failing test in any job blocks a release, except in develop's jobs.
 
 From `packages/tv-ui` (or with `yarn --cwd packages/tv-ui`):
 
@@ -25,11 +26,12 @@ From `packages/tv-ui` (or with `yarn --cwd packages/tv-ui`):
 yarn test                                      # all tv-ui tests (unit + integration)
 yarn test test/unit/                           # unit only
 yarn test test/integration/                    # integration only
-yarn test --project integration-stash-develop  # integration against the pinned (develop) Stash version only
+yarn test --project integration-stash-develop  # integration against one Stash version only (develop, latest-release, previous-release)
 yarn test test/unit/store/globalState.test.ts  # one file
 yarn test --watch                              # watch mode
 yarn test --coverage                           # coverage report
-yarn test:e2e                                  # E2E tests (servers are managed for you)
+yarn test:e2e                                  # E2E tests (servers are managed for you), against the latest release
+E2E_STASH_VERSION=previous-release yarn test:e2e  # E2E tests against another Stash version
 ```
 
 ## Where tests and helpers go

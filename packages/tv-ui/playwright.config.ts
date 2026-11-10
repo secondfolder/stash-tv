@@ -9,9 +9,13 @@ import { resolveE2ePort } from './test/e2e/helpers/ports';
  * - mock-stash on port 4000
  * - the tv-ui dev server on port 8888, proxying to mock-stash
  * If either port is taken, the next free one is used instead (see resolveE2ePort).
+ *
+ * mock-stash serves the Stash version `E2E_STASH_VERSION` names: the latest release by default. CI runs the tests once
+ * per release (see docs/stash-compatibility.md).
  */
 
 const mockStashPort = resolveE2ePort('E2E_MOCK_STASH_PORT', 4000, 'mock-stash');
+const stashVersion = process.env.E2E_STASH_VERSION || 'latest-release';
 const devServerPort = resolveE2ePort('E2E_DEV_SERVER_PORT', 8888, 'the tv-ui dev server');
 // 127.0.0.1 rather than localhost: Node (which the tests' `request` fixture uses) took ~300ms to connect to `localhost`
 // for every request to the dev server, against ~4ms for 127.0.0.1, and tests make a few such requests each to set up.
@@ -36,7 +40,7 @@ export default defineConfig({
 
   webServer: [
     {
-      command: `MOCK_STASH_PORT=${mockStashPort} yarn --cwd ../../packages/mock-stash test:e2e-server`,
+      command: `MOCK_STASH_PORT=${mockStashPort} MOCK_STASH_VERSION=${stashVersion} yarn --cwd ../../packages/mock-stash test:e2e-server`,
       url: `http://127.0.0.1:${mockStashPort}/graphql`,
       stdout: 'ignore',
       stderr: 'pipe',

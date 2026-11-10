@@ -2,7 +2,7 @@ import { afterEach, beforeAll, beforeEach, vi, expect } from "vitest";
 import { act, cleanup, configure, render, waitFor } from "@testing-library/react";
 import React from "react";
 import { ApolloProvider } from "@apollo/client";
-import { startMockStash, type MockStashServer, type MockStashVersion } from "mock-stash";
+import { startMockStash, stashVersionFromEnv, type MockStashServer } from "mock-stash";
 
 /**
  * Boots the app against a real in-memory Stash API for integration tests.
@@ -30,15 +30,11 @@ let configWritesSettledPerBoot: (() => Promise<void>)[] = [];
 // are failing anyway.
 configure({ asyncUtilTimeout: 15000 });
 
-function mockStashVersion(): MockStashVersion {
-  return process.env.MOCK_STASH_VERSION === "latest-stable-release" ? "latest-stable-release" : "pinned";
-}
-
 export function setupIntegrationTest() {
   beforeAll(async () => {
-    // The integration-stash-stable project runs the suite against the latest Stash release's schema too
+    // Each integration project runs the suite against one Stash version (its MOCK_STASH_VERSION)
     // @see docs/stash-compatibility.md
-    server = await startMockStash({ stashVersion: mockStashVersion() });
+    server = await startMockStash({ stashVersion: stashVersionFromEnv() });
     // Must be stubbed before any app module import — the Apollo link captures it at
     // construction (DEV mode reads VITE_APP_PLATFORM_URL).
     vi.stubEnv("VITE_APP_PLATFORM_URL", server.url);

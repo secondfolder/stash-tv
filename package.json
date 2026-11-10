@@ -18,6 +18,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p packages/repo/tsconfig.json",
     "test:watch": "yarn --cwd packages/tv-ui test:watch",
     "test:conformance": "yarn --cwd packages/mock-stash test:conformance",
+    "test:real-stash": "yarn --cwd packages/tv-plugin test:real-stash",
     "test:e2e": "yarn --cwd packages/tv-ui test:e2e",
     "preview": "yarn --cwd packages/tv-ui preview",
     "storybook": "storybook dev -p 6006",

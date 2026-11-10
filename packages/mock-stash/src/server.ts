@@ -3,7 +3,8 @@ import type { AddressInfo } from "node:net";
 import { createYoga } from "graphql-yoga";
 import { WebSocketServer } from "ws";
 import { useServer } from "graphql-ws/lib/use/ws";
-import { getStashSchema, type MockStashVersion } from "./schema";
+import { getStashSchema } from "./schema";
+import { testedStashVersions, type StashVersion } from "./stash-versions";
 import { createStore, type MockStore } from "./store";
 import { createDefaultFixtures } from "./fixtures";
 import { ensureMediaFixtures } from "./generate-media";
@@ -39,8 +40,11 @@ export interface StartMockStashOptions {
   port?: number;
   /** Full fixture override (defaults to `createDefaultFixtures()`). */
   fixtures?: Fixtures;
-  /** Which Stash version's schema to serve (default `"pinned"`, the one Stash TV is built against). */
-  stashVersion?: MockStashVersion;
+  /**
+   * Which Stash version to serve (its schema, and the version it reports). Defaults to the first one tested: develop,
+   * the version Stash TV is built against, or the latest release when develop is one of the releases.
+   */
+  stashVersion?: StashVersion;
 }
 
 /**
@@ -75,7 +79,8 @@ export async function startMockStash(
     },
   });
 
-  const holder: ContextHolder = { storeFor, baseUrl: "" };
+  const stashVersion = options.stashVersion ?? testedStashVersions()[0];
+  const holder: ContextHolder = { storeFor, baseUrl: "", stashVersion };
   const contextFactory = createContextFactory(holder);
 
   // Instrument operation execution so tests can observe which GraphQL
@@ -83,7 +88,7 @@ export async function startMockStash(
   const requestCounts: Record<string, number> = {};
   const requests: { operationName: string; variables: Record<string, unknown> }[] = [];
 
-  const schema = getStashSchema(options.stashVersion);
+  const schema = getStashSchema(stashVersion);
 
   const yoga = createYoga({
     schema,

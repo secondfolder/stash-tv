@@ -190,3 +190,15 @@ Optionally, a script (`yarn --cwd packages/stash-ui update-release <tag>`) could
 ## Out of scope
 
 - A different build of the app per release. One build has to work on every supported version, as it does today.
+
+## Deviations during implementation
+
+> Added 2026-11-10 by Claude (Opus 5.5), during implementation.
+
+- **The plugin tests check the first run rather than set up the menu item.** §5 had the fixture add `tv` to the menu items. The plugin does that itself the first time it loads, so the tests check that instead. Doing so found that the TV link only appeared once the page was reloaded: the plugin now evicts Stash's cached configuration after changing it (`evictConfiguration()` in `main.tsx`).
+- **tv-plugin became an ES module package** (`"type": "module"`), as Playwright couldn't otherwise load mock-stash's modules into the plugin tests. That changed the bundle's default file names, so the plugin stopped loading at all (`source.yml` loads `stash-tv.umd.js`); the plugin tests caught it. `vite.config.ts` now names the bundles itself.
+- **`startRealStash()` is imported by path** (`mock-stash/src/real-stash`, or relatively from tv-plugin's tests, as Playwright only compiles TypeScript outside `node_modules`), rather than as a new package export.
+- **The CI check of whether a version is tested** is a composite action (`.github/actions/check-stash-version`) running `packages/mock-stash/scripts/tested-stash-versions.ts` on Node alone, which strips its types. That needed the root tsconfig to allow `.ts` import extensions.
+- **The test that CI's matrices match the versions file** is in `packages/repo/test/ci-stash-versions.test.ts`, reading the matrices' lines rather than parsing the YAML (there are no types for `js-yaml`).
+- **The E2E jobs' timeout is 20 minutes**, not 15, as they were the one job with none before and run longest.
+- **A root `yarn test:real-stash`** shortcut was added for the plugin tests, as for `test:conformance`.

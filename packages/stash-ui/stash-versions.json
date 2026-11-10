@@ -1,0 +1,17 @@
+{
+  "develop": {
+    "commit": "aefc9373fe57e5cb32fbbb7215fd508ed799743f",
+    "version": "v0.32.0-8-gaefc9373",
+    "image": "stashapp/stash:development@sha256:4a95e1721522798769ff9b881eb2eb4059e07fc19699dc8319b24adfd0255bb3"
+  },
+  "latest-release": {
+    "tag": "v0.32.0",
+    "commit": "9e9ad972643320e737c711884f10e4285f0f3a88",
+    "image": "stashapp/stash:v0.32.0"
+  },
+  "previous-release": {
+    "tag": "v0.31.1",
+    "commit": "4de2351e7cc990d7ccd7cb6c84c275cd53bf6e55",
+    "image": "stashapp/stash:v0.31.1"
+  }
+}

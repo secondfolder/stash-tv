@@ -4,7 +4,8 @@ export { createDefaultFixtures, MEDIA_SPECS, MEDIA_DIR, mediaFileFor } from "./f
 export { createStore } from "./store";
 export { buildConfiguration } from "./config";
 export { getStashSchema, loadStashTypeDefinitions } from "./schema";
-export type { MockStashVersion } from "./schema";
+export { STASH_VERSIONS, stashVersionDetails, testedStashVersions, stashVersionFromEnv } from "./stash-versions";
+export type { StashVersion, StashVersionDetails } from "./stash-versions";
 export type { MockStore } from "./store";
 export type {
   Fixtures,

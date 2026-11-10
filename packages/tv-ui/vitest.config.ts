@@ -1,6 +1,8 @@
 import { defineConfig } from "vitest/config";
 import path from "node:path";
 import svgr from "vite-plugin-svgr";
+// Not from "mock-stash" itself, which would load the whole server into the config
+import { testedStashVersions } from "mock-stash/src/stash-versions";
 
 // Match the app build: `*.svg?react` imports are React components. Without this
 // they resolve to data-URL strings, so components render different icons in tests
@@ -77,31 +79,20 @@ export default defineConfig({
           ...sharedTestOptions,
         },
       },
-      // Against the Stash version stash-ui is built from (a commit on Stash's develop branch)
+      // The integration tests once per Stash version Stash TV is tested against, each against mock-stash serving that
+      // version. CI runs each project in a job of its own.
       // @see docs/stash-compatibility.md
-      {
+      ...testedStashVersions().map((version) => ({
         plugins: sharedPlugins,
         resolve: sharedResolve,
         test: {
-          name: "integration-stash-develop",
+          name: `integration-stash-${version}`,
           include: ["test/integration/**/*.test.{ts,tsx}"],
           setupFiles: ["./test/setup.ts"],
+          env: { MOCK_STASH_VERSION: version },
           ...sharedTestOptions,
         },
-      },
-      // The same tests against the latest Stash release, which Stash TV also supports
-      // @see docs/stash-compatibility.md
-      {
-        plugins: sharedPlugins,
-        resolve: sharedResolve,
-        test: {
-          name: "integration-stash-stable",
-          include: ["test/integration/**/*.test.{ts,tsx}"],
-          setupFiles: ["./test/setup.ts"],
-          env: { MOCK_STASH_VERSION: "latest-stable-release" },
-          ...sharedTestOptions,
-        },
-      },
+      })),
     ],
   },
 });

@@ -7,6 +7,8 @@
     "lib": ["es2024", "DOM"],
     "jsx": "react",
     "resolveJsonModule": true,
+    // For scripts Node runs directly (stripping their types), which import with the `.ts` extension
+    "allowImportingTsExtensions": true,
     "noEmit": true
   },
   "exclude": [

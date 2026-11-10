@@ -10,4 +10,4 @@ node_modules
 dist-release
 
 # Extracted by packages/stash-ui/scripts/setup.sh
-packages/stash-ui/release-schema
+packages/stash-ui/release-schemas

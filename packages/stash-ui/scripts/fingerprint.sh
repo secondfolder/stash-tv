@@ -6,9 +6,9 @@
 
 STASH_UI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 STASH_REPO_DIR="$STASH_UI_DIR/stash"
-# The latest Stash release's GraphQL schema files, copied out of its git tag by setup.sh for mock-stash to serve in the
-# tests (the plugin doesn't use them)
-RELEASE_SCHEMA_DIR="$STASH_UI_DIR/release-schema"
+# Each release's GraphQL schema files (release-schemas/<release>/), copied out of its git tag by setup.sh for mock-stash
+# to serve in the tests (the plugin doesn't use them)
+RELEASE_SCHEMAS_DIR="$STASH_UI_DIR/release-schemas"
 # Line 1: setup fingerprint, line 2: stash tree fingerprint as setup left it
 SETUP_STAMP="$STASH_UI_DIR/.local/setup-stamp"
 # Lives in dist/ so build.sh's clean of dist/ also removes it
@@ -28,9 +28,9 @@ hash_files() {
   ) | git hash-object --stdin
 }
 
-# Inputs to setup.sh: the pinned Stash version (in setup.sh), the patch and Stash's UI deps
+# Inputs to setup.sh: the Stash versions, the patch and Stash's UI deps
 setup_fingerprint() {
-  hash_files scripts/setup.sh patches/stash-tv.patch stash/ui/v2.5/pnpm-lock.yaml
+  hash_files scripts/setup.sh stash-versions.json patches/stash-tv.patch stash/ui/v2.5/pnpm-lock.yaml
 }
 
 # The state of the Stash checkout: its commit plus every uncommitted change, including

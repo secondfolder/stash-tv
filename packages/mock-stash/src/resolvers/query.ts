@@ -2,6 +2,7 @@ import { buildConfiguration } from "../config";
 import { filterMarkers, filterScenes, paginate, type FindFilter } from "../filtering";
 import { sceneStreamEndpoints } from "./entities";
 import type { MockContext } from "../context";
+import { stashVersionDetails } from "../stash-versions";
 
 export const queryResolvers = {
   Query: {
@@ -117,11 +118,11 @@ export const queryResolvers = {
     jobQueue: (_src: unknown, _args: unknown, ctx: MockContext) => [
       ...ctx.store.jobs.values(),
     ],
-    version: () => ({
-      version: "v0.32.0-8-gaefc9373",
-      hash: "0000000000000000000000000000000000000000",
-      build_time: "2024-01-01 00:00:00",
-    }),
+    // The version being served, as that Stash reports it
+    version: (_src: unknown, _args: unknown, ctx: MockContext) => {
+      const { version, commit } = stashVersionDetails(ctx.stashVersion);
+      return { version, hash: commit, build_time: "2024-01-01 00:00:00" };
+    },
     systemStatus: () => ({
       databaseSchema: null,
       databasePath: "",

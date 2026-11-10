@@ -6,6 +6,8 @@ E2E tests are for what the other tiers can't see: anything that depends on layou
 
 ## Running E2E tests
 
+The tests run against mock-stash serving one Stash version: the latest release by default, or the one `E2E_STASH_VERSION` names (`E2E_STASH_VERSION=previous-release yarn test:e2e`). CI runs them against each release ([Stash compatibility](stash-compatibility.md) § "Tests").
+
 Playwright starts (and tears down) both servers itself via `webServer` entries
 in `packages/tv-ui/playwright.config.ts`, so `yarn test:e2e` at the root is
 just an alias for `yarn --cwd packages/tv-ui test:e2e`:

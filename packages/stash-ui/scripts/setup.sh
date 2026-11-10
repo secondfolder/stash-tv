@@ -8,11 +8,13 @@ IFS=$'\n\t'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/fingerprint.sh"
 
-# The Stash commit stash-ui is built from: the Stash UI code Stash TV reuses (and its GraphQL queries) comes from here
-STASH_VERSION="aefc9373fe57e5cb32fbbb7215fd508ed799743f" # develop
-# The latest Stash release, which Stash TV supports as well. It's only used by the tests: its GraphQL schema files are
-# copied out (below) for mock-stash to serve, and nothing of it goes into the plugin (see docs/stash-compatibility.md)
-STASH_RELEASE_VERSION="v0.32.0"
+# The Stash versions are in stash-versions.json (see docs/stash-compatibility.md):
+# - develop: the Stash commit stash-ui is built from. The Stash UI code Stash TV reuses (and its GraphQL queries) comes
+#   from here.
+# - the releases Stash TV supports. They're only used by the tests: their GraphQL schema files are copied out (below)
+#   for mock-stash to serve, and nothing of them goes into the plugin.
+STASH_VERSIONS_FILE="$SCRIPT_DIR/../stash-versions.json"
+STASH_VERSION="$(jq -er '.develop.commit' "$STASH_VERSIONS_FILE")"
 
 # Clear the stamp so a failed setup isn't mistaken for a completed one
 rm -f "$SETUP_STAMP"
@@ -37,18 +39,28 @@ rm -f "$SETUP_STAMP"
   git apply ../patches/stash-tv.patch
 };
 
-# For the tests only: the plugin doesn't use any of this. Copy the latest release's GraphQL schema files (graphql/schema/
-# in Stash's repo) into release-schema/, so mock-stash can serve that version's schema and the tests can check Stash TV
-# works against it. Read straight from the tag with `git archive`, so the stash/ checkout stays on STASH_VERSION and
-# nothing of the release is checked out or built.
+# For the tests only: the plugin doesn't use any of this. Copy each release's GraphQL schema files (graphql/schema/ in
+# Stash's repo) into release-schemas/<release>/, so mock-stash can serve that version's schema and the tests can check
+# Stash TV works against it. Read straight from the tag with `git archive`, so the stash/ checkout stays on
+# STASH_VERSION and nothing of the release is checked out or built.
 {
   cd "$SCRIPT_DIR/../stash"
-  if ! git rev-parse -q --verify "refs/tags/$STASH_RELEASE_VERSION" > /dev/null; then
-    git fetch --no-tags origin "refs/tags/$STASH_RELEASE_VERSION:refs/tags/$STASH_RELEASE_VERSION"
-  fi
-  rm -rf "$RELEASE_SCHEMA_DIR"
-  mkdir -p "$RELEASE_SCHEMA_DIR"
-  git archive "$STASH_RELEASE_VERSION" graphql/schema | tar -x -C "$RELEASE_SCHEMA_DIR" --strip-components=2
+  rm -rf "$RELEASE_SCHEMAS_DIR"
+  for release in $(jq -r 'to_entries[] | select(.value.tag) | .key' "$STASH_VERSIONS_FILE"); do
+    tag="$(jq -er --arg release "$release" '.[$release].tag' "$STASH_VERSIONS_FILE")"
+    commit="$(jq -er --arg release "$release" '.[$release].commit' "$STASH_VERSIONS_FILE")"
+    if ! git rev-parse -q --verify "refs/tags/$tag" > /dev/null; then
+      git fetch --no-tags origin "refs/tags/$tag:refs/tags/$tag"
+    fi
+    # The commit is recorded so the tests can tell without git whether develop is one of the releases
+    tag_commit="$(git rev-parse "$tag^{commit}")"
+    if [ "$tag_commit" != "$commit" ]; then
+      echo "stash-versions.json gives $release ($tag) the commit $commit, but $tag is $tag_commit" >&2
+      exit 1
+    fi
+    mkdir -p "$RELEASE_SCHEMAS_DIR/$release"
+    git archive "$tag" graphql/schema | tar -x -C "$RELEASE_SCHEMAS_DIR/$release" --strip-components=2
+  done
 };
 
 {

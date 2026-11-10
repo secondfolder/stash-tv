@@ -16,7 +16,8 @@ export default defineConfig({
     lib: {
       entry: resolve(__dirname, 'main.tsx'),
       name: 'Stash TV',
-      fileName: 'stash-tv',
+      // Named explicitly: by default the names follow the package's module type, and source.yml loads stash-tv.umd.js
+      fileName: (format) => format === 'umd' ? 'stash-tv.umd.js' : 'stash-tv.mjs',
     },
   },
   define: {

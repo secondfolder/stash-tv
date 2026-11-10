@@ -1,12 +1,12 @@
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import { startMockStash, type MockStashServer } from "../../src/server";
-import type { MockStashVersion } from "../../src/schema";
+import { stashVersionFromEnv } from "../../src/stash-versions";
 import {
-  isDockerAvailable,
+  canRunRealStash,
   startRealStash,
   stashGql,
   type RealStash,
-} from "./real-stash";
+} from "../../src/real-stash";
 
 /**
  * Conformance: the mock Stash API must behave like the real one for everything the
@@ -18,9 +18,9 @@ import {
  * real behaviour and must be updated (or the divergence explicitly waived here).
  */
 
-const dockerAvailable = await isDockerAvailable();
-// The vitest.conformance.config.ts projects run this once per Stash version Stash TV supports
-const stashVersion: MockStashVersion = process.env.MOCK_STASH_VERSION === "latest-stable-release" ? "latest-stable-release" : "pinned";
+const dockerAvailable = await canRunRealStash();
+// The vitest.conformance.config.ts projects run this once per Stash version Stash TV is tested against
+const stashVersion = stashVersionFromEnv();
 
 let mock: MockStashServer;
 let real: RealStash;

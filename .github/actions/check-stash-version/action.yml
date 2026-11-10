@@ -1,0 +1,35 @@
+name: Check Stash version is tested
+description: >
+  Whether the tests run against a Stash version (see docs/stash-compatibility.md): develop isn't tested when its commit
+  is one of the releases'. Needs only the checkout, so a job can stop before setting anything up.
+
+inputs:
+  version:
+    description: The Stash version (develop, latest-release or previous-release)
+    required: true
+
+outputs:
+  tested:
+    description: "'true' if the version is tested"
+    value: ${{ steps.check.outputs.tested }}
+
+runs:
+  using: composite
+  steps:
+    # Runs the TypeScript script directly, which needs a Node that strips types
+    - name: Setup Node.js
+      uses: actions/setup-node@v7
+      with:
+        node-version: 'lts/*'
+
+    - name: Check
+      id: check
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: |
+        tested="$(node packages/mock-stash/scripts/tested-stash-versions.ts | jq --arg version "$VERSION" 'index($version) != null')"
+        echo "tested=$tested" >> "$GITHUB_OUTPUT"
+        if [ "$tested" != "true" ]; then
+          echo "### Stash $VERSION isn't tested: its commit is one of the releases', whose tests cover it" >> "$GITHUB_STEP_SUMMARY"
+        fi

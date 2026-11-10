@@ -1,40 +1,33 @@
 import path from "node:path";
 import { cpSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { fileURLToPath } from "node:url";
 import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
-import { MEDIA_SPECS } from "../../src/fixtures";
-import type { MockStashVersion } from "../../src/schema";
-
-const here = path.dirname(fileURLToPath(import.meta.url));
-export const MEDIA_DIR = path.resolve(here, "../../src/media");
+import { MEDIA_DIR, MEDIA_SPECS } from "./fixtures";
+import { stashVersionDetails, type StashVersion } from "./stash-versions";
 
 /**
- * The real Stash for each version Stash TV supports (see docs/stash-compatibility.md):
- * - `pinned` matches the stash submodule in stash-ui (develop at aefc9373, v0.32.0-8-gaefc9373). Stash only
- *   publishes develop as the moving `development` tag, so it's pinned by digest: the image pushed right after that
- *   commit.
- * - `latest-stable-release` matches `STASH_RELEASE_VERSION` in stash-ui's setup.sh.
+ * A real Stash in Docker, of any version Stash TV is tested against, for the tests that check against one: mock-stash's
+ * conformance tests, and tv-plugin's tests of the plugin in Stash. Each version's image is in
+ * `packages/stash-ui/stash-versions.json`. Stash only publishes develop as the moving `development` tag, so develop's
+ * is pinned by digest: the image pushed right after its commit.
+ *
+ * Imported as `mock-stash/src/real-stash` rather than from the package's entry, which the app's tests import too, so
+ * they don't load testcontainers.
  */
-export const STASH_IMAGES: Record<MockStashVersion, string> = {
-  pinned: "stashapp/stash:development@sha256:4a95e1721522798769ff9b881eb2eb4059e07fc19699dc8319b24adfd0255bb3",
-  "latest-stable-release": "stashapp/stash:v0.32.0",
-};
 const STASH_PORT = 9999;
 
 export interface RealStash {
+  /** The Stash version running */
+  version: StashVersion;
   url: string;
   graphqlUrl: string;
   container: StartedTestContainer;
   stop(): Promise<void>;
 }
 
-let tempDirs: string[] = [];
-
-function makeTempDir(prefix: string): string {
-  const dir = mkdtempSync(path.join(tmpdir(), prefix));
-  tempDirs.push(dir);
-  return dir;
+export interface StartRealStashOptions {
+  /** Plugins to install, by id: each directory is mounted as the plugin's folder in Stash's plugins directory */
+  plugins?: Record<string, string>;
 }
 
 export async function isDockerAvailable(): Promise<boolean> {
@@ -48,11 +41,28 @@ export async function isDockerAvailable(): Promise<boolean> {
 }
 
 /**
- * Boots a real Stash instance seeded with the same committed media fixtures the mock
- * serves (main files only — a real scan would turn preview clips into scenes), then
- * runs setup + a metadata scan so scenes exist.
+ * Whether tests needing a real Stash can run. Without Docker they skip themselves, unless `REQUIRE_DOCKER` is set (as
+ * CI does), when this throws instead, so a broken Docker set-up can't pass by skipping every test.
  */
-export async function startRealStash(version: MockStashVersion): Promise<RealStash> {
+export async function canRunRealStash(): Promise<boolean> {
+  const available = await isDockerAvailable();
+  if (!available && process.env.REQUIRE_DOCKER) {
+    throw new Error("REQUIRE_DOCKER is set, but Docker isn't available to start a real Stash");
+  }
+  return available;
+}
+
+/**
+ * Boots a real Stash instance of the given version with the same media fixtures the mock serves (main files only — a
+ * real scan would turn preview clips into scenes), then runs setup + a metadata scan so scenes exist.
+ */
+export async function startRealStash(version: StashVersion, options: StartRealStashOptions = {}): Promise<RealStash> {
+  const tempDirs: string[] = [];
+  const makeTempDir = (prefix: string) => {
+    const dir = mkdtempSync(path.join(tmpdir(), prefix));
+    tempDirs.push(dir);
+    return dir;
+  };
   // Only the main media files — previews/screenshots must not be scanned as scenes.
   const mediaDir = makeTempDir("stash-media-");
   for (const spec of MEDIA_SPECS) {
@@ -61,8 +71,9 @@ export async function startRealStash(version: MockStashVersion): Promise<RealSta
   const configDir = makeTempDir("stash-config-");
   mkdirSync(path.join(configDir, "generated"), { recursive: true });
   mkdirSync(path.join(configDir, "cache"), { recursive: true });
+  mkdirSync(path.join(configDir, "plugins"), { recursive: true });
 
-  const container = await new GenericContainer(STASH_IMAGES[version])
+  const container = await new GenericContainer(stashVersionDetails(version).image)
     .withExposedPorts(STASH_PORT)
     .withEnvironment({
       // No auth; the app cannot send cookies cross-origin from the dev server.
@@ -71,6 +82,11 @@ export async function startRealStash(version: MockStashVersion): Promise<RealSta
     .withBindMounts([
       { source: configDir, target: "/root/.stash" },
       { source: mediaDir, target: "/media" },
+      ...Object.entries(options.plugins ?? {}).map(([id, dir]) => ({
+        source: path.resolve(dir),
+        target: `/root/.stash/plugins/${id}`,
+        mode: "ro" as const,
+      })),
     ])
     .withWaitStrategy(Wait.forLogMessage(/stash is listening/, 1).withStartupTimeout(120_000))
     .start();
@@ -78,6 +94,7 @@ export async function startRealStash(version: MockStashVersion): Promise<RealSta
   const url = `http://127.0.0.1:${container.getMappedPort(STASH_PORT)}`;
 
   const realStash: RealStash = {
+    version,
     url,
     graphqlUrl: `${url}/graphql`,
     container,
@@ -86,7 +103,6 @@ export async function startRealStash(version: MockStashVersion): Promise<RealSta
       for (const dir of tempDirs) {
         try { rmSync(dir, { recursive: true, force: true }); } catch { /* best effort */ }
       }
-      tempDirs = [];
     },
   };
 
