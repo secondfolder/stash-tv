@@ -1,6 +1,6 @@
 import "./LineLayoutEditor.css";
-import React, { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { LayoutGroup, motion } from "framer-motion";
+import React, { ReactNode, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { LayoutGroup, motion, Transition, useInstantLayoutTransition } from "framer-motion";
 import cx from "classnames";
 import { Badge, Button } from "react-bootstrap";
 import { ArrowReturnLeft, ArrowReturnRight, PlusLg, XLg } from "react-bootstrap-icons";
@@ -159,8 +159,6 @@ export type LineLayoutEditorProps<T> = {
   rootAttributes?: DataAttributes;
 };
 
-let nextEditorId = 0;
-
 /** How far the pointer must move before pressing an item starts dragging it */
 const dragThreshold = 5;
 
@@ -168,7 +166,7 @@ const dragThreshold = 5;
  * How the dragged item slides into place once it's let go: framer-motion's default layout transition, so it arrives as
  * the items sliding about to make room for it do
  */
-const settleTransition = { duration: 0.45, ease: [0.4, 0, 0.1, 1] };
+const settleTransition: Transition = { duration: 0.45, ease: [0.4, 0, 0.1, 1] };
 
 /** Stands in the layout for the ghost of the dragged item, showing where it will go */
 const ghostItem = Symbol("ghost");
@@ -188,10 +186,22 @@ export function LineLayoutEditor<T>({
 }: LineLayoutEditorProps<T>) {
   // Scopes the items' layoutIds to this editor. Otherwise moving between editors (e.g. each slide has its own scene info
   // panel) had the new editor's items slide in from where the old one's were, now off screen.
-  const [layoutGroupId] = useState(() => `line-layout-editor-${nextEditorId++}`);
+  const layoutGroupId = `line-layout-editor-${useId()}`;
   const editorRef = useRef<HTMLDivElement>(null);
   const linesRef = useRef<HTMLDivElement>(null);
   const availableRef = useRef<HTMLDivElement>(null);
+
+  // The available items moving between beside the lines and below them (e.g. as the screen turns) isn't animated: every
+  // item would slide to its new place at once, through each other. framer-motion holds back layout animations after the
+  // window's resized, but only its first update after, which needn't be the one that moves them. Its updates come after
+  // a commit's layout effects, so blocking the next one here stops this commit's.
+  const instantLayoutTransition = useInstantLayoutTransition();
+  const previousAvailableBeside = useRef(availableBeside);
+  useLayoutEffect(() => {
+    if (previousAvailableBeside.current === availableBeside) return;
+    previousAvailableBeside.current = availableBeside;
+    instantLayoutTransition();
+  }, [availableBeside]);
 
   // Kept in a ref as well as state: pointer events can arrive faster than the component re-renders
   const [drag, setDragState] = useState<Drag<T> | null>(null);

@@ -3,7 +3,7 @@
 import "./CrtEffect.scss";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import cx from "classnames";
-import { animate, useMotionValue, motion, MotionValue, Subscriber, useAnimation, useSpring } from "framer-motion";
+import { animate, useMotionValue, motion, MotionValue, useSpring, useTransform } from "framer-motion";
 
 type Props = {
   enabled?: boolean;
@@ -105,20 +105,24 @@ export default function CrtEffect({strength = 1, infoText = "AV-1", ...props}: P
   const smoothInsetY = useSpring(0)
 
   useEffect(() => {
-    smoothInsetX.onChange((insetX) => {
+    const unsubscribeX = smoothInsetX.on("change", (insetX) => {
       const rootElm = rootElmRef.current
       if (!rootElm) return
       rootElm.style.setProperty('--crt-inset-right', `${insetX}px`);
       rootElm.style.setProperty('--crt-inset-left', `${insetX}px`);
       rootElm.style.setProperty('--crt-inset-x', `${insetX}px`);
     })
-    smoothInsetY.onChange((insetY) => {
+    const unsubscribeY = smoothInsetY.on("change", (insetY) => {
       const rootElm = rootElmRef.current
       if (!rootElm) return
       rootElm.style.setProperty('--crt-inset-top', `${insetY}px`);
       rootElm.style.setProperty('--crt-inset-bottom', `${insetY}px`);
       rootElm.style.setProperty('--crt-inset-y', `${insetY}px`);
     })
+    return () => {
+      unsubscribeX()
+      unsubscribeY()
+    }
   }, [smoothInsetX, smoothInsetY])
 
   useEffect(() => {
@@ -235,30 +239,16 @@ export default function CrtEffect({strength = 1, infoText = "AV-1", ...props}: P
             <feFlood floodColor="black" result="black" />
             <feFlood floodColor="white" result="white" />
             {new Array(glitchedBandsCount).fill(null).map((_, i) => (
-              <motion.feComposite
-                in="white"
-                in2="black"
-                operator="over"
-                x="0"
-                y={mapMotionValue(glitchedBandsYOffset, val => Math.floor(val) + (i * glitchedBandsHeight))}
-                // width="100%" // For some reason in chrome if specify a percentage here it ignores the other side
-                // attributes but if we leave it off it defaults to 100% which is what we want anyway
+              <GlitchBandMask
+                bandsTop={glitchedBandsYOffset}
+                offset={i * glitchedBandsHeight}
                 height={glitchedBandsHeight}
                 result={`bandMask${i + 1}`}
                 key={i}
               />
             ))}
             {/* Hide the section in the signal where the bands are so that where they are offset is transparent */}
-            <motion.feComposite
-              in="white"
-              in2="black"
-              operator="over"
-              x="0"
-              y={mapMotionValue(glitchedBandsYOffset, val => Math.floor(val))}
-              // width="100%" // Same as the comment for width above
-              height={glitchHeight}
-              result={`allBandsMask`}
-            />
+            <GlitchBandMask bandsTop={glitchedBandsYOffset} offset={0} height={glitchHeight} result="allBandsMask" />
             <feComposite
               in="SourceGraphic"
               in2="allBandsMask"
@@ -302,28 +292,25 @@ export default function CrtEffect({strength = 1, infoText = "AV-1", ...props}: P
   );
 }
 
-function mapMotionValue<Value extends any>(motionValue: MotionValue<Value>, transformFunc: (value: Value) => Value) {
-  return new Proxy(motionValue, {
-    get(target, prop, receiver) {
-      if (prop === "get") {
-        return () => transformFunc(target.get());
-      }
-      if (prop === "onRenderRequest") {
-        return (callback: Subscriber<Value>) => {
-          // onRenderRequest is not typed but has the same signature as onChange so we use it's signature
-          return target[prop as "onChange"](
-            (value) => callback(transformFunc(value))
-          )
-        }
-      }
-      if (prop === "onChange") {
-        return (callback: Subscriber<Value>) => {
-          return target[prop](
-            (value) => callback(transformFunc(value))
-          )
-        }
-      }
-      return Reflect.get(target, prop, receiver);
-    }
-  })
+/** A mask of the area `offset` below the top of the glitched bands, moving down the screen with them */
+function GlitchBandMask({ bandsTop, offset, height, result }: {
+  bandsTop: MotionValue<number>,
+  offset: number,
+  height: number,
+  result: string,
+}) {
+  const y = useTransform(bandsTop, (top) => Math.floor(top) + offset)
+  return (
+    <motion.feComposite
+      in="white"
+      in2="black"
+      operator="over"
+      x="0"
+      y={y}
+      // width="100%" // For some reason in chrome if specify a percentage here it ignores the other side
+      // attributes but if we leave it off it defaults to 100% which is what we want anyway
+      height={height}
+      result={result}
+    />
+  )
 }

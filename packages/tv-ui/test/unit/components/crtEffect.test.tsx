@@ -36,4 +36,19 @@ describe("CrtEffect", () => {
 
     expect(await domChangesOver(container, 300)).toBeGreaterThan(0)
   })
+
+  it("moves the glitch's bands down together, each a band's height below the one before", async () => {
+    const { container } = render(<CrtEffect enabled>content</CrtEffect>)
+    const bandTops = () => Array.from(container.querySelectorAll('feComposite[result^="bandMask"]'), (band) => Number(band.getAttribute("y")))
+    await domChangesOver(container, 100)
+    const before = bandTops()
+
+    await domChangesOver(container, 300)
+    const after = bandTops()
+
+    expect(after[0]).toBeGreaterThan(before[0])
+    expect(after).toEqual(after.map((_, i) => after[0] + i * 2))
+    // The mask hiding where the bands are starts where the first one does
+    expect(Number(container.querySelector('feComposite[result="allBandsMask"]')?.getAttribute("y"))).toBe(after[0])
+  })
 })

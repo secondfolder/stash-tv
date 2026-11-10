@@ -107,6 +107,16 @@ export default defineConfig(({mode}) => {
       minify: false,
       sourcemap: true,
       emptyOutDir: true,
+      rollupOptions: {
+        onwarn(warning, warn) {
+          // framer-motion and Radix mark their modules "use client", for React Server Components, which a client-only
+          // bundle ignores. Each would otherwise print a warning, burying any that matter.
+          if (warning.code === "MODULE_LEVEL_DIRECTIVE" && warning.message.includes('"use client"')) return;
+          // Rollup's attempt to point those warnings at the original source
+          if (warning.code === "SOURCEMAP_ERROR") return;
+          warn(warning);
+        },
+      },
     },
     base: "./",
     server: {

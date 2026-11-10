@@ -154,7 +154,7 @@ The project uses a monorepo structure with Yarn workspaces containing three pack
 
 ### Core Dependencies
 
-React 18.3.1, TypeScript (ES2023), Vite 7.x, Zustand 4.x, Apollo Client 3.x, React Bootstrap 1.x, Framer Motion 6.5.1, React Spring 10.x, Radix UI (slider), Video.js (+ `videojs-offset`), FontAwesome 6.x, Logtape (structured logging), react-intl (English only — `IntlProvider` is required by reused Stash components).
+React 18.3.1, TypeScript (ES2023), Vite 7.x, Zustand 4.x, Apollo Client 3.x, React Bootstrap 1.x, Framer Motion 14.x, React Spring 10.x, Radix UI (slider), Video.js (+ `videojs-offset`), FontAwesome 6.x, Logtape (structured logging), react-intl (English only — `IntlProvider` is required by reused Stash components).
 
 ⚠️ React and Apollo Client versions are pinned to match the Stash frontend stash-ui is built from.
 
