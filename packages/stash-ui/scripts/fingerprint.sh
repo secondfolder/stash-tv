@@ -6,7 +6,8 @@
 
 STASH_UI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 STASH_REPO_DIR="$STASH_UI_DIR/stash"
-# The latest Stash release's GraphQL schema, extracted by setup.sh
+# The latest Stash release's GraphQL schema files, copied out of its git tag by setup.sh for mock-stash to serve in the
+# tests (the plugin doesn't use them)
 RELEASE_SCHEMA_DIR="$STASH_UI_DIR/release-schema"
 # Line 1: setup fingerprint, line 2: stash tree fingerprint as setup left it
 SETUP_STAMP="$STASH_UI_DIR/.local/setup-stamp"
