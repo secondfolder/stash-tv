@@ -80,6 +80,7 @@ export interface TagRecord {
   child_ids: string[];
   /** Whether it has an image of its own, rather than Stash's default one */
   has_image?: boolean;
+  favorite?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -105,6 +106,7 @@ export interface StudioRecord {
   parent_studio_id: string | null;
   /** Whether it has an image of its own, rather than Stash's default one */
   has_image?: boolean;
+  favorite?: boolean;
   created_at: string;
   updated_at: string;
 }

@@ -1,4 +1,4 @@
-import { statSync } from "node:fs";
+import { closeSync, openSync, readSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Fixtures, SceneRecord, VideoFileRecord } from "./types";
@@ -19,19 +19,54 @@ function fileSize(name: string): number {
  * testsrc2 — see that file). These same files also seed the real-Stash conformance
  * containers so both servers serve byte-identical media.
  */
-export const MEDIA_SPECS = [
+const BASE_MEDIA_SPECS = [
   { name: "scene-1", duration: 12, width: 320, height: 180, codec: "h264", ext: ".mp4", mimeType: "video/mp4" },
   { name: "scene-2", duration: 12, width: 320, height: 180, codec: "vp8", ext: ".webm", mimeType: "video/webm" },
   { name: "scene-3", duration: 12, width: 180, height: 320, codec: "h264", ext: ".mp4", mimeType: "video/mp4" },
   { name: "scene-4", duration: 10, width: 240, height: 240, codec: "h264", ext: ".mp4", mimeType: "video/mp4" },
 ] as const;
 
-export type MediaSpec = (typeof MEDIA_SPECS)[number];
+/**
+ * Every scene has a file of its own: a real Stash sees identical files as one, so couldn't have the same scenes as the
+ * mock otherwise. Scenes 5-8 are like scenes 1-4 (the same size, length and codec), with their colours inverted.
+ */
+export const MEDIA_SPECS: readonly MediaSpec[] = [
+  ...BASE_MEDIA_SPECS,
+  ...BASE_MEDIA_SPECS.map((spec, index) => ({ ...spec, name: `scene-${index + 5}`, filter: "negate" })),
+];
+
+export type MediaSpec = (typeof BASE_MEDIA_SPECS)[number] extends infer Spec
+  ? Spec extends { name: string } ? Omit<Spec, "name"> & { name: string, filter?: string } : never
+  : never;
 
 export function mediaFileFor(sceneId: string): MediaSpec {
-  // scenes 5-8 reuse the media of scenes 1-4
-  const base = sceneId.replace(/^scene-([5-8])$/, (_, d) => `scene-${Number(d) - 4}`);
-  return MEDIA_SPECS.find((s) => s.name === base) ?? MEDIA_SPECS[0];
+  return MEDIA_SPECS.find((s) => s.name === sceneId) ?? MEDIA_SPECS[0];
+}
+
+/**
+ * The file's oshash, as Stash computes it: its size plus every 64-bit little-endian word of its first and last 64KiB,
+ * wrapping at 64 bits, as 16 hex digits. Stash names a scene's sprite and thumbnails VTT by it.
+ */
+export function oshash(name: string): string {
+  const chunkSize = 64 * 1024;
+  try {
+    const file = path.join(MEDIA_DIR, name);
+    const size = statSync(file).size;
+    const descriptor = openSync(file, "r");
+    try {
+      let hash = BigInt(size);
+      for (const offset of [0, Math.max(0, size - chunkSize)]) {
+        const buffer = Buffer.alloc(chunkSize);
+        readSync(descriptor, buffer, 0, chunkSize, offset);
+        for (let i = 0; i < chunkSize; i += 8) hash = BigInt.asUintN(64, hash + buffer.readBigUInt64LE(i));
+      }
+      return hash.toString(16).padStart(16, "0");
+    } finally {
+      closeSync(descriptor);
+    }
+  } catch {
+    return `oshash-${name}`;
+  }
 }
 
 const CREATED_AT = "2024-01-01T00:00:00Z";
@@ -40,22 +75,24 @@ const UPDATED_AT = "2024-01-01T00:00:00Z";
 function videoFileFor(sceneId: string, index: number): VideoFileRecord {
   const spec = mediaFileFor(sceneId);
   const size = fileSize(`${spec.name}${spec.ext}`);
+  // As a real Stash finds them, scanning the media in /media (see real-stash.ts)
   return {
     id: `${sceneId}-file-1`,
-    path: `/data/media/${sceneId}${spec.ext}`,
+    path: `/media/${sceneId}${spec.ext}`,
     basename: `${sceneId}${spec.ext}`,
     parent_folder_id: "folder-media",
     size,
     mod_time: CREATED_AT,
     duration: spec.duration,
     video_codec: spec.codec,
-    audio_codec: spec.ext === ".webm" ? "opus" : "aac",
+    // The generated media have no audio
+    audio_codec: "",
     format: spec.ext === ".webm" ? "webm" : "mpeg4",
     width: spec.width,
     height: spec.height,
     frame_rate: 24,
-    bit_rate: Math.round((size * 8) / spec.duration),
-    fingerprints: [{ type: "oshash", value: `oshash-${sceneId}` }],
+    bit_rate: Math.floor((size * 8) / spec.duration),
+    fingerprints: [{ type: "oshash", value: oshash(`${spec.name}${spec.ext}`) }],
     created_at: CREATED_AT,
     updated_at: UPDATED_AT,
   };
@@ -106,9 +143,12 @@ export function createDefaultFixtures(): Fixtures {
   const scenes: SceneRecord[] = [
     scene("scene-1", "Aurora Ascending", "2024-03-01", ["tag-alpha", "tag-gamma"], ["performer-alice"], {
       studio_id: "studio-prism",
-      // o_counter is derived from o_history (like real Stash v0.28)
+      // o_counter is derived from o_history (like real Stash v0.28), and the play count and when it was last played from
+      // play_history
       o_history: ["2024-03-02T10:00:00Z", "2024-03-03T11:00:00Z"],
+      play_history: ["2024-03-02T09:00:00Z", "2024-03-03T09:00:00Z", "2024-03-04T09:00:00Z"],
       play_count: 3,
+      last_played_at: "2024-03-04T09:00:00Z",
     }),
     scene("scene-2", "Blueprint Boulevard", "2024-02-15", ["tag-beta"], ["performer-alice", "performer-bob"], {
       studio_id: "studio-prism",

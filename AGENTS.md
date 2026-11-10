@@ -110,6 +110,9 @@ yarn build        # Outputs: packages/stash-ui/dist, packages/tv-ui/dist/app, pa
 # Type check every package
 yarn typecheck
 
+# A real Stash to develop against, seeded with the tests' data (Docker; then STASH_ADDRESS=http://127.0.0.1:9999)
+yarn stash:dev    # [latest-release|previous-release|develop] [--port N] [--reset|--fresh|--stop] [--with-plugin]
+
 # Storybook
 yarn storybook    # Starts on port 6006
 ```

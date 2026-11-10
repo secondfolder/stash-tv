@@ -11,7 +11,9 @@
     "test:watch": "vitest",
     "test:conformance": "vitest run --config vitest.conformance.config.ts",
     "test:e2e-server": "vitest run --config vitest.e2e-server.config.ts",
-    "generate-media": "tsx scripts/generate-media.ts"
+    "generate-media": "tsx scripts/generate-media.ts",
+    "check-operations": "vitest run --config vitest.check-operations.config.ts",
+    "stash:dev": "tsx scripts/stash-dev.ts"
   },
   "dependencies": {
     "@graphql-tools/schema": "^10.0.31",

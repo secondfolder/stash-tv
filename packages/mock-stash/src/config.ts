@@ -110,6 +110,8 @@ export function buildConfiguration(store: MockStore) {
       handyKey: null,
       funscriptOffset: 0,
       useStashHostedFunscript: false,
+      // As changed by configureInterface
+      ...store.interfaceConfig,
     },
     dlna: {
       serverName: "mock-stash",

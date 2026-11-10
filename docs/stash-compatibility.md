@@ -46,7 +46,7 @@ Each tier runs once per tested version (see the table in [testing](testing.md)),
 
 - **Unit:** `test/unit/helpers/stashSchemaCompat.test.ts` checks that every operation Stash's UI can send is valid on each release once adapted, and unchanged on develop.
 - **Integration:** one tv-ui Vitest project per tested version, `integration-stash-<version>`, each against mock-stash serving that version (its `MOCK_STASH_VERSION`, read by `stashVersionFromEnv()`). They catch what the adapted queries break at runtime.
-- **Conformance:** mock-stash against the real Stash of each version, in Docker (`conformance-stash-<version>`), which is what makes the mock's versions trustworthy. See [mock-stash tests](testing-mock-stash.md).
+- **Conformance:** mock-stash against the real Stash of each version, in Docker (`conformance-stash-<version>`), seeded with the same data, for every operation the mock implements, each adapted to the version's schema as the app adapts it. It's what makes the mock's versions trustworthy. See [mock-stash tests](testing-mock-stash.md).
 - **The plugin in a real Stash:** the built plugin installed in the real Stash of each version, its injected UI checked with Playwright (tv-plugin's `stash-<version>` projects). See [mock-stash tests](testing-mock-stash.md) § "The plugin in a real Stash".
 - **E2E:** against each release (`E2E_STASH_VERSION`, the latest release by default), not develop: the other tiers cover develop, and these are the slowest tests to run again.
 

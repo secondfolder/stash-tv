@@ -12,7 +12,7 @@ How Stash TV is tested: the tiers, where tests go, the standards every test foll
 | --- | --- | --- | --- |
 | Unit | `packages/tv-ui/test/unit/` | Vitest + RTL (jsdom) | `yarn --cwd packages/tv-ui test` |
 | Integration | `packages/tv-ui/test/integration/` | Vitest + RTL against a real in-memory mock Stash API, once per tested Stash version (`integration-stash-<version>` projects, see [Stash compatibility](stash-compatibility.md)) | same command as unit |
-| Mock server meta/conformance | `packages/mock-stash/test/` | Vitest (node env; conformance uses Docker, skips itself without it unless `REQUIRE_DOCKER` is set, and runs once per tested Stash version) | `yarn --cwd packages/mock-stash test` / `yarn test:conformance` |
+| Mock server meta/conformance | `packages/mock-stash/test/` | Vitest (node env). Conformance runs every operation the mock implements on the mock and on a seeded real Stash in Docker, once per tested Stash version; it skips itself without Docker unless `REQUIRE_DOCKER` is set. A test in the meta suite fails on an operation without a conformance case, and so do tv-ui's integration and E2E runs on one the app sends ([mock-stash tests](testing-mock-stash.md) § "Coverage") | `yarn --cwd packages/mock-stash test` / `yarn test:conformance` |
 | Plugin in a real Stash | `packages/tv-plugin/test/real-stash/` | Playwright + Chromium against a real Stash in Docker, once per tested Stash version (`stash-<version>` projects). Needs the plugin built first (`yarn build`) | `yarn test:real-stash` |
 | Docs validation | `packages/repo/test/` | Vitest | `yarn --cwd packages/repo test` |
 | Plugin | `packages/tv-plugin/test/unit/` | Vitest (node env) | `yarn --cwd packages/tv-plugin test` |

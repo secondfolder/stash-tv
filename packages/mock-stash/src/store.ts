@@ -26,8 +26,8 @@ export interface MockStore {
   pluginConfig: Record<string, Record<string, unknown>>;
   /** `configuration.ui` / `configureUI` */
   uiConfig: Record<string, unknown>;
-  /** last `configureInterface` input (interface config is otherwise static) */
-  lastInterfaceConfig: Record<string, unknown> | null;
+  /** The interface settings `configureInterface` has changed, over the configuration's defaults */
+  interfaceConfig: Record<string, unknown>;
   readonly jobs: Map<string, JobRecord>;
   readonly scanComplete: EventEmitter<void>;
   readonly jobsUpdated: EventEmitter<JobStatusUpdateEvent>;
@@ -48,11 +48,12 @@ export function createStore(fixtures: Fixtures): MockStore {
     savedFilters: new Map(fixtures.savedFilters.map((f) => [f.id, f])),
     pluginConfig: structuredClone(fixtures.pluginConfig),
     uiConfig: structuredClone(fixtures.uiConfig),
-    lastInterfaceConfig: null,
+    interfaceConfig: {},
     jobs: new Map(),
     scanComplete: createEventEmitter<void>(),
     jobsUpdated: createEventEmitter<JobStatusUpdateEvent>(),
-    now: () => new Date().toISOString(),
+    // To the second, as Stash keeps times
+    now: () => new Date().toISOString().replace(/\.\d+Z$/, "Z"),
     nextMarkerId: idCounter("marker", fixtures.markers.length),
     nextTagId: idCounter("tag", fixtures.tags.length),
     nextJobId: idCounter("job", 0),

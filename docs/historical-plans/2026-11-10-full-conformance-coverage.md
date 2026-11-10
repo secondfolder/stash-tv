@@ -132,3 +132,17 @@ This plan and the multi-version plan touch the same files (`real-stash.ts`, the 
 
 - Running the integration or E2E tests against a real Stash. They rely on resetting the mock between tests, which a real Stash can't do quickly enough, and conformance is what checks the mock matches.
 - Comparing Stash's behaviour for operations the mock doesn't implement and the app doesn't send.
+
+## Deviations during implementation
+
+> Added 2026-11-10 by Claude (Opus 5.5), during implementation.
+
+- **§6 came before §5.** Logging the operations the integration and E2E tests send showed what the cases needed to cover first. It found the app sending two operations the mock didn't implement at all, `tagUpdate` (a tag's favourite, from Stash's tag card) and `sceneAddPlay`: both now implemented, along with `sceneResetPlayCount` (used to put a case's plays back).
+- **No waivers were needed.** Every resolver has a case on every version, so `waivers.ts` is empty, ready for one.
+- **The cases are adapted to each version's schema with the app's own code** (`adaptDocumentToSchema`, imported from tv-ui), not only the seed. v0.31.1 rejects the app's documents unadapted, as it lacks fields develop has, and the app never sends them so. That needed the conformance config to alias `graphql` to one build (see `docs/testing-mock-stash.md` § "Gotchas").
+- **No database snapshots in the conformance session.** Every group puts back what it changed, and deleting scenes runs last, so none needed a clean start. Snapshots are only in `stash:dev`, for `--reset`.
+- **The check of the operations an E2E run sent runs through Vitest** (`yarn --cwd packages/mock-stash check-operations`), not a plain Node script: the app's GraphQL documents don't load in plain Node (or tsx), and Playwright compiles tv-ui's tests as CommonJS. A named operation needs a case using that operation; an unnamed one (a test's own set-up) its root fields covered.
+- **Scenes 5-8's media are scenes 1-4's with their colours inverted** (ffmpeg's `negate`), keeping their size, length and codec, so nothing the tests rely on changed.
+- **Files' ids are mapped too** (`VideoFile` in the `IdMap`), as the real Stash numbers them.
+- **Many mock fixes**, each found by a case: unset text fields as `""`, files under `/media` with no audio and a real oshash (which names the sprite and thumbnails), histories newest first, times to the second, performers and tags by name, Stash's lower-resolution stream variants, marker media under the scene, performers' and studios' derived counts, `plugins`/`jobQueue` as `null` when empty, `configureInterface` storing and returning the whole config, `directory`, `sceneMarkerTags` and the version's short hash. Scene 1's fixture gained the play history its play count implies.
+- **`stash:dev` runs Docker directly** (not testcontainers, which removes its containers when the process ends), takes `--port`, and copies files in its data with the Stash image's own `cp`, as they're the container's.

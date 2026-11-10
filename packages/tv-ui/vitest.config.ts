@@ -1,8 +1,13 @@
 import { defineConfig } from "vitest/config";
 import path from "node:path";
+import os from "node:os";
 import svgr from "vite-plugin-svgr";
 // Not from "mock-stash" itself, which would load the whole server into the config
 import { testedStashVersions } from "mock-stash/src/stash-versions";
+
+// mock-stash logs every operation the integration tests send it here, and test/check-operations.ts fails the run if
+// one has no conformance case. Set on the process, so the test workers (and their mock-stash) inherit it.
+process.env.MOCK_STASH_OPERATIONS_LOG ??= path.join(os.tmpdir(), `stash-tv-operations-${process.pid}.jsonl`);
 
 // Match the app build: `*.svg?react` imports are React components. Without this
 // they resolve to data-URL strings, so components render different icons in tests
@@ -51,6 +56,7 @@ const sharedTestOptions = {
 export default defineConfig({
   resolve: sharedResolve,
   test: {
+    globalSetup: ["./test/check-operations.ts"],
     // Suppress console logs unless the test fails
     silent: 'passed-only',
     coverage: {

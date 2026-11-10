@@ -113,7 +113,7 @@ export async function startRealStash(version: StashVersion, options: StartRealSt
 }
 
 async function gql(
-  stash: RealStash,
+  stash: Pick<RealStash, "graphqlUrl">,
   query: string,
   variables?: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
@@ -132,7 +132,7 @@ async function gql(
   return body.data ?? {};
 }
 
-async function waitForStashReady(stash: RealStash) {
+export async function waitForStashReady(stash: Pick<RealStash, "graphqlUrl">) {
   const deadline = Date.now() + 60_000;
   while (Date.now() < deadline) {
     try {
@@ -145,7 +145,7 @@ async function waitForStashReady(stash: RealStash) {
   throw new Error("stash did not become ready within 60s");
 }
 
-async function setupStash(stash: RealStash) {
+export async function setupStash(stash: Pick<RealStash, "graphqlUrl">) {
   const status = await gql(stash, `{ systemStatus { status } }`);
   if ((status.systemStatus as { status: string }).status !== "SETUP") return;
   await gql(
@@ -162,7 +162,7 @@ async function setupStash(stash: RealStash) {
   );
 }
 
-async function scanAndWait(stash: RealStash) {
+export async function scanAndWait(stash: Pick<RealStash, "graphqlUrl">) {
   const data = await gql(
     stash,
     `mutation { metadataScan(input: { rescan: false, scanGenerateCovers: false, scanGeneratePreviews: false, scanGenerateImagePreviews: false, scanGenerateSprites: false, scanGeneratePhashes: false, scanGenerateThumbnails: false, scanGenerateClipPreviews: false }) }`,
@@ -184,30 +184,6 @@ async function scanAndWait(stash: RealStash) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
   throw new Error("stash scan did not finish within 240s");
-}
-
-/** Maps real stash scene IDs (numeric) to the fixture scene keys via file basenames. */
-export async function buildSceneIdMap(stash: RealStash): Promise<Map<string, string>> {
-  const data = await gql(
-    stash,
-    `{ findScenes(filter: {per_page: -1}) { scenes { id files { basename } } } }`,
-  );
-  const scenes = (data.findScenes as { scenes: { id: string; files: { basename: string }[] }[] }).scenes;
-  const map = new Map<string, string>();
-  for (const scene of scenes) {
-    const basename = scene.files[0]?.basename ?? "";
-    // scene-1.mp4..scene-8 (media is reused for scenes 5-8, so multiple scenes share a basename)
-    const match = basename.match(/^scene-(\d)\.(mp4|webm)$/);
-    if (match) {
-      map.set(scene.id, `scene-${match[1]}`);
-    }
-  }
-  return map;
-}
-
-/** Media files present in the fixtures dir — the scan should find one scene per file. */
-export function expectedScannedSceneCount(): number {
-  return MEDIA_SPECS.length;
 }
 
 export { gql as stashGql };

@@ -41,7 +41,8 @@ export function generateMediaFixtures(): void {
 
   try {
     for (const spec of MEDIA_SPECS) {
-      const source = `testsrc2=duration=${spec.duration}:size=${spec.width}x${spec.height}:rate=24`;
+      const filter = spec.filter ? `,${spec.filter}` : "";
+      const source = `testsrc2=duration=${spec.duration}:size=${spec.width}x${spec.height}:rate=24${filter}`;
 
       if (spec.ext === ".mp4") {
         ffmpeg([
@@ -59,7 +60,7 @@ export function generateMediaFixtures(): void {
 
       // Screenshot (first frame)
       ffmpeg([
-        "-f", "lavfi", "-i", `testsrc2=duration=0.05:size=${spec.width}x${spec.height}:rate=24`,
+        "-f", "lavfi", "-i", `testsrc2=duration=0.05:size=${spec.width}x${spec.height}:rate=24${filter}`,
         "-frames:v", "1", "-q:v", "5",
         path.join(stagingDir, `${spec.name}.jpg`),
       ]);
@@ -67,7 +68,7 @@ export function generateMediaFixtures(): void {
       // Preview clip (webm at half size, like Stash generates)
       ffmpeg([
         "-f", "lavfi", "-i",
-        `testsrc2=duration=2:size=${spec.width / 2}x${spec.height / 2}:rate=12`,
+        `testsrc2=duration=2:size=${spec.width / 2}x${spec.height / 2}:rate=12${filter}`,
         "-c:v", "libvpx", "-crf", "30", "-b:v", "150k",
         path.join(stagingDir, `${spec.name}-preview.webm`),
       ]);

@@ -1,4 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
+import os from 'node:os';
+import path from 'node:path';
 import { resolveE2ePort } from './test/e2e/helpers/ports';
 
 /**
@@ -16,6 +18,9 @@ import { resolveE2ePort } from './test/e2e/helpers/ports';
 
 const mockStashPort = resolveE2ePort('E2E_MOCK_STASH_PORT', 4000, 'mock-stash');
 const stashVersion = process.env.E2E_STASH_VERSION || 'latest-release';
+// mock-stash logs every operation the tests send it here, and test/e2e/check-operations.ts fails the run if one has no
+// conformance case. On the process, so Playwright's workers (which evaluate this config again) keep the same file.
+process.env.MOCK_STASH_OPERATIONS_LOG ??= path.join(os.tmpdir(), `stash-tv-e2e-operations-${process.pid}.jsonl`);
 const devServerPort = resolveE2ePort('E2E_DEV_SERVER_PORT', 8888, 'the tv-ui dev server');
 // 127.0.0.1 rather than localhost: Node (which the tests' `request` fixture uses) took ~300ms to connect to `localhost`
 // for every request to the dev server, against ~4ms for 127.0.0.1, and tests make a few such requests each to set up.
@@ -31,6 +36,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.E2E_WORKERS ? Number(process.env.E2E_WORKERS) : 4,
   reporter: 'html',
+  globalSetup: './test/e2e/check-operations.ts',
   use: {
     baseURL: devServerUrl,
     trace: 'on-first-retry',
@@ -40,7 +46,7 @@ export default defineConfig({
 
   webServer: [
     {
-      command: `MOCK_STASH_PORT=${mockStashPort} MOCK_STASH_VERSION=${stashVersion} yarn --cwd ../../packages/mock-stash test:e2e-server`,
+      command: `MOCK_STASH_PORT=${mockStashPort} MOCK_STASH_VERSION=${stashVersion} MOCK_STASH_OPERATIONS_LOG=${process.env.MOCK_STASH_OPERATIONS_LOG} yarn --cwd ../../packages/mock-stash test:e2e-server`,
       url: `http://127.0.0.1:${mockStashPort}/graphql`,
       stdout: 'ignore',
       stderr: 'pipe',

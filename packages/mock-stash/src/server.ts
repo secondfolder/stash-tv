@@ -12,6 +12,8 @@ import { handleMediaRoute } from "./media";
 import { createContextFactory, type ContextHolder } from "./context";
 import type { Fixtures } from "./types";
 import { tenantOf } from "./tenant";
+import { logOperation } from "./operations-log";
+import type { DocumentNode } from "graphql";
 
 export { MOCK_STASH_TENANT_COOKIE, MOCK_STASH_TENANT_HEADER } from "./tenant";
 
@@ -101,7 +103,8 @@ export async function startMockStash(
       contextFactory(tenantOf({ header: (name) => request.headers.get(name) })),
     plugins: [
       {
-        onExecute({ args }: { args: { operationName?: string; variableValues?: unknown } }) {
+        onExecute({ args }: { args: { document: DocumentNode; operationName?: string | null; variableValues?: unknown } }) {
+          logOperation(args.document, args.operationName);
           const name = args.operationName ?? "<anonymous>";
           requestCounts[name] = (requestCounts[name] ?? 0) + 1;
           const variables = args.variableValues;
@@ -113,6 +116,9 @@ export async function startMockStash(
             console.log(`[mock-stash] ${name}`, JSON.stringify(args.variableValues));
           }
         },
+        onSubscribe({ args }: { args: { document: DocumentNode; operationName?: string | null } }) {
+          logOperation(args.document, args.operationName);
+        },
       },
     ],
   });
@@ -120,7 +126,7 @@ export async function startMockStash(
   const server = http.createServer((req, res) => {
     const url = new URL(req.url ?? "/", "http://mock-stash.local");
     if (
-      (url.pathname.startsWith("/scene/") || url.pathname.startsWith("/marker/")) &&
+      url.pathname.startsWith("/scene/") &&
       req.method !== "POST"
     ) {
       handleMediaRoute(req, res, storeFor(tenantOf(nodeHeaders(req.headers))));

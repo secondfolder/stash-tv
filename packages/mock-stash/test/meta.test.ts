@@ -372,8 +372,9 @@ describe("media routes", () => {
     expect(bytes.byteLength).toBe(100);
   });
 
+  // At the URLs Stash gives a marker's media, under its scene
   it("serves marker media", async () => {
-    const preview = await fetch(`${server.url}/marker/marker-1/preview`);
+    const preview = await fetch(`${server.url}/scene/scene-1/scene_marker/marker-1/preview`);
     expect(preview.status).toBe(200);
     expect(preview.headers.get("content-type")).toBe("video/webm");
     await preview.body?.cancel();

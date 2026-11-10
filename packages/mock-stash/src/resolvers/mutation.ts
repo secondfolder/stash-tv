@@ -1,4 +1,5 @@
 import { addJob } from "../store";
+import { buildConfiguration } from "../config";
 import type { MockContext } from "../context";
 import type { SceneRecord } from "../types";
 
@@ -65,7 +66,7 @@ export const mutationResolvers = {
       const times = args.times?.length ? args.times : [ctx.store.now()];
       scene.o_history = [...scene.o_history, ...times];
       touch(scene, ctx.store.now());
-      return { count: scene.o_history.length, history: scene.o_history };
+      return { count: scene.o_history.length, history: [...scene.o_history].sort((a, b) => b.localeCompare(a)) };
     },
 
     sceneDeleteO: (
@@ -84,7 +85,7 @@ export const mutationResolvers = {
         scene.o_history = scene.o_history.slice(0, -1);
       }
       touch(scene, ctx.store.now());
-      return { count: scene.o_history.length, history: scene.o_history };
+      return { count: scene.o_history.length, history: [...scene.o_history].sort((a, b) => b.localeCompare(a)) };
     },
 
     sceneResetO: (_src: unknown, args: { id: string }, ctx: MockContext) => {
@@ -122,6 +123,33 @@ export const mutationResolvers = {
       scene.play_history = [...scene.play_history, ctx.store.now()];
       touch(scene, ctx.store.now());
       return scene.play_count;
+    },
+
+    // As Stash's: adds plays at the times given (or now), which the play count and when it was last played come from
+    sceneAddPlay: (
+      _src: unknown,
+      args: { id: string; times?: string[] | null },
+      ctx: MockContext,
+    ) => {
+      const scene = ctx.store.scenes.get(args.id);
+      if (!scene) throw new Error(`scene not found: ${args.id}`);
+      const times = args.times?.length ? args.times : [ctx.store.now()];
+      scene.play_history = [...scene.play_history, ...times];
+      scene.play_count = scene.play_history.length;
+      scene.last_played_at = [...scene.play_history].sort().at(-1) ?? null;
+      touch(scene, ctx.store.now());
+      return { count: scene.play_history.length, history: [...scene.play_history].sort((a, b) => b.localeCompare(a)) };
+    },
+
+    // As Stash's: clears the scene's play history, which its play count is
+    sceneResetPlayCount: (_src: unknown, args: { id: string }, ctx: MockContext) => {
+      const scene = ctx.store.scenes.get(args.id);
+      if (!scene) throw new Error(`scene not found: ${args.id}`);
+      scene.play_history = [];
+      scene.play_count = 0;
+      scene.last_played_at = null;
+      touch(scene, ctx.store.now());
+      return 0;
     },
 
     sceneMarkerCreate: (
@@ -214,6 +242,30 @@ export const mutationResolvers = {
       return tag;
     },
 
+    // As Stash's: the fields given are set, and a tag's parents and children are each other's
+    tagUpdate: (
+      _src: unknown,
+      args: { input: { id: string; name?: string | null; aliases?: string[] | null; parent_ids?: string[] | null; child_ids?: string[] | null; favorite?: boolean | null } },
+      ctx: MockContext,
+    ) => {
+      const { input } = args;
+      const tag = ctx.store.tags.get(String(input.id));
+      if (!tag) throw new Error(`tag not found: ${input.id}`);
+      if (input.name != null) tag.name = input.name;
+      if (input.aliases != null) tag.aliases = input.aliases;
+      if (input.favorite != null) tag.favorite = input.favorite;
+      const relink = (ids: string[] | null | undefined, own: "parent_ids" | "child_ids", theirs: "parent_ids" | "child_ids") => {
+        if (ids == null) return;
+        for (const other of ctx.store.tags.values()) other[theirs] = other[theirs].filter((id) => id !== tag.id);
+        tag[own] = ids.map(String);
+        for (const id of tag[own]) ctx.store.tags.get(id)?.[theirs].push(tag.id);
+      };
+      relink(input.parent_ids, "parent_ids", "child_ids");
+      relink(input.child_ids, "child_ids", "parent_ids");
+      tag.updated_at = ctx.store.now();
+      return tag;
+    },
+
     // Like Stash, also removes the tag from everything tagged with it, and deletes markers using it as their primary tag
     tagDestroy: (_src: unknown, args: { input: { id: string } }, ctx: MockContext) => {
       const id = String(args.input.id);
@@ -271,9 +323,9 @@ export const mutationResolvers = {
       args: { input: Record<string, unknown> },
       ctx: MockContext,
     ) => {
-      // The mock serves a static interface config; record the last write for assertions.
-      ctx.store.lastInterfaceConfig = structuredClone(args.input);
-      return ctx.store.lastInterfaceConfig;
+      // As Stash's: the settings given are changed, and the whole interface config returned
+      ctx.store.interfaceConfig = { ...ctx.store.interfaceConfig, ...structuredClone(args.input) };
+      return buildConfiguration(ctx.store).interface;
     },
 
     saveFilter: (

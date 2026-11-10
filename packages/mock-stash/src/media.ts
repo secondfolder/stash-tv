@@ -16,8 +16,8 @@ const MIME_TYPES: Record<string, string> = {
 
 /**
  * Serves the committed media fixtures over Stash-shaped routes
- * (`/scene/{id}/stream.mp4`, `/scene/{id}/preview`, `/marker/{id}/stream`, ...) with
- * HTTP Range support so video players can seek.
+ * (`/scene/{id}/stream.mp4`, `/scene/{id}/preview`, `/scene/{id}/scene_marker/{markerId}/stream`,
+ * `/scene/{oshash}_thumbs.vtt`, ...) with HTTP Range support so video players can seek.
  */
 export function handleMediaRoute(
   req: IncomingMessage,
@@ -37,12 +37,25 @@ export function handleMediaRoute(
       return true;
     }
     const rest = segments.slice(2).join("/");
-    if (rest === "stream.mp4" || rest === "stream" || rest === "stream.webm") {
+    const markerMatch = rest.match(/^scene_marker\/([^/]+)\/(stream|preview|screenshot)$/);
+    if (markerMatch) {
+      const marker = store.markers.get(markerMatch[1]);
+      if (!marker || marker.scene_id !== sceneId) {
+        res.writeHead(404).end();
+        return true;
+      }
+      const spec = mediaFileFor(sceneId);
+      filePath = path.join(MEDIA_DIR, {
+        stream: `${spec.name}${spec.ext}`,
+        preview: `${spec.name}-preview.webm`,
+        screenshot: `${spec.name}.jpg`,
+      }[markerMatch[2] as "stream" | "preview" | "screenshot"]);
+    } else if (rest === "stream.mp4" || rest === "stream" || rest === "stream.webm") {
       const spec = mediaFileFor(sceneId);
       filePath = path.join(MEDIA_DIR, `${spec.name}${spec.ext}`);
     } else if (rest === "preview") {
       filePath = path.join(MEDIA_DIR, `${mediaFileFor(sceneId).name}-preview.webm`);
-    } else if (rest === "screenshot" || rest === "webp" || rest === "sprite") {
+    } else if (rest === "screenshot" || rest === "webp") {
       filePath = path.join(MEDIA_DIR, `${mediaFileFor(sceneId).name}.jpg`);
     } else if (rest === "stream.m3u8" || rest === "stream.mpd") {
       // HLS/DASH endpoints exist in sceneStreams; players fall back to direct streams.
@@ -52,31 +65,20 @@ export function handleMediaRoute(
       res.writeHead(404).end();
       return true;
     }
-  } else if (segments[0] === "marker" && segments.length === 3) {
-    const marker = store.markers.get(segments[1]);
-    if (!marker) {
+  } else if (segments[0] === "scene" && segments.length === 2) {
+    // `/scene/{oshash}_thumbs.vtt` and `/scene/{oshash}_sprite.jpg`, named by the scene's file as Stash's are
+    const match = segments[1].match(/^(.*)_(thumbs\.vtt|sprite\.jpg)$/);
+    const scene = match && [...store.scenes.values()].find((candidate) =>
+      candidate.files[0]?.fingerprints.some((fingerprint) => fingerprint.type === "oshash" && fingerprint.value === match[1]));
+    if (!match || !scene) {
       res.writeHead(404).end();
       return true;
     }
-    const spec = mediaFileFor(marker.scene_id);
-    if (segments[2] === "stream") {
-      filePath = path.join(MEDIA_DIR, `${spec.name}${spec.ext}`);
-    } else if (segments[2] === "preview") {
-      filePath = path.join(MEDIA_DIR, `${spec.name}-preview.webm`);
-    } else if (segments[2] === "screenshot") {
-      filePath = path.join(MEDIA_DIR, `${spec.name}.jpg`);
-    }
-  } else if (segments[0] === "scene" && segments.length === 2) {
-    // `/scene/{id}_thumbs.vtt`
-    const match = segments[1].match(/^(.*)_thumbs\.vtt$/);
-    if (match) {
-      if (!store.scenes.has(match[1])) {
-        res.writeHead(404).end();
-        return true;
-      }
-      res.writeHead(200, { ...corsHeaders(), "content-type": "text/vtt" }).end(thumbnailsVtt(match[1]));
+    if (match[2] === "thumbs.vtt") {
+      res.writeHead(200, { ...corsHeaders(), "content-type": "text/vtt" }).end(thumbnailsVtt(scene.id, match[1]));
       return true;
     }
+    filePath = path.join(MEDIA_DIR, `${mediaFileFor(scene.id).name}.jpg`);
   }
 
   if (!filePath) {
@@ -98,11 +100,11 @@ export function handleMediaRoute(
  * Every cue shows the whole sprite (the scene's screenshot here) since the fixtures have no real sprite sheet.
  * Image paths are relative to the VTT's URL, as Stash's are.
  */
-function thumbnailsVtt(sceneId: string): string {
+function thumbnailsVtt(sceneId: string, oshash: string): string {
   const { duration, width, height } = mediaFileFor(sceneId);
   const timestamp = (seconds: number) => `${new Date(seconds * 1000).toISOString().slice(11, 23)}`;
   const cues = Array.from({ length: Math.ceil(duration) }, (_, second) =>
-    `${timestamp(second)} --> ${timestamp(Math.min(second + 1, duration))}\n${sceneId}/sprite#xywh=0,0,${width},${height}`
+    `${timestamp(second)} --> ${timestamp(Math.min(second + 1, duration))}\n${oshash}_sprite.jpg#xywh=0,0,${width},${height}`
   );
   return `WEBVTT\n\n${cues.join("\n\n")}\n`;
 }

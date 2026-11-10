@@ -97,7 +97,15 @@ export const queryResolvers = {
       return scene ? sceneStreamEndpoints(scene, ctx.baseUrl) : [];
     },
 
-    sceneMarkerTags: () => [],
+    // As Stash's: the scene's markers grouped by primary tag, the tags in order of their first marker
+    sceneMarkerTags: (_src: unknown, args: { scene_id: string }, ctx: MockContext) => {
+      const markers = [...ctx.store.markers.values()]
+        .filter((marker) => marker.scene_id === String(args.scene_id))
+        .sort((a, b) => a.seconds - b.seconds);
+      const groups = new Map<string, typeof markers>();
+      for (const marker of markers) groups.set(marker.primary_tag_id, [...(groups.get(marker.primary_tag_id) ?? []), marker]);
+      return [...groups].map(([tagId, scene_markers]) => ({ tag: ctx.store.tags.get(tagId), scene_markers }));
+    },
     // Every marker title in use, with how many markers have it (as Stash's GetMarkerStrings: a case-insensitive
     // substring filter, grouped by title, ordered by title or by count)
     markerStrings: (_src: unknown, args: { q?: string | null; sort?: string | null }, ctx: MockContext) => {
@@ -114,14 +122,14 @@ export const queryResolvers = {
         ? results.sort((a, b) => b.count - a.count)
         : results.sort((a, b) => a.title.localeCompare(b.title));
     },
-    plugins: () => [],
-    jobQueue: (_src: unknown, _args: unknown, ctx: MockContext) => [
-      ...ctx.store.jobs.values(),
-    ],
+    // As Stash's: null rather than an empty list, with none
+    plugins: () => null,
+    jobQueue: (_src: unknown, _args: unknown, ctx: MockContext) =>
+      ctx.store.jobs.size > 0 ? [...ctx.store.jobs.values()] : null,
     // The version being served, as that Stash reports it
     version: (_src: unknown, _args: unknown, ctx: MockContext) => {
       const { version, commit } = stashVersionDetails(ctx.stashVersion);
-      return { version, hash: commit, build_time: "2024-01-01 00:00:00" };
+      return { version, hash: commit.slice(0, 8), build_time: "2024-01-01 00:00:00" };
     },
     systemStatus: () => ({
       databaseSchema: null,
@@ -133,6 +141,11 @@ export const queryResolvers = {
       homeDir: "",
       isDesktop: false,
     }),
-    directory: () => ({ path: "", parent: null, directories: [] }),
+    // The media directory, with nothing in it but files (as the real Stash the conformance tests compare with sees it)
+    directory: (_src: unknown, args: { path?: string | null }) => {
+      const path = args.path ?? "";
+      const parent = path.replace(/\/[^/]*$/, "") || (path.startsWith("/") && path !== "/" ? "/" : null);
+      return { path, parent, directories: [] };
+    },
   },
 };

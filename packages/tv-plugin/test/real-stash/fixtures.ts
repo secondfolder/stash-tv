@@ -31,6 +31,8 @@ const EXPECTED_FAILED_REQUESTS = [
   // The scan doesn't generate the sprites and thumbnails a scene's player asks for
   /\/scene\/[^/]+_thumbs\.vtt$/,
   /\/scene\/[^/]+_sprite\.jpg$/,
+  // Nor the preview a scene card plays when the pointer passes over it
+  /\/scene\/[^/]+\/preview$/,
 ];
 
 export type PluginTestOptions = { stashVersion: StashVersion };
