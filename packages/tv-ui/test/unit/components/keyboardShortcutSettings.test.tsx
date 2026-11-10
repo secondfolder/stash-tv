@@ -64,7 +64,7 @@ describe("Keyboard shortcut settings", () => {
 
     const dialog = await openToAdd("Mute/unmute");
 
-    expect(within(dialog).getByRole("textbox")).toHaveTextContent(/^Type shortcut to mute\/unmute$/);
+    expect(within(dialog).getByRole("textbox")).toHaveTextContent(/^Type shortcut for "Mute\/unmute"$/);
     expect(within(dialog).getByRole("button", { name: "Done" })).toBeDisabled();
   });
 
@@ -73,7 +73,7 @@ describe("Keyboard shortcut settings", () => {
 
     const dialog = await openToAdd("Toggle CRT effect");
 
-    expect(within(dialog).getByRole("textbox")).toHaveTextContent(/^Type shortcut to toggle CRT effect$/);
+    expect(within(dialog).getByRole("textbox")).toHaveTextContent(/^Type shortcut for "Toggle CRT effect"$/);
   });
 
   it("gives an action every key typed, with its modifiers, as a sequence", async () => {

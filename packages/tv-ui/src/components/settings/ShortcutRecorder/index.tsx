@@ -149,7 +149,7 @@ export function ShortcutRecorder({
     onClose={onClose}
     className="ShortcutRecorder"
     label={`Shortcut for "${title}"`}
-    placeholder={`Type shortcut to ${midSentence(title)}`}
+    placeholder={`Type shortcut for "${title}"`}
     inputContent={tokens.map((token, index) => (
       <React.Fragment key={index}>
         {/* The keys are typed one after another, but the keys held with them are held while pressing them */}

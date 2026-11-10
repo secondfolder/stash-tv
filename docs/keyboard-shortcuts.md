@@ -105,7 +105,7 @@ The **Settings → Keyboard Shortcuts** section (`src/components/settings/Keyboa
 
 Keys are typed into a **command palette**: `ShortcutRecorder` (`src/components/settings/ShortcutRecorder/`), built on the generic `CommandPalette` (`src/components/CommandPalette/`).
 - **+** opens it to add a binding. Clicking a chip's keys opens it with them filled in, to change that binding.
-- It shows "Type shortcut to …" with the action's title (in lower case, unless it starts with an acronym, so the placeholder is in sentence case) until a key is typed. Every key typed (with its modifiers) is added to the sequence, shown as key badges with "then" between them. A modifier pressed on its own isn't a key.
+- It shows "Type shortcut for …" with the action's title (in lower case, unless it starts with an acronym, so the placeholder is in sentence case) until a key is typed. Every key typed (with its modifiers) is added to the sequence, shown as key badges with "then" between them. A modifier pressed on its own isn't a key.
 - Clicking a key typed removes it (hovering over it darkens it and shows an ×), and typing carries on.
 - For the rating action, once anything's been typed, its digits follow as tokens of their own (`then {1-5}`, or `then {0-9} then {0-9}`). They're fixed: they can't be removed, and hovering over them shows nothing. Only the keys before them are saved.
 - A key pressed while holding the key just typed becomes a chord with it, in its place (hold `g`, press `m`: `g + m`).
