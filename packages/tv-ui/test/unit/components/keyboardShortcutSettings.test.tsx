@@ -14,8 +14,8 @@ import { KeyboardShortcutSettings } from "../../../src/components/settings/Keybo
 import { useShortcutListKey } from "../../../src/hooks/useShortcutListKey";
 import { useGlobalState } from "../../../src/store/globalState";
 import { useTvConfig } from "../../../src/store/tvConfig";
-import { WithStashConfiguration } from "../helpers/render";
-import { resetStores } from "../helpers/stores";
+import { WithStashConfiguration } from "../support/render";
+import { resetStores } from "../support/stores";
 
 beforeEach(() => {
   resetStores();

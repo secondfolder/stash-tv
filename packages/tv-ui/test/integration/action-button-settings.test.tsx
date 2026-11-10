@@ -40,7 +40,7 @@ async function chooseAnotherIcon(modal: HTMLElement) {
   click(otherOption);
 }
 
-// Imported after boot: see docs/testing.md § "Gotchas" (importing app code at the top of an integration test)
+// Imported after boot: see docs/testing-unit-integration.md § "Gotchas" (importing app code at the top of an integration test)
 async function loadActionButtonIcons() {
   return (await import("../../src/components/action-buttons/icons")).actionButtonIcons;
 }

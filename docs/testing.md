@@ -1,6 +1,10 @@
 # Testing
 
-How the automated test suites work, the standards tests must follow, and the gotchas learned so far.
+How Stash TV is tested: the tiers, where tests go, the standards every test follows, and gotchas that apply to all of them. Each tier has a doc of its own for how it works and its gotchas:
+
+- [Unit & integration tests](testing-unit-integration.md): tv-ui's Vitest suites, in jsdom, the integration tests against mock-stash
+- [E2E tests](testing-e2e.md): tv-ui in a real browser with Playwright
+- [mock-stash tests](testing-mock-stash.md): the mock Stash server's own tests, and its conformance tests against a real Stash
 
 ## Tiers & commands
 
@@ -28,103 +32,16 @@ yarn test --coverage                           # coverage report
 yarn test:e2e                                  # E2E tests (servers are managed for you)
 ```
 
-### Running E2E tests
+## Where tests and helpers go
 
-Playwright starts (and tears down) both servers itself via `webServer` entries
-in `packages/tv-ui/playwright.config.ts`, so `yarn test:e2e` at the root is
-just an alias for `yarn --cwd packages/tv-ui test:e2e`:
-
-- mock-stash on port 4000 (`yarn --cwd packages/mock-stash test:e2e-server` —
-  a Vitest "test" that boots the TS server on `MOCK_STASH_PORT` and holds the
-  process open)
-- the tv-ui dev server on port 8888 (`--strictPort`), with `STASH_PROXY=true`
-  pointing at mock-stash, and `VITE_APP_PLATFORM_URL` set to the dev server's
-  own URL so the app's API/WebSocket URLs stay same-origin. ⚠️ Without that
-  var, stash-ui's `getPlatformURL` forces port **9999** (Stash's default) in
-  dev mode, so the app talks past the proxy to whatever runs on 9999 and the
-  feed dies with `Error: Failed to fetch`.
-- ⚠️ Both are addressed as `127.0.0.1`, not `localhost`, and the dev server is
-  told to listen there (`DEV_HOST`). From Node (the tests' `request`
-  fixture), every request to the dev server at `localhost` took ~300ms to
-  connect, against ~4ms at `127.0.0.1`: a few such requests per test to set
-  up config, and 60 in some, added ~9 minutes to the suite.
-
-If either port is taken, the config prints a one-line note and uses the next
-free port (`test/e2e/helpers/ports.ts`). Servers are never reused: a stale or
-real-Stash-backed server on the default port can't leak into a run. The chosen
-ports are cached in `E2E_MOCK_STASH_PORT` / `E2E_DEV_SERVER_PORT` because
-Playwright re-evaluates its config in every worker. Run standalone,
-`test:e2e-server` does the same fallback itself.
-
-E2E tests run in parallel, 4 workers by default (`E2E_WORKERS=<n>` to change
-it), each test file's tests spread across them (`fullyParallel`). They share
-one mock-stash and one dev server, but each worker has mock-stash state of its
-own: a *tenant*, named in a `mock-stash-tenant` cookie on the page's requests
-and an `x-mock-stash-tenant` header on the `request` fixture's
-(`test/e2e/helpers/test.ts`; mock-stash makes each tenant a store from fresh
-fixtures the first time it's seen, see `packages/mock-stash/src/tenant.ts`).
-So a test can change the server as it likes without another worker seeing it,
-but tests in the same worker do, one after another: still undo what you change
-in `afterEach`. ⚠️ The page names its tenant in a cookie, not a header: the
-app's media comes straight from mock-stash, a different origin from the page,
-and a custom header on those requests needs CORS, which stopped every video
-playing. A cookie isn't tied to a port, so it reaches both servers.
-
-E2E tests set up server-side state through `test/e2e/helpers/stash.ts`: `graphql(request, query, variables)` runs an operation against mock-stash, `setTvConfig(request, state)` replaces the persisted tvConfig with the given settings, and `setActionButtons(request, config)` replaces just the action button stack (`null` restores the defaults for either; call it in `afterEach`). `createTags(request, names)` / `destroyTags(request, ids)` add and remove tags, each in one request. `expectUsableOnScreen(locator)` (`test/e2e/helpers/layout.ts`) checks an element is on screen with nothing covering it. ⚠️ It hit-tests the element's corners, which aren't part of an element with rounded corners (e.g. a pill): check something inside it instead.
-
-Every e2e test imports `test` and `expect` from `test/e2e/helpers/test.ts` rather than `@playwright/test`, for the fixtures every test needs (e.g. coverage, below). Things on the page are found with `test/e2e/helpers/feed.ts`: `currentSlide` / `slideAt` / `currentIndex`, `infoPanel(page)`, and `box(locator)` (its bounding box, failing if it isn't rendered).
-
-Tests of playback and gestures use `test/e2e/helpers/gestures.ts`:
-- `bootFeed(page, request, config)` sets tvConfig, loads the feed and waits for the first video to play. It starts videos from the beginning (see the gotcha below)
-- `videoState(slide)` / `seekCurrentVideo` / `changeSlideWithKeyboard`: the current slide's video and moving about the feed
-- `mousePointer(page)` / `touchPointer(page)`: one interface for both. A finger needs the context's `hasTouch`, and is driven with CDP touch events since Playwright's touchscreen can only tap. `areaPoint(page, area)` gives a point in a third of the current video, checking nothing covers it. `speedDrag(pointer, start, width)` drags a hold to a given speed change
-- `expectFeedback(page, text, icon)` / `expectFeedbackGone(page)` / `feedbackShownDuring(page, action)`: the feedback overlay. A recorder logs every change to it from page load, so a test can tell if it ever flashed up, not just what it shows when checked. `expectFeedbackGone` also checks it stays gone (it once got stuck after gestures)
-- `E2E_LOG_GESTURES=1` prints the app's gesture and seeking logs and where each video was played or paused from, to see what a failing test did
-- `E2E_COVERAGE_DIR=<dir>` (any e2e test, through `helpers/test.ts`) writes each test's raw V8 coverage of the app's source there as JSON. Vitest's `ast-v8-to-istanbul` turns it into an istanbul report, using Vite's inline source maps to map it back to the source
-
-⚠️ Don't background the servers from a shell script (`server & sleep && …`).
-Nothing kills them when the script exits, and killing the `vitest` parent
-leaves its worker (the one holding the port) running. Playwright avoids this by
-killing the whole process group. ⚠️ The dev server's proxy settings come from
-`packages/tv-ui/.env` *and* the command's env vars (command wins).
-
-### Integration harness
-
-Integration tests boot the full app through `bootApp()` from
-`test/integration/helpers/harness.tsx`: it renders `<App />` against the mock
-server, waits for a ready text (default `"Aurora Ascending"`, the first-page
-fixture — pass your own when booting a different filter), and returns
-`{ rendered, apolloClient, unmount }`. `afterEach` resets localStorage *and*
-the mock server's plugin/ui config so tests can't rehydrate each other's
-writes.
-
-Feed-level helpers live in `test/integration/helpers/feed.ts`:
-- `slides` / `currentSlide` / `sceneIdOf` / `goToNextSlide` / `goToSlide`: find and move between rendered slides
-- `click(element)`: click with `fireEvent` (see the `userEvent.click` gotcha below). Use it rather than a local copy
-- `tvConfig()`: the booted app's tvConfig store. `setStackConfig(config)` replaces the action button stack
-- `actionButton(app, name)`: the current slide's action button with that name, looked for in the action button stack only (the info panel has buttons of the same names)
-- `bootMarkersFeed()`: boot showing every marker. `feedShows(app, text)` / `feedDoesNotShow(app, text)`: wait for the feed to show text (e.g. a scene's title), or stop showing it
-- `bootWithTvConfig(configure, readyText?)`: change persisted tvConfig, then boot with it (e.g. a different filter or page size). It changes the config through a fresh copy of the tvConfig store without rendering the app: the store loads saved config as it's imported and saves through the app's own storage, and rendering the feed is most of what a boot costs
-- `pinActionButtons([...])` and `displayedSideInfo(app, buttonType)`: most action buttons sit in a closed folder by default, so pin the ones whose displayed state you assert on. Pass a button type, or a button's options for buttons that need them (e.g. `{ buttonType: "create-marker", iconId: "bookmark", markerDefaults: … }`)
-
-- `pinUncheckedActionButton(options)`: pin one button whose config skips type checking, to test how buttons handle bad saved config (e.g. an unknown `buttonType`, a quick tag with no `tagId`)
-- `fireLoadStart(app)`: fire `loadstart` on the current slide's video (see the gotcha below)
-- `failCurrentSource(app)`: make the current slide's video fail to play its source, as a browser does when it can't decode it
-
-Entity popover helpers (`test/integration/helpers/entity-popovers.ts`): `bootWithPanelOpenShowing([...])` boots with the info panel open showing the title, date and those fields; `openEntityPopover(app, name)` clicks an entity's name in it and returns its popover; `showTemporaryEntityFilter` and `temporaryChannelFilter`.
-
-Dropdowns (`test/integration/helpers/selects.ts`), for the react-select selects in Stash's forms and ours: `chooseSelectOption(combobox, text)` types an option's name and picks it, `openSelectMenu(combobox)` opens the menu and returns its listbox, and `typeIntoSelect(combobox, keys)` types anything and returns the listbox once shown.
-
-Helpers used by one feature's tests live in `test/integration/helpers/<feature>.ts`, with a `setup…Test()` (see the gotcha on keeping files short). Before adding one, check `feed.ts`, `harness.tsx` and `selects.ts`, and the shared `test/helpers/actionButtons.tsx`, for one that already does it.
-
-Harness helpers for tests that change state outliving a test:
-- `restoreServerMediaAfterEach(integration)`: snapshot the server's scenes and markers before each test and restore them after
-- `savedTvConfig(integration)`: the tvConfig the app has saved to the server (see the gotcha below)
-- `serverOCount(integration, sceneId)`: the scene's o-count on the server
-
-Action button helpers shared by both tiers live in `test/helpers/actionButtons.tsx`: `sidePanel()` / `isSidePanelOpen()` / `closeSidePanelByClickingOutside()`, `actionButtonRoot(button)`, and `displayedIconState(actionButton, icon)`, which reads a button's state from its icon (the only sign of it for buttons whose title doesn't change). ⚠️ That file imports app code only inside its functions, and integration tests must do the same: see the `StashService` gotcha below.
-
-Tests that change the mock server's scenes or markers (rating, o-count, deleting) must restore them in `afterEach` (`restoreServerMediaAfterEach`): the server store outlives each test. Fixture scenes have no captions; set `captions` on a scene record to give it some. Each scene's `_thumbs.vtt` has a cue for every second, showing its screenshot, so the progress bar's thumbnail preview shows as it does with Stash's sprites. Fixture tags, performers and studios have no images of their own: like Stash, mock-stash marks their `image_path` as its stand-in (`default=true`) unless the record has `has_image`. Filtering scenes by studio includes sub-studios' scenes, and leaves out scenes without a studio.
+- **tv-ui unit tests** go in `test/unit/<area>/`, mirroring `src/` (e.g. tests of `src/helpers/` in `test/unit/helpers/`), and **integration tests** in `test/integration/`. Tests never live in `src/`. Import app code by relative path into `src/` (e.g. `../../../src/components/...`): there's no `src/` alias.
+- **Helpers go with the tier that uses them:**
+  - `test/unit/support/`: unit tests only (e.g. `renderOnSlide`, `resetStores`). Not `test/unit/helpers/`, which holds the tests of `src/helpers/`.
+  - `test/integration/helpers/`: integration tests only (the harness, feed helpers, one file per feature's helpers).
+  - `test/e2e/helpers/`: E2E tests only.
+  - `test/helpers/`: used by both the unit and integration tests (e.g. `sceneInfo.ts`, `actionButtons.tsx`).
+- **E2E tests** go in `test/e2e/`.
+- **mock-stash's tests** go in `packages/mock-stash/test/`, including any test that only exercises mock-stash (see [mock-stash tests](testing-mock-stash.md)).
 
 ## Standards (binding for all tests)
 
@@ -132,70 +49,10 @@ Tests that change the mock server's scenes or markers (rating, o-count, deleting
 - **Query priority (RTL):** accessible queries (`getByRole`, `getByText`, `getByLabelText`) → `data-testid` (add to app code when needed — sanctioned) → class selectors only when the class *is* the contract (styling components like `Tag`/`ClipTimestamp`).
 - **Interactions:** prefer `userEvent` over `fireEvent` for realistic user interactions. `fireEvent` is acceptable for events users don't literally fire or jsdom workarounds — comment why.
 - **TypeScript:** tests are typechecked and must be clean. No `as Foo` casts, `any`, or `@ts-expect-error` — narrow unions properly. If narrowing is needed repeatedly, put one cast inside a shared helper rather than scattering casts.
-- **Shared helpers, no duplication:** store reset/gating lives in `tv-ui/test/unit/helpers/stores.ts` (`resetStores()`, `setTvConfigLoaded()`); RTL cleanup is centralized in `tv-ui/test/setup.ts`. Never add per-file `cleanupRtl()` boilerplate.
-- **Unit test what doesn't need the app or Stash.** A test is an integration test only if what it checks depends on the app talking to (mock) Stash, or on the app as a whole (e.g. the feed moving on). A component that only needs Stash's data as props, or a hook, function or store, gets a unit test, which runs in a fraction of the time. `renderOnSlide(ui)` (`test/unit/helpers/render.tsx`) renders a component with the contexts it has on a slide (react-intl, the slide's own state, and an Apollo client that never answers), and `sceneMediaItem()` / `markerMediaItem()` (`test/unit/helpers/mediaItems.ts`) make stand-in media items with just the fields given. Helpers both tiers use go in `test/helpers/` (e.g. `sceneInfo.ts`, `actionButtons.tsx`). A test that boots the app only to borrow its Apollo client and talk to mock-stash is testing mock-stash: put it in `packages/mock-stash/test/`.
-- **File placement:** unit tests in `test/unit/<area>/`, integration in `test/integration/`. Tests never live in `src/`. Import app code by relative path into `src/` (e.g. `../../../src/components/...`) — there's no `src/` alias.
+- **Shared helpers, no duplication:** store reset/gating lives in `tv-ui/test/unit/support/stores.ts` (`resetStores()`, `setTvConfigLoaded()`); RTL cleanup is centralized in `tv-ui/test/setup.ts`. Never add per-file `cleanupRtl()` boilerplate.
+- **Unit test what doesn't need the app or Stash.** A test is an integration test only if what it checks depends on the app talking to (mock) Stash, or on the app as a whole (e.g. the feed moving on). A component that only needs Stash's data as props, or a hook, function or store, gets a unit test, which runs in a fraction of the time. `renderOnSlide(ui)` (`test/unit/support/render.tsx`) renders a component with the contexts it has on a slide (react-intl, the slide's own state, and an Apollo client that never answers), and `sceneMediaItem()` / `markerMediaItem()` (`test/unit/support/mediaItems.ts`) make stand-in media items with just the fields given. Helpers both tiers use go in `test/helpers/` (e.g. `sceneInfo.ts`, `actionButtons.tsx`). A test that boots the app only to borrow its Apollo client and talk to mock-stash is testing mock-stash: put it in `packages/mock-stash/test/`.
 - **One behavior per test**, named after the behavior ("blocks sets and warns before tvConfigLoaded"), not the API.
 - **Doc citations:** tests verifying documented behavior cite it with `@see docs/<file>.md § "<heading>"` (or `AGENTS.md § "<heading>"` for repo-wide behaviour). `packages/repo/test/docs.test.ts` checks every cited heading exists, matching exactly, case included. If behavior is worth testing but not documented, document it.
-
-## Why teardown is clean (parallel execution history)
-
-The suite runs fully parallel with zero unhandled errors. Getting there required four independent fixes; if regressions appear, check these first:
-
-1. **Unhandled rejections in app code** — `updateTvConfig` in `tv-ui/src/helpers/stash-config-storage.ts` runs without a caller awaiting it, so any API failure must be caught there or it surfaces as an unhandled rejection.
-2. **Unit tests making real Apollo requests** — the tvConfig store hydrates through `stashConfigStorage`, which builds a real Apollo client. Even caught failures can leak unhandled rejections through Apollo's internal promises, so unit tests mock the client entirely (see "Test-only exceptions").
-3. **`graphql-ws` disposal** — see the disposal gotcha above.
-4. **XHRs settling after teardown** — Stash's VTT thumbnails plugin loads its `.vtt` with `XMLHttpRequest` and touches `window` when it loads; one landing after jsdom teardown fails the run with "window is not defined". `test/setup.ts` tracks in-flight XHRs and awaits them (bounded) in `afterAll`. ⚠️ Vitest 3.2 has no `onUnhandledError`/`onUnhandledRejection` config option — an earlier attempt to filter this error in `vitest.config.ts` was silently ignored, so fix such errors at the source rather than filtering.
-
-Full history of the investigation (including attempts that failed) lives in `docs/historical-plans/2026-08-30-websocket-cleanup-problem-handoff.md`.
-
-## Templates
-
-Unit:
-
-```typescript
-import { describe, expect, it, beforeEach, vi } from "vitest";
-import { act } from "@testing-library/react";
-
-describe("feature being tested", () => {
-  beforeEach(() => {
-    // Setup: reset state, clear localStorage, etc.
-  });
-
-  it("does something specific", () => {
-    // Arrange: set up test data
-    // Act: call the function
-    // Assert: verify the result
-    expect(result).toBe(expected);
-  });
-});
-```
-
-Integration — `bootApp()` handles the module reset, render, readiness wait, and unmount:
-
-```typescript
-import { describe, expect, it } from "vitest";
-import { act, waitFor } from "@testing-library/react";
-import { setupIntegrationTest, bootApp } from "./helpers/harness";
-
-const integration = setupIntegrationTest();
-
-describe("integration feature", () => {
-  it("behaves correctly with mock API", async () => {
-    const app = await bootApp();
-
-    // Assert on observable outcomes: DOM content, server state, or request
-    // counts (integration.server.getRequestCounts()).
-    await waitFor(() => {
-      expect(app.rendered.container.textContent).toContain("expected text");
-    });
-
-    // Cleanup: unmount only — Apollo clients are deliberately not stopped (see
-    // the harness NOTE and the graphql-ws disposal gotcha above).
-    await app.unmount();
-  });
-});
-```
 
 ## Gotchas
 
@@ -203,144 +60,12 @@ describe("integration feature", () => {
 
 ⚠️ **A bare `tsc` covers only one tsconfig.** `packages/repo` has its own `tsconfig.json`, which the root one doesn't include. Running `tsc` there skips everything else, and running it at the root skips `packages/repo`. `yarn typecheck` runs both, and so does CI.
 
-⚠️ **jest-dom's matchers come from `@testing-library/jest-dom/vitest`.** `test/setup.ts` imports it, which both adds the matchers to vitest's `expect` and declares them on its `Assertion` type, so the editor and `tsc` agree. Don't import `@testing-library/jest-dom/matchers` and `expect.extend` them yourself: that registers them without their types.
-
-⚠️ **Testing Library only recognises Jest's fake timers.** After every user-event call it waits for a `setTimeout(0)`, advancing fake timers to fire it if it finds a `jest` global. Under vitest's fake timers (`vi.useFakeTimers()`, e.g. the keyboard rating tests' `freezeClock()`) it would wait forever, so `test/setup.ts` defines a minimal `jest` with just the `advanceTimersByTime` it uses. A consequence: `waitFor` with fake timers advances them as it polls (as under Jest), so a test timing things with a frozen clock shouldn't `waitFor` in the middle; advance the clock in `act()` instead, which renders what it causes straight away.
-
-⚠️ **A UI change follows the server's.** mock-stash records a mutation before the app has its response, so after waiting for the server to have a change (`serverScene(...)`, `ratingsSent(...)`), `waitFor` what the UI shows too rather than expecting it straight away. Under load the app's render comes noticeably later.
-
-⚠️ **A timer that outlives its component fails the run.** React 18 reads `window` when a state update is scheduled, even on an unmounted component (React 17 just ignored it), so a timeout setting state that fires after a test file's jsdom is torn down throws `ReferenceError: window is not defined` from `getCurrentEventPriority`, an unhandled error failing the run though every test passed. Clear timers in the effect's cleanup.
-
-⚠️ **Don't hard-code a window width a test's set up depends on.** Some scene info panel e2e tests need things to wrap a particular way (e.g. a row of unused fields with no room for another), which moves whenever the pills' contents or the panel's padding change, so a width that worked stops working. They step the window's width until what they need holds (`resizeUntil` in `test/e2e/scene-info-panel.test.ts`), checked in the page, and fail saying so if no width does.
-
-⚠️ **Importing Stash's `StashService` connects to Stash.** It creates its Apollo client and WebSocket as it's imported, and in a unit test (no mock server) the WebSocket's disposal in `afterAll` times out, failing the file though its tests pass ("Hook timed out"). Many components import it, directly or through hooks (e.g. `useSetRating`, `useOCounter`), so a unit test of plain code that imports components through it needs `vi.mock("stash-ui/dist/src/core/StashService", () => ({}))` (as `sceneInfoConfig.test.ts` does), and modules the stores import mustn't import components (as the tvConfig store imports the scene info panel's default layout from `default-layout.ts`).
-
-⚠️ **Testing Library versions follow React's.** On React 18: `@testing-library/react` 16.x (with its peer `@testing-library/dom` 10.x), `@testing-library/jest-dom` 6.x, `@testing-library/user-event` 14.x.
-
-⚠️ **Unit tests must never make real network requests.** Without `VITE_APP_PLATFORM_URL` set, Apollo links default to `http://localhost:9999` — Stash's default port, likely a live server (or SSH tunnel, or the dev server with `DEV_PORT=9999`) on a dev machine; real responses (e.g. 404s) surface as unhandled rejections, and Stash's websocket client, connected to it, never finishes disposing so `test/setup.ts`'s teardown times out. So the unit project sets `VITE_APP_PLATFORM_URL` to `http://127.0.0.1:1`, where nothing listens. Unit tests are kept network-free by the project-scoped Apollo client mock (see "Test-only exceptions"); integration tests use `mock-stash`'s ephemeral port. If you add a unit test that needs Apollo, extend the mock — don't let it hit the default port. ⚠️ `StashService`'s own query helpers (e.g. `queryFindTagsForSelect`, which Stash's tag selects load their options with) use its real client, not the mocked `getClient()`, so mock each one a component calls, as `setup-unit-apollo.ts` does for the tag selects' (with no tags). A request that slips through shows up as an unhandled `ECONNREFUSED … :9999` rejection, failing the file.
-
-⚠️ **`graphql-ws` clients need disposal before jsdom teardown.** The Apollo client singleton uses `retryAttempts: Infinity`; integration tests create many clients via `vi.resetModules()` re-imports. `tv-ui/test/setup.ts` wraps `graphql-ws`'s `createClient` to track and dispose all clients in `afterAll`. If you see unhandled `ECONNREFUSED`/reconnect errors in teardown, this wrapper is the place to look.
-
-⚠️ **`vi.mock` calls must live in the test file itself.** Vitest hoists `vi.mock` to the top of the *file that declares it* — mocks placed in an imported helper module (e.g. `test-harness.ts`) are applied too late and the real module loads. This bit the tv-plugin tests: mocks for `stash-ui/dist/src/core/StashService` etc. must be declared in each test file (a shared comment pointing at the reasoning is the pattern used in `packages/tv-plugin/test/unit/`).
-
-⚠️ **Persisted-config tests must seed the hybrid storage's local key.** tvConfig persists through `createJSONStorage` over the hybrid storage: the localStorage half lives under **`app-state-local`** (the `-local` suffix), not the plugin-name key. Tests that seed any other key pass vacuously on defaults — this silently gutted the original migration tests.
-
-⚠️ **`startMockStash` rejects with `EADDRINUSE` when its fixed port is taken** (it used to hang until the hook timeout). Find leftovers with `lsof -nP -iTCP:4000 -sTCP:LISTEN`. The WebSocket server is attached only after `listen` succeeds, because `ws` re-emits HTTP server errors and graphql-ws would log them as a noisy "internal error".
-
-⚠️ **To assert on which requests were made, use the mock server's request log.** `server.getRequestCounts()` counts operations by name, and `server.getRequests()` lists each one in order with its variables (e.g. to check which scene a `FindScene` was for). `resetRequestCounts()` clears both. Note vitest hides `console.log` output from passing tests (`silent: 'passed-only'`), so debug logging only shows up when a test fails.
-
-⚠️ **`DEBUG_MOCK_REQUESTS=1` logs every GraphQL operation mock-stash executes** (operation name + variables) — the fastest way to see what the app actually sends when debugging integration/e2e tests.
-
-⚠️ **SVG `?react` imports need `vite-plugin-svgr` in every Vitest project.** Vitest projects don't inherit root `plugins`, so `vitest.config.ts` sets `svgr()` on each project. Without it `*.svg?react` resolves to a data-URL string. A button whose whole `icon` is such a string then renders "?" (see the `ActionButtonIcon` string bug under "App-code smells"), and the "?" ends up in its accessible name.
-
-⚠️ **Action buttons have no `data-testid`.** The per-type button components don't thread unknown props to the DOM, so e2e asserts on the `ActionButton` root class (the component's contract). If buttons ever gain a testid, prefer it (see "Known gaps").
-
-⚠️ **Saved-filter fixtures must use Stash's UI shape for hierarchical criteria.** Stash's frontend saves tag/performer criteria in saved filters as `{value: {items: [{id, label}], excluded, depth}, modifier}` — *not* the flat `{value: [ids], modifier, depth}` criterion input the GraphQL API accepts. The mock's fixtures originally used the flat shape, which `ListFilterModel.configureFromSavedFilter` silently parses to an empty item list — tag filters matched nothing and nothing errored. Any new fixture with a tags/performers criterion must use the `items` shape.
-
-⚠️ **Node 26 shadowing jsdom localStorage:** tests must run with `--no-experimental-webstorage` (already in the package `test` scripts — keep it there).
-
-⚠️ **Mousetrap needs `KeyboardEvent.which`, which jsdom leaves at 0.** Stash's keybind hooks use Mousetrap, which reads only `which`; `test/setup.ts` polyfills it from `charCode`/`keyCode` as browsers do. Without it, Mousetrap bindings silently never fire under `userEvent`. (Stash TV's own shortcuts, rating included, don't use Mousetrap: see [keyboard shortcuts](keyboard-shortcuts.md).)
-
-⚠️ **userEvent doesn't set `KeyboardEvent.keyCode`** (it's 0), so code that only checks `keyCode` never sees the key in tests. That includes react-bootstrap modals closing on Escape (`keyCode === 27`): `{Escape}` doesn't close them. Match keys by `event.key`, as `CommandPalette` does for Escape (see [keyboard shortcuts](keyboard-shortcuts.md) § "The command palette").
-
-⚠️ **Rating windows are held open in tests.** After a key starting a shortcut's sequence (e.g. `r`), the next key must come within 1s (see [keyboard shortcuts](keyboard-shortcuts.md) § "Matching"). `setupKeyboardRatingTest()` (`test/integration/helpers/keyboard-rating.ts`) holds those windows open (it recognises the timers by their callback, `endSequence`) until the test ends them with `endRatingWindows()`, or teardown does. They never run out in real time, so digits typed after `r` can't miss the window on a busy machine, and nothing waits a second for one to close. Tests of a window running out freeze the clock (below). A test that relies on whether a window is open checks how many it found (`expect(endRatingWindows()).toBe(0)`), so renaming the callback fails loudly. The sequence typed so far is module state, so teardown ends any window a test left open rather than leave it to the next test.
-
-⚠️ **Don't race Stash's 1s rating window against wall-clock time — freeze the clock.** Tests about what happens when a sequence's window runs out (e.g. a second rating spanning the first one's timeout) used to sleep until ~850ms after the first `r`, but under a full parallel run the first rating's server round trip alone took 1–3s, so they flaked. They now use `vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })` for just the typing, with `userEvent.setup({ advanceTimers: vi.advanceTimersByTime })` (the default userEvent waits on a real `setTimeout` between keys, which would hang), and step the window with `vi.advanceTimersByTime` (see `freezeClock()` in `test/integration/helpers/keyboard-rating.ts`). Faking only those, and only briefly, leaves the app and mock server working: the slowdown seen in one early trial was CPU load, not fake timers. While the clock is frozen:
-- RTL's `waitFor` (and helpers built on it, like `goToNextSlide`) still polls, on `setInterval`, but its timeout is a `setTimeout` and never fires: RTL 8 only recognises Jest's fake timers. A wait that never succeeds shows up as the 20s test timeout, so do any wait that can fail after `vi.useRealTimers()`. The file's `afterEach` restores real timers before anything else, so the teardown hooks don't hang too.
-- `vi.waitFor` does have a real deadline, but it advances the frozen clock on every check, so real time spent waiting eats into the window again. Don't use it to time a window.
-- Anything that needs a timer to fire, e.g. VideoScroller's 100ms index throttle when changing slides, only moves when you advance the clock past it.
-
-⚠️ **`userEvent.click` breaks once a MediaSlide is mounted.** userEvent defines `detail` on its click events as a non-configurable own property, and MediaSlide's use-gesture workaround redefines `detail` on every window click, so the click throws "Cannot redefine property: detail". Real browser clicks don't do this. In integration tests that click with the feed mounted, use `fireEvent.click` and say why in a comment (see `keyboard-shortcuts-help.test.tsx`).
-
-⚠️ **jsdom's `document` outlives each `bootApp()`.** Inline state the app writes to `<html>`/`<body>` (e.g. modals set `--fixed-right-padding`, a bogus 649px under the stubbed VisualViewport, which react-spring then fails to parse when the next boot mounts the settings drawer) leaks into the next test, so the harness `afterEach` clears it the way a page reload would. Extend that reset if you find other document-level leakage. ⚠️ Vitest runs `afterEach` hooks in reverse registration order, so the global RTL `cleanup` in `setup.ts` runs *after* the harness's reset. The harness therefore calls `cleanup()` itself first. Otherwise a test that fails before `unmount()` leaves its app mounted through the reset, and the next test's boot crashes with react-spring's "Unexpected token 0px".
-
-⚠️ **The app saves tvConfig to Stash without waiting for the write**, so a save can still be in flight when a test ends. The harness's `afterEach` waits for every boot's pending writes (`stashConfigWritesSettled()`) before resetting the server's config; without that, a write landing after the reset leaked into the next test's boot (it showed up on CI only, where the round trip is slower — the next boot came up with the previous test's info panel layout and timed out waiting for its ready text). To check a setting persists, wait on `savedTvConfig(integration)`.
-
-⚠️ **Video.js (like Mousetrap) is one shared instance across boots, and so are the hooks registered on it.** tv-ui adds its hooks at module level, so every `bootApp()` used to add another set, and the previous apps' hooks still ran on the new app's players. They're now added under keys, which replace the earlier boots' copies (see [video player](video-player.md) § "Architecture"). `usePlayerManager`'s hooks dispatch to per-player callbacks keyed by player id, and ids restart with each boot (`player-scene-7-0`), so a stale callback once ran the previous test's source-selector wrapper on the new player. The symptom was a stream preference from one test playing in the next, with the new app's tvConfig showing no preference. Per-player callbacks are now removed on unmount. If something leaks between tests with no trace in the server or tvConfig, look for module-level state on a shared dependency.
-
-⚠️ **Keep integration test files short, about 10 tests or 15s each.** Vitest runs files in parallel but a file's tests one after another, so a run takes as long as its slowest file: one 26-test file took 54s while the rest of the suite had finished. Split a long file by its `describe` blocks, moving the helpers they share into `test/integration/helpers/<feature>.ts`, with a `setup…Test()` for the hooks every file needs (e.g. `setupSceneActionButtonsTest()` in `helpers/scene-action-buttons.ts`).
-
-⚠️ **Don't query a booted app's whole page by label.** `ByLabelText` works out the labels of every element it searches, and in jsdom each of those lookups scans the document, so its cost grows with the square of the page's size: `screen.getByLabelText("Channel on Startup")` took 5s with the feed and Settings tab rendered. Query within the dialog or form group the field is in (`ByText` is cheap enough to find that by, as `startupChannelSelect()` in `helpers/channel-settings.ts` does). One test spent 11s of a parallel run this way, which a busy machine pushed past the test timeout.
-
-⚠️ **Timeouts are generous so a busy machine slows tests down rather than failing them.** Other work running alongside (e.g. another copy of the suite) makes everything several times slower; with the old limits (20s per test, 5s for `waitFor`) 2–5 tests failed in each such run, and none with these. The test and hook timeout is 60s (`vitest.config.ts`), RTL's async timeout is 15s in integration tests (`configure` in `harness.tsx`), and `bootApp()` waits 30s for the feed. The app and the mock server share one thread, so a round trip that takes ~200ms alone can take several times that when the whole suite runs in parallel; the 1s default made `create-marker-button` › "shows the new marker on the scene" flaky. A failing test still fails on its own waits, just later. To check a change holds up under load, run the suite while another copy runs.
-
-⚠️ **jsdom never fires `loadstart`.** Media loading is stubbed, so after a stream switch (or on a newly current slide) nothing tells `useSceneStreamSelection` which stream is playing. Call `fireLoadStart(app)` the way a browser would fire it.
-
-⚠️ **The side panel isn't a `dialog` to RTL.** It renders as `<dialog>` without `open`, so `getByRole("dialog")` doesn't find it. Use `sidePanel()`. Its outside-click backdrop is the element just before it, and a click on it closes the panel only if a `pointerdown` on it came first (`closeSidePanelByClickingOutside()` fires both).
-
-⚠️ **Don't import `stash-ui/dist/src/core/StashService` at the top of an integration test.** That includes anything that imports `store/tvConfig` (e.g. `ActionButtonBase`, any button definition, the icon registry's users): tvConfig → `stash-config-storage` → `getApolloClient` → `StashService`. The symptom is an `ApolloError … 404` and the `graphql-ws` disposal `afterAll` timing out. Import app values with `await import(...)` inside the test, after `bootApp()`; type-only imports are fine. Importing it creates an Apollo client immediately (`createClient()` at module scope). At the top of a test file that happens before the harness points `VITE_APP_PLATFORM_URL` at the mock server, so the client retries against port 9999 forever and can make the `graphql-ws` disposal `afterAll` time out. Import it dynamically inside the test after `bootApp()`, which also returns the app's own instance (see `background-updates.test.tsx`).
-
-⚠️ **Stash's form labels don't point at their react-select inputs.** In forms like `SceneMarkerForm`, `<label for="primary_tag_id">` has no matching input id, so `getByLabelText` fails. Find the field's `.form-group` from its label and take the combobox inside it (see `markerFormSelect` in `create-marker-button.test.tsx`). `MarkerTitleSuggest` is also disabled until its suggestions load, so wait for it to be enabled before typing.
-
-⚠️ **jsdom never fires `timeupdate`, and its playback position stays at 0.** Anything MediaSlide recomputes on `timeupdate` (e.g. the "currently playing marker" label) only changes in a test if you fire the event on the slide's `<video>` yourself.
-
-⚠️ **The mock server is only as realistic as its resolvers.** Some queries the app makes are stubbed to return nothing (e.g. `sceneMarkerTags`, `plugins`). If a Stash component behaves differently in tests than against real Stash, check the mock's resolver first. `markerStrings` used to return `[]`, which made Stash's marker title field blank when editing an existing marker.
-
-⚠️ **Anything that depends on layout needs an e2e test.** jsdom has no layout, so positioning bugs (e.g. a dropdown menu inside an action button's side panel opening off screen or behind the panel's backdrop) pass every unit and integration test. In Playwright, `toBeVisible()` doesn't catch them either: an element off screen or covered by something else still counts as visible. Check `toBeInViewport()` and hit-test with `document.elementFromPoint` (see `expectUsableOnScreen` in `test/e2e/helpers/layout.ts`).
-
-⚠️ **jsdom tests don't load stylesheets**, so anything CSS decides, such as which elements are hidden, also needs an e2e test (e.g. the folder preview's 4-icon limit in `test/e2e/action-button-stack.test.ts`).
-
-⚠️ **A field's controls in the info panel editor take the pointer only while shown.** Its ×, + and options buttons show when the field's hovered over (or tapped), and until then the field underneath gets the pointer. Playwright checks what's under the pointer before moving the mouse there, so `button.click()` never hovers and waits until the test times out: hover over the field first (`clickFieldControl()` in `test/e2e/scene-info-panel.test.ts`), as a mouse user does.
-
-⚠️ **Wait for an e2e animation to finish with `stoppedMoving(container)`, not a fixed time** (`test/e2e/helpers/layout.ts`). It waits until nothing in the container has moved, resized or faded for 10 frames in a row. A fixed wait is longer than needed when the machine's quiet, and too short when it's busy: several info panel tests failed once the suite ran in parallel. Watch the element that's actually animating: react-select's menu isn't in the panel it opens from, so waiting on the panel didn't wait for the menu's scroll. A fixed wait is still right for checking something *doesn't* happen for a while (e.g. that feedback stays hidden during a hold).
-
-⚠️ **Don't count an e2e animation's frames to check it played.** A busy machine draws far fewer of them: a CI runner, with two browsers playing video, drew 7–10 frames of the info panel's 450ms morph, failing a test expecting over 10. Check something that doesn't depend on the frame rate instead: how long it was sampled for (`expectSampledMorph` in `test/e2e/scene-info-panel.test.ts`), or, for an animation too short for that, that any frame caught it part way (`isPartWay` in `test/e2e/action-button-stack.test.ts`; the folder's icons animate for only 100ms, and a busy machine drew 3 frames of it). To reproduce a slow machine locally, throttle the CPU through CDP: `(await page.context().newCDPSession(page)).send('Emulation.setCPUThrottlingRate', { rate: 6 })` (the folder icons' short animation needed a rate of 20).
-
-⚠️ **Don't `expect.poll` for a state that lasts only a moment.** Its checks get a second apart, so it can step right over one. A looping marker's time is back below where it was for only about 0.4s after it loops, and a test polling for that missed it. Record it in the page every frame instead and poll the record (`watchForLoop` in `test/e2e/gesture-controls-markers.test.ts`).
-
-⚠️ **Retry a check whose set-up can be undone by a re-render, with a short timeout inside `toPass`.** Checking every option of an open dropdown (`expectAllOptionsUsable` in `create-marker-button.test.ts`) scrolls the menu to each option and then hit-tests it. With the suite in parallel, a check now and then found the option just out of view, and stayed failing until scrolled to again. So each option is scrolled to and checked inside `expect(…).toPass()`. ⚠️ Give the check inside a shorter timeout than `toPass` (`expectUsableOnScreen(option, { timeout: 1_000 })`): its `toBeInViewport` waits the default 5s, which used up `toPass`'s whole budget, so it never actually retried. Find each option by its text within the open menu, not by its index on the page: the form's other selects have menus of their own.
-
-⚠️ **Dropdown e2e tests need realistic data and timing.** The mock has only 5 tags, so a tag menu is much shorter than on a real library, and Stash's tag selects load their options asynchronously, so a menu opened straight away is just "Loading...". Bugs that depend on menu size, like react-select scrolling the page to reveal a menu, only show up with enough options and once they've loaded: create extra tags with `createTags` (and `destroyTags` them afterwards), and wait for the field's `.react-select__loading-indicator` to go before clicking (see the very-short-window test in `create-marker-button.test.ts`).
-
-⚠️ **E2E tests leave scenes' play positions in mock-stash.** The app saves a scene's resume time as it plays, and each worker's mock-stash state outlives each test, so a later test's video starts where an earlier one left it. That broke looping tests, as a looping video's loop starts there, and info panel tests, whose video ended and moved the feed on to another scene. `setTvConfig` sets `startPosition: 'beginning'` unless told otherwise; set it too if you load the feed without it.
-
-⚠️ **use-gesture ignores the first 3px of a drag** (its threshold for telling a drag from a tap), in the direction the drag first went, for the rest of the drag. `speedDrag` allows for it. Without that, drags landed just short of the speed aimed for. A drag can also pass through other speeds on the way, which matters at the end of a looping video, where any speed that plays it loops it round: pass `{ steps: 1 }` to jump straight there.
-
-⚠️ **E2E tests that need non-default config set it through the API.** tvConfig lives in Stash's plugin config, so send a `configurePlugin` mutation to `/graphql` (proxied to mock-stash) before `page.goto`, and reset it to `{}` afterwards: the worker's later tests share its mock-stash state. Include `showGuideOverlay: false`, or the first-run guide overlay covers the page and swallows every click.
-
-⚠️ **The iOS on-screen keyboard can only be reproduced in the iOS Simulator, with a person tapping.** Playwright's WebKit has no on-screen keyboard. What works:
-- In the Simulator app, untick I/O ▸ Keyboard ▸ Connect Hardware Keyboard, or the on-screen keyboard never appears.
-- Run the dev server (the simulator shares the Mac's network, so `localhost` works) and open the app in the simulator's Safari with `xcrun simctl openurl booted <url>`.
-- Have someone tap through the steps, with a temporary dev-only script in the app that POSTs measurements (`visualViewport` size/offset, `scrollY`, focus, element rects) on each change to a small local HTTP server. Remove the script afterwards.
-- `safaridriver` (with `safari:useSimulator`) can load pages and run scripts in the simulator, but not reproduce this: its taps arrive as a long press with no `touchend` or `click`, a focus it causes doesn't bring up the keyboard, and a person interacting by hand ends its session.
-
-⚠️ **Known jsdom limitations:** no pointer capture (Radix drag tests are skipped with reasons inline), no Gamepad API (stubbed in `setup.ts`), `HTMLMediaElement.play` stubbed. Document skipped tests inline.
-
-⚠️ **jsdom media stubs in `setup.ts`:** `MediaError` is polyfilled (Stash's source selector reads its codes to decide whether to fall back to the next stream), and `canPlayType` claims MP4 and WebM like a browser. Without the latter, Video.js rejects every source, so every player falls back through all its streams on boot. HLS/DASH stay unsupported (no Media Source Extensions), so choosing them errors as it would in a browser without MSE. To test a stream failing, use `failCurrentSource(app)`.
-
-## Test-only exceptions to app-code rules
-
-- `useStore.setState` — forbidden in app code (bypasses typed setters and persistence routing), permitted **only** inside the shared test helpers in `test/unit/helpers/stores.ts` for resetting to a known state. Never scatter raw `setState` through individual tests.
-- Apollo client mocks prevent real connection attempts in unit tests; integration tests use the real client against `mock-stash` instead. The unit/integration split is a Vitest "projects" config (`tv-ui/vitest.config.ts`): the mock lives in `tv-ui/test/setup-unit-apollo.ts` and is only in the unit project's `setupFiles` — putting it in the shared `test/setup.ts` breaks integration tests.
-
 ## Known gaps & deferred improvements
 
-Issues found in the 2026-09 test-suite review that were **not** fixed — pick these up incrementally.
-
-### Enforcement (highest leverage)
+Issues found in the 2026-09 test-suite review that were **not** fixed. Gaps specific to a tier are in its doc.
 
 - **No lint enforcement of the standards.** The `any`/`as`-cast/`fireEvent` drift the review found would be caught by a minimal ESLint config (`@typescript-eslint/no-explicit-any`, `no-unnecessary-type-assertion`, RTL-specific rules) scoped to test files. Until then, the standards are manual.
 - **No coverage thresholds.** Coverage is scoped to `src/**` (stories excluded) but nothing prevents regressions. Consider `coverage.thresholds` once the numbers stabilise.
-
-### Known coverage holes (from the v8 report)
-
-- `useViewportRotate` (~42%) — a whole advertised feature, barely tested
-- `useMediaItemTags` (~27%), `useSceneUpdate` (~32%), `useStashTvConfig` (~48%)
-- Media-modifier hooks `openModifier` (~36%) and `shuffleModifier` (~25%) — integration coverage exists for the modifier *pipeline*, not these implementations
-- `popper-modifiers/setMaxSize.ts` (~15%) and the other popper modifiers
-- `MediaSlide` (~63%) and `Feed` error/empty-state paths
-
-### Test-quality debt
-
-- **mock-stash `meta.test.ts`**: the marker create/update/destroy test bundles three behaviours in one `it`.
-- **Conformance suite** (`packages/mock-stash/test/conformance/`): scattered `as` casts on projections (centralise a typed-projection helper); "findScenes sorts by path consistently" sorts inside its own projection, weakening what it verifies.
-- **E2E is still mostly smoke-level outside playback**: gestures, keyboard seeking and moving between slides are covered, as are the create-marker side panel's dropdowns, but nothing yet covers opening settings.
-- **`EditTagsContents` unit tests mock `EditTagSelectionForm`** — a real-form integration test would cover the prop forwarding for free and exercise the actual editing flow.
-
-### App-code smells surfaced by the review (fix in app code, not tests)
-
-
-- **Scan-complete cache reset doesn't exist in tv-ui.** `resetStore()` on `ScanComplete` lives on stash-ui's `createClient()` client, which the app doesn't use for its queries — a finished scan won't refresh the feed. The original integration test asserted this fiction and was deleted. If the behaviour is wanted, wire the subscription in tv-ui and restore the test (the mock-server request counting added during the review is still available).
 
 ## History
 

@@ -8,7 +8,7 @@
 import { describe, expect, it } from "vitest";
 import { makeMediaItemPreviewOnly } from "../../../src/helpers/makeMediaItemPreviewOnly";
 import { defaultMarkerLength } from "../../../src/helpers/mediaItem";
-import { markerMediaItem, sceneMediaItem } from "./mediaItems";
+import { markerMediaItem, sceneMediaItem } from "../support/mediaItems";
 
 const PREVIEW = "https://stash.test/scene/1/preview";
 const STREAM = "https://stash.test/scene/1/stream";

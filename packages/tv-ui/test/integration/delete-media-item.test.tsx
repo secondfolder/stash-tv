@@ -44,7 +44,7 @@ async function deleteCurrentItem(app: BootedApp) {
     if (!button) throw new Error("Delete confirmation not shown");
     return button;
   });
-  // fireEvent rather than userEvent: see docs/testing.md § "Gotchas" (userEvent.click breaks with a MediaSlide mounted)
+  // fireEvent rather than userEvent: see docs/testing-unit-integration.md § "Gotchas" (userEvent.click breaks with a MediaSlide mounted)
   fireEvent.click(confirmButton);
   await waitFor(() => expect(integration.server.store.scenes.has(sceneId)).toBe(false));
   await waitFor(() => expect(slides(app).map(sceneIdOf)).not.toContain(sceneId));

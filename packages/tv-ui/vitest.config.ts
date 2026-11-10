@@ -39,7 +39,7 @@ const sharedTestOptions = {
   // @see docs/historical-plans/2026-08-30-websocket-cleanup-problem-handoff.md
   // Generous, so that a test that's merely slow (e.g. on a machine busy running other things, where everything can
   // take several times as long) passes rather than fails. A test that's failing still fails on its own waits first.
-  // @see docs/testing.md § "Gotchas"
+  // @see docs/testing-unit-integration.md § "Gotchas"
   testTimeout: 60000,
   hookTimeout: 60000,
   restoreMocks: true,
@@ -72,7 +72,7 @@ export default defineConfig({
           setupFiles: ["./test/setup.ts", "./test/setup-unit-apollo.ts"],
           // Stash's own client (created when StashService loads) otherwise defaults to localhost:9999: Stash's port, and
           // often a dev server's, whose websocket it then can't dispose of at teardown. Nothing listens on port 1.
-          // @see docs/testing.md § "Gotchas"
+          // @see docs/testing-unit-integration.md § "Gotchas"
           env: { VITE_APP_PLATFORM_URL: "http://127.0.0.1:1" },
           ...sharedTestOptions,
         },

@@ -5,7 +5,7 @@ import { fireEvent, waitFor } from "@testing-library/react";
 import type { ActionButtonDefinition } from "../../src/components/action-buttons/buttons";
 
 // App modules are imported inside functions rather than here: integration tests must not import anything that creates
-// an Apollo client before the harness has pointed the API at the mock server (see docs/testing.md § "Gotchas"), and
+// an Apollo client before the harness has pointed the API at the mock server (see docs/testing-unit-integration.md § "Gotchas"), and
 // importing them later also gets the booted app's own instances.
 
 /**
@@ -67,7 +67,7 @@ export function isSidePanelOpen() {
 export async function closeSidePanelByClickingOutside() {
   const backdrop = sidePanel().previousElementSibling;
   if (!(backdrop instanceof HTMLElement)) throw new Error("Side panel has no backdrop");
-  // fireEvent rather than userEvent: see docs/testing.md § "Gotchas" (userEvent.click breaks with a MediaSlide mounted).
+  // fireEvent rather than userEvent: see docs/testing-unit-integration.md § "Gotchas" (userEvent.click breaks with a MediaSlide mounted).
   // The press has to start on the backdrop too, or it isn't treated as an outside click (see docs/action-buttons.md)
   fireEvent.pointerDown(backdrop);
   fireEvent.click(backdrop);

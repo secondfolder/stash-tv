@@ -10,7 +10,7 @@ import { matchShortcut, shortcutDigits, trackHeldKeys } from "../../../src/hooks
 import type { ShortcutActionId } from "../../../src/helpers/shortcut-actions/actions";
 import { useGlobalState } from "../../../src/store/globalState";
 import { useTvConfig } from "../../../src/store/tvConfig";
-import { resetStores } from "../helpers/stores";
+import { resetStores } from "../support/stores";
 
 /** Press a key, giving which of the actions it's for */
 function press(key: string, actionIds: ShortcutActionId[], init: KeyboardEventInit = {}) {

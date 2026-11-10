@@ -20,7 +20,7 @@ Stash TV's React has to be the version of the Stash UI code it reuses: React 18 
 - **The app** (`/plugin/stash-tv/assets/app/`) is a page of its own, bundling React along with the Stash UI code it reuses, so the Stash version it's installed in doesn't matter.
 - **The plugin's injected UI** (`tv-plugin/main.tsx`: the nav bar link, the queue button, the scene list menu item, the plugin settings) is rendered by Stash's own React. Its JSX compiles to `PluginApi.React.createElement` (the root tsconfig's classic `"jsx": "react"`, with `React` taken from `PluginApi`) and its hooks are `PluginApi.React`'s, so it works with whichever React the Stash it's in has.
 
-⚠️ When a new pinned version moves Stash to another major version of React, tv-ui's `react`, `react-dom`, their types and Testing Library (see [testing](testing.md) § "Gotchas") move with it. Check yarn.lock for wide ranges (`@types/react@*`) still resolved to the old version, which leave a second copy of React's types nested under the packages that use them.
+⚠️ When a new pinned version moves Stash to another major version of React, tv-ui's `react`, `react-dom`, their types and Testing Library (see [unit & integration tests](testing-unit-integration.md) § "Gotchas") move with it. Check yarn.lock for wide ranges (`@types/react@*`) still resolved to the old version, which leave a second copy of React's types nested under the packages that use them.
 
 ## Adapting queries to the server
 

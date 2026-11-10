@@ -7,7 +7,7 @@ import { act, fireEvent, screen, waitFor, within } from "@testing-library/react"
  */
 
 // App modules are imported inside functions: integration tests mustn't import anything that creates an Apollo client
-// before the harness has pointed the API at the mock server (see docs/testing.md § "Gotchas")
+// before the harness has pointed the API at the mock server (see docs/testing-unit-integration.md § "Gotchas")
 
 export async function stackConfig() {
   const { useTvConfig } = await import("../../src/store/tvConfig");

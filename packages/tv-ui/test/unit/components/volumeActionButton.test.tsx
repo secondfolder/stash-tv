@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event"
 // RTL cleanup runs centrally in test/setup.ts
 import { VolumeActionButton, buttonDefinition } from "../../../src/components/action-buttons/buttons/VolumeActionButton"
 import { useTvConfig } from "../../../src/store/tvConfig"
-import { resetStores } from "../helpers/stores"
+import { resetStores } from "../support/stores"
 import { actionButtonRoot, displayedIconState } from "../../helpers/actionButtons"
 
 /**

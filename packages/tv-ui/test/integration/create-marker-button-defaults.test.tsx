@@ -93,7 +93,7 @@ describe("Create-marker button with defaults", () => {
   it("fills in its icon once the scene has a matching marker", async () => {
     const app = await bootApp();
     await pinDefaultsButton();
-    // Imported after boot: see docs/testing.md § "Gotchas" (importing app code at the top of an integration test)
+    // Imported after boot: see docs/testing-unit-integration.md § "Gotchas" (importing app code at the top of an integration test)
     const { actionButtonIcons } = await import("../../src/components/action-buttons/icons");
     const displayedState = async () =>
       await displayedIconState(actionButtonRoot(await defaultsButton(app)), actionButtonIcons["bookmark"].states);

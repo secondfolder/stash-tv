@@ -5,7 +5,7 @@ import type { FilterEntity, FilterEntityType } from "../../../src/components/cha
 
 /**
  * Helpers for tests of entities' popovers in the scene info panel (see docs/entity-popovers.md). App code is imported
- * only inside functions: see docs/testing.md § "Gotchas" (importing Stash's `StashService` connects to Stash).
+ * only inside functions: see docs/testing-unit-integration.md § "Gotchas" (importing Stash's `StashService` connects to Stash).
  */
 
 /** The first slide's scene's date (fixture scene-7, "Grotto Glow") */

@@ -15,8 +15,8 @@ import { getActionButtonDefinition } from "../../../src/components/action-button
 import { MediaItemStateContextProvider } from "../../../src/store/mediaItemState";
 import { useTvConfig } from "../../../src/store/tvConfig";
 import { displayedIconState } from "../../helpers/actionButtons";
-import { sceneMediaItem } from "../helpers/mediaItems";
-import { resetStores } from "../helpers/stores";
+import { sceneMediaItem } from "../support/mediaItems";
+import { resetStores } from "../support/stores";
 
 beforeEach(() => {
   resetStores();

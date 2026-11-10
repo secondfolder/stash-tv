@@ -9,7 +9,7 @@ import {
   buttonDefinition,
 } from "../../../src/components/action-buttons/buttons/PlaybackRateActionButton"
 import { useTvConfig } from "../../../src/store/tvConfig"
-import { resetStores } from "../helpers/stores"
+import { resetStores } from "../support/stores"
 import { actionButtonRoot, displayedIconState, sidePanel } from "../../helpers/actionButtons"
 
 /**

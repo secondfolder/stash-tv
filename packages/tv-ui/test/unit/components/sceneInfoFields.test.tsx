@@ -9,8 +9,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { within } from "@testing-library/react";
 import { click, field, openFieldOptions, PERFORMER, save, saveFieldOptions, SIMPLE_LAYOUT } from "../../helpers/sceneInfo";
-import { renderEditor, renderPanel, savedFieldOptions } from "../helpers/sceneInfo";
-import { resetStores } from "../helpers/stores";
+import { renderEditor, renderPanel, savedFieldOptions } from "../support/sceneInfo";
+import { resetStores } from "../support/stores";
 
 beforeEach(() => {
   resetStores();

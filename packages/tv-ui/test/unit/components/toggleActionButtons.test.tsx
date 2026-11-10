@@ -12,7 +12,7 @@ import { FullscreenActionButton } from "../../../src/components/action-buttons/b
 import { ShowSceneInfoActionButton } from "../../../src/components/action-buttons/buttons/ShowSceneInfoActionButton"
 import { useTvConfig } from "../../../src/store/tvConfig"
 import { useGlobalState } from "../../../src/store/globalState"
-import { resetStores } from "../helpers/stores"
+import { resetStores } from "../support/stores"
 
 /**
  * Buttons that switch a single on/off setting. Each click flips the setting, and

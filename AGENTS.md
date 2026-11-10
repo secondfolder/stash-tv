@@ -33,7 +33,10 @@ Feature-specific documentation lives under `docs/`. Read the one that covers wha
 | [Channels](docs/channels.md)             | Touching the user's channel list, channel sources, the startup channel, or how the feed picks what to show  |
 | [Action buttons](docs/action-buttons.md) | Adding an action button or touching `src/components/action-buttons/` (schemas, config, folders)           |
 | [Release process](docs/release-process.md) | Writing commits, preparing releases, or understanding versioning/deployment flow                          |
-| [Testing](docs/testing.md)              | Writing or modifying any test, running the suites, or touching test infrastructure/polyfills          |
+| [Testing](docs/testing.md)              | Writing or modifying any test, or running the suites: the tiers, where tests and helpers go, the standards every test follows |
+| [Unit & integration tests](docs/testing-unit-integration.md) | Writing tv-ui's unit or integration tests, or touching their set-up (`test/setup.ts`, `vitest.config.ts`, the integration harness, jsdom polyfills) |
+| [E2E tests](docs/testing-e2e.md)        | Writing tv-ui's Playwright E2E tests or changing how they're run                                       |
+| [mock-stash tests](docs/testing-mock-stash.md) | Changing mock-stash, its fixtures, or its tests, including the conformance tests against a real Stash |
 | [Scene info panel](docs/scene-info-panel.md) | Touching the scene info panel (`src/components/slide/SceneInfo/`), its fields, or how users customise it |
 | [Line layout editor](docs/line-layout-editor.md) | Touching `src/components/LineLayoutEditor/` (dragging items onto lines, ghosts, insertion lines, right-aligning) or using it for something new |
 | [Entity popovers](docs/entity-popovers.md) | Touching `src/components/entity-popovers/` (a tag's, performer's or studio's popover in the info panel, and its card and buttons) or adding a popover for another kind of entity |
@@ -282,7 +285,7 @@ VITE_DEBUG=true                           # Enable extra debug logging
 
 ## Testing & Quality Assurance
 
-Full testing reference — tiers, commands, standards, and gotchas: [testing](docs/testing.md). Read it before writing or modifying any test.
+Full testing reference — tiers, commands, standards, and gotchas: [testing](docs/testing.md), and the doc for the tier you're working in ([unit & integration](docs/testing-unit-integration.md), [E2E](docs/testing-e2e.md), [mock-stash](docs/testing-mock-stash.md)). Read them before writing or modifying any test.
 
 - Tests that verify documented behavior should cite the relevant doc with `@see docs/<file>.md § "<heading>"` so the requirement and the explanation stay aligned. And if it's not mentioned in the docs but seems valuable to mention you should take
   that as a signal that the docs should be updated to cover that.

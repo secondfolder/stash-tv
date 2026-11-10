@@ -12,7 +12,7 @@ import { useGamepad } from "../../../src/hooks/useGamepad";
 import { useGamepadState } from "../../../src/store/gamepadState";
 import { useTvConfig } from "../../../src/store/tvConfig";
 import { GAMEPAD_ACTION_EVENT, type GamepadActionDetail } from "../../../src/helpers/shortcut-actions/input";
-import { resetStores } from "../helpers/stores";
+import { resetStores } from "../support/stores";
 
 const gamepad = {
   id: "DualSense Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 0ce6)",

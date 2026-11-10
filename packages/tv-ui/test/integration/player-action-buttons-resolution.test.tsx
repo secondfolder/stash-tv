@@ -89,7 +89,7 @@ describe("Resolution button", () => {
   it("shows as active while playing a stream other than the direct stream", async () => {
     const app = await bootApp();
     await openStreamPanel(app);
-    // Imported after boot: see docs/testing.md § "Gotchas" (importing app code at the top of an integration test)
+    // Imported after boot: see docs/testing-unit-integration.md § "Gotchas" (importing app code at the top of an integration test)
     const { buttonDefinition } = await import("../../src/components/action-buttons/buttons/ResolutionActionButton");
     const displayedState = async () => await displayedIconState(
       actionButtonRoot(within(currentSlide(app)).getByRole("button", { name: "Set stream resolution" })),

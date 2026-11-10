@@ -10,7 +10,7 @@ import { vi } from "vitest";
  * rejections. Integration tests use the real client against `mock-stash`
  * instead — that's why this mock must NOT be in the shared `test/setup.ts`.
  *
- * @see docs/testing.md § "Test-only exceptions to app-code rules"
+ * @see docs/testing-unit-integration.md § "Test-only exceptions to app-code rules"
  */
 
 // Minimal successful Configuration query result — `getStashTvConfig` reads

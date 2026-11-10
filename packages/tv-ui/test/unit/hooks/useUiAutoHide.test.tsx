@@ -12,7 +12,7 @@ import { useUiAutoHide } from "../../../src/hooks/useUiAutoHide";
 import { useUiVisible } from "../../../src/hooks/useUiVisible";
 import { useGlobalState } from "../../../src/store/globalState";
 import { useTvConfig } from "../../../src/store/tvConfig";
-import { resetStores } from "../helpers/stores";
+import { resetStores } from "../support/stores";
 
 const DELAY_MS = 3000;
 

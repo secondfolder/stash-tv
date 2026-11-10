@@ -25,7 +25,7 @@ export async function openChannelSettings() {
 
 /**
  * The Settings tab's "Channel on Startup" select. Looked for within its form group: a label query over the whole booted
- * app takes seconds (see docs/testing.md § "Gotchas")
+ * app takes seconds (see docs/testing-unit-integration.md § "Gotchas")
  */
 export function startupChannelSelect() {
   const group = screen.getByText("Channel on Startup").closest<HTMLElement>(".form-group");

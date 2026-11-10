@@ -20,8 +20,8 @@ import {
   settingsModalClosed,
   stackButtons,
 } from "../../helpers/actionButtonSettings";
-import { renderOnSlide } from "../helpers/render";
-import { resetStores } from "../helpers/stores";
+import { renderOnSlide } from "../support/render";
+import { resetStores } from "../support/stores";
 
 beforeEach(async () => {
   resetStores();

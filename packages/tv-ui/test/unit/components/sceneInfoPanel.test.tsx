@@ -24,8 +24,8 @@ import {
   TAG,
   TITLE,
 } from "../../helpers/sceneInfo";
-import { renderEditor, renderPanel, savedFieldOptions, savedLayout } from "../helpers/sceneInfo";
-import { resetStores } from "../helpers/stores";
+import { renderEditor, renderPanel, savedFieldOptions, savedLayout } from "../support/sceneInfo";
+import { resetStores } from "../support/stores";
 
 beforeEach(() => {
   resetStores();

@@ -8,14 +8,14 @@ import type { ActionButtonStackConfig } from "../../../src/components/action-but
 import type { ChannelSource } from "../../../src/components/channels/channel-config";
 
 /**
- * Click an element. fireEvent rather than userEvent: see docs/testing.md § "Gotchas" (userEvent.click breaks with a
+ * Click an element. fireEvent rather than userEvent: see docs/testing-unit-integration.md § "Gotchas" (userEvent.click breaks with a
  * MediaSlide mounted).
  */
 export function click(element: HTMLElement) {
   fireEvent.click(element);
 }
 
-/** The booted app's tvConfig store (imported only once the app's booted: see docs/testing.md § "Gotchas") */
+/** The booted app's tvConfig store (imported only once the app's booted: see docs/testing-unit-integration.md § "Gotchas") */
 export async function tvConfig() {
   const { useTvConfig } = await import("../../../src/store/tvConfig");
   return useTvConfig.getState();

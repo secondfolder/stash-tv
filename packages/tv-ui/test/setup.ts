@@ -67,7 +67,7 @@ afterAll(async () => {
 // Testing Library only recognises Jest's fake timers (it looks for a `jest` global). After every user-event call it
 // waits for a `setTimeout(0)`, advancing fake timers to fire it, so with vitest's frozen clock it would wait forever.
 // Its `jest.advanceTimersByTime` is all it uses. vitest's fake `setTimeout` has the `clock` it looks for.
-// @see docs/testing.md § "Gotchas"
+// @see docs/testing-unit-integration.md § "Gotchas"
 Object.defineProperty(globalThis, "jest", {
   value: { advanceTimersByTime: (ms: number) => vi.advanceTimersByTime(ms) },
   configurable: true,

@@ -6,7 +6,7 @@ import userEvent from "@testing-library/user-event"
 import type { VideoJsPlayer } from "video.js"
 import { ResolutionActionButton } from "../../../src/components/action-buttons/buttons/ResolutionActionButton"
 import { useTvConfig } from "../../../src/store/tvConfig"
-import { resetStores } from "../helpers/stores"
+import { resetStores } from "../support/stores"
 import { sidePanel } from "../../helpers/actionButtons"
 
 /**

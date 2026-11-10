@@ -78,7 +78,7 @@ Tapping, holding and dragging on a slide's video plays, skips and seeks through 
 - **Arrow keys** share the seeking: hold ← or → to seek at 2x either way, then ↑ and ↓ step the speed (`toDiscreteSeekSpeed()`'s `faster`/`slower`), or change it by one for each repeat while held.
 - ⚠️ use-gesture captures the pointer, so dragging off the video (e.g. over the action buttons) doesn't end a hold.
 
-Tests: `test/e2e/gesture-controls*.test.ts` and `test/e2e/keyboard-seeking.test.ts` (see [testing](testing.md) § "Running E2E tests"), and `test/unit/helpers/seek-speed.test.ts` for the speeds.
+Tests: `test/e2e/gesture-controls*.test.ts` and `test/e2e/keyboard-seeking.test.ts` (see [E2E tests](testing-e2e.md) § "Running E2E tests"), and `test/unit/helpers/seek-speed.test.ts` for the speeds.
 
 ---
 

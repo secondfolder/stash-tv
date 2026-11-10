@@ -6,7 +6,7 @@ import userEvent from "@testing-library/user-event"
 import type { VideoJsPlayer } from "video.js"
 import { PictureInPictureActionButton } from "../../../src/components/action-buttons/buttons/PictureInPictureActionButton"
 import { useFollowPictureInPicture } from "../../../src/hooks/usePictureInPicture"
-import { resetStores } from "../helpers/stores"
+import { resetStores } from "../support/stores"
 
 /**
  * The picture-in-picture button puts the current slide's video into PiP, and PiP

@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { act } from "@testing-library/react";
 import { useGlobalState } from "../../../src/store/globalState";
-import { resetStores, setTvConfigLoaded } from "../helpers/stores";
+import { resetStores, setTvConfigLoaded } from "../support/stores";
 
 /**
  * Unit tests for the globalState Zustand store.

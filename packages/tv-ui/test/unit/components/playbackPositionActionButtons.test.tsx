@@ -14,7 +14,7 @@ import {
 } from "../../../src/components/action-buttons/buttons/EndPositionActionButton"
 import { useFeedback } from "../../../src/components/FeedbackOverlay"
 import { useTvConfig } from "../../../src/store/tvConfig"
-import { resetStores } from "../helpers/stores"
+import { resetStores } from "../support/stores"
 
 /**
  * The start/end point buttons step through the options of the Start Point / End

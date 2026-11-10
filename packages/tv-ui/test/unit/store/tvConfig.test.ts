@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { act, waitFor } from "@testing-library/react";
 import { useTvConfig } from "../../../src/store/tvConfig";
-import { resetStores, setTvConfigLoaded } from "../helpers/stores";
+import { resetStores, setTvConfigLoaded } from "../support/stores";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import type { ChannelConfig } from "../../../src/components/channels/channel-config";
 

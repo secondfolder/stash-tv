@@ -63,7 +63,7 @@ describe("Background cache updates", () => {
     await simulateActivitySave(app, sceneId);
     const oCounterButton = currentSlide(app).querySelector<HTMLElement>(".ActionButton.o-counter .icon-container");
     if (!oCounterButton) throw new Error("O-counter button not rendered");
-    // fireEvent rather than userEvent: see docs/testing.md § "Gotchas" (userEvent.click breaks with a MediaSlide mounted)
+    // fireEvent rather than userEvent: see docs/testing-unit-integration.md § "Gotchas" (userEvent.click breaks with a MediaSlide mounted)
     fireEvent.click(oCounterButton);
 
     await waitFor(() => expect(serverOCount(integration, sceneId)).toBe(1));
@@ -98,7 +98,7 @@ describe("Background cache updates", () => {
     const dialog = await screen.findByRole("dialog");
     const saveButton = within(dialog).getByTestId("MediaSlide--editTagsSaveButton");
     expect(saveButton).toBeDisabled();
-    // Focus rather than userEvent.click: see docs/testing.md § "Gotchas" (userEvent.click breaks with a MediaSlide mounted)
+    // Focus rather than userEvent.click: see docs/testing-unit-integration.md § "Gotchas" (userEvent.click breaks with a MediaSlide mounted)
     act(() => within(dialog).getByRole("combobox").focus());
     await userEvent.keyboard("{Backspace}");
     await waitFor(() => expect(saveButton).toBeEnabled());

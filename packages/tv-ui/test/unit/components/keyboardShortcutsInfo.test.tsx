@@ -16,8 +16,8 @@ import { resolveShortcutBindings } from "../../../src/helpers/keyboard-shortcuts
 import { useGlobalState } from "../../../src/store/globalState";
 import { useTvConfig } from "../../../src/store/tvConfig";
 import { useSyncRatingSystem } from "../../../src/hooks/useKeyboardShortcuts";
-import { freshStashConfiguration, WithStashConfiguration } from "../helpers/render";
-import { resetStores } from "../helpers/stores";
+import { freshStashConfiguration, WithStashConfiguration } from "../support/render";
+import { resetStores } from "../support/stores";
 
 // Assertions key off the shortcut sequences (each row's first cell) so rewording a description doesn't break them
 const STAR_ROWS = ["| `r {1-5}` |", "| `r 0` |"];

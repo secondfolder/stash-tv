@@ -24,7 +24,7 @@ describe("Rate scene button", () => {
   }
 
   async function displayedRatingState(button: HTMLElement) {
-    // Imported after boot: see docs/testing.md § "Gotchas" (importing app code at the top of an integration test)
+    // Imported after boot: see docs/testing-unit-integration.md § "Gotchas" (importing app code at the top of an integration test)
     const { buttonDefinition } = await import("../../src/components/action-buttons/buttons/RateSceneActionButton");
     return await displayedIconState(actionButtonRoot(button), buttonDefinition.icon);
   }

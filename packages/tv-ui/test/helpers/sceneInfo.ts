@@ -5,7 +5,7 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
  * Reading and using the scene info panel, for its unit and integration tests alike.
  *
  * Clicks are `fireEvent` rather than `userEvent`: with a MediaSlide mounted (in the integration tests) userEvent's
- * clicks throw (see docs/testing.md § "Gotchas").
+ * clicks throw (see docs/testing-unit-integration.md § "Gotchas").
  *
  * @see docs/scene-info-panel.md
  */

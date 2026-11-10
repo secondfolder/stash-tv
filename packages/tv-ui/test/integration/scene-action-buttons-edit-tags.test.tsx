@@ -47,7 +47,7 @@ describe("Edit tags button", () => {
     await pinActionButtons([{ buttonType: "edit-tags", pinnedTagIds: [] }]);
     click(await actionButton(app, "Edit scene/marker tags"));
 
-    // Focus rather than userEvent.click: see docs/testing.md § "Gotchas" (userEvent.click breaks with a MediaSlide mounted)
+    // Focus rather than userEvent.click: see docs/testing-unit-integration.md § "Gotchas" (userEvent.click breaks with a MediaSlide mounted)
     act(() => tagSelect().focus());
     await userEvent.keyboard("{Backspace}");
     await waitFor(() => expect(saveButton()).toBeEnabled());
