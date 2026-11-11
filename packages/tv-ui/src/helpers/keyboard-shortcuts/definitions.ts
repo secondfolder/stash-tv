@@ -15,6 +15,8 @@ type KeyboardDefaults = readonly KeySequence[] | Readonly<Record<RatingSystemTyp
 
 export const KEYBOARD_DEFAULTS = {
   "show-shortcuts": ["?"],
+  // As many sites use to start searching
+  "search": ["/"],
   "play-pause": ["Space"],
   "seek-backwards": ["ArrowLeft"],
   "seek-forwards": ["ArrowRight"],

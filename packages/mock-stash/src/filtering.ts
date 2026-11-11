@@ -204,6 +204,22 @@ export function filterScenes(
   return sortScenes(scenes, args.filter?.sort, args.filter?.direction);
 }
 
+/**
+ * Whether texts (e.g. an entity's name and aliases) match a search's `q` as Stash matches them: every word in it must be
+ * in one of them, ignoring case. (Stash's quoted phrases, `-` exclusions and `or` aren't supported.)
+ */
+export function matchesSearch(q: string | null | undefined, texts: string[]): boolean {
+  const words = q?.trim().toLowerCase().split(/\s+/).filter(Boolean) ?? [];
+  const lowerTexts = texts.map((text) => text.toLowerCase());
+  return words.every((word) => lowerTexts.some((text) => text.includes(word)));
+}
+
+/** By name, as Stash sorts them with `sort: "name"` (ignoring case) */
+export function byName<T extends { name: string }>(items: T[], direction: string | null | undefined): T[] {
+  const sorted = [...items].sort((a, b) => a.name.localeCompare(b.name, "en", { sensitivity: "base" }));
+  return direction === "DESC" ? sorted.reverse() : sorted;
+}
+
 export function paginate<T>(items: T[], filter: FindFilter | null | undefined): T[] {
   const perPage = filter?.per_page ?? 25;
   if (perPage === -1) return items;

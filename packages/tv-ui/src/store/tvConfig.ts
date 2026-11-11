@@ -126,6 +126,7 @@ const defaults = {
     {id: "8", type: "button", buttonType: "volume", pinned: false},
     {id: "9", type: "button", buttonType: "letterboxing", pinned: false},
     {id: "14", type: "button", buttonType: "change-channel", pinned: false},
+    {id: "15", type: "button", buttonType: "search", pinned: false},
     {id: "13", type: "folder", pinned: false, contents: [
       {id: "13.1", type: "button", buttonType: "loop", pinned: false},
       {id: "13.2", type: "button", buttonType: "playback-rate", pinned: false},

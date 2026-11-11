@@ -1,5 +1,5 @@
 import { buildConfiguration } from "../config";
-import { filterMarkers, filterScenes, paginate, type FindFilter } from "../filtering";
+import { byName, filterMarkers, filterScenes, matchesSearch, paginate, type FindFilter } from "../filtering";
 import { sceneStreamEndpoints } from "./entities";
 import type { MockContext } from "../context";
 import { stashVersionDetails } from "../stash-versions";
@@ -69,7 +69,7 @@ export const queryResolvers = {
 
     findTags: (
       _src: unknown,
-      args: { ids?: string[] | null; filter?: { q?: string | null; per_page?: number | null; page?: number | null } | null },
+      args: { ids?: string[] | null; filter?: FindFilter | null },
       ctx: MockContext,
     ) => {
       let tags = [...ctx.store.tags.values()];
@@ -77,19 +77,25 @@ export const queryResolvers = {
         const wanted = new Set(args.ids.map(String));
         tags = tags.filter((t) => wanted.has(t.id));
       }
-      const q = args.filter?.q?.trim().toLowerCase();
-      if (q) {
-        tags = tags.filter(
-          (t) =>
-            t.name.toLowerCase().includes(q) ||
-            t.aliases.some((a) => a.toLowerCase().includes(q)),
-        );
-      }
-      tags.sort((a, b) => a.name.localeCompare(b.name, "en", { sensitivity: "base" }));
-      const perPage = args.filter?.per_page ?? 25;
-      const page = args.filter?.page ?? 1;
-      const paged = perPage === -1 ? tags : tags.slice((page - 1) * perPage, page * perPage);
-      return { tags: paged, count: tags.length };
+      tags = byName(tags.filter((t) => matchesSearch(args.filter?.q, [t.name, ...t.aliases])), args.filter?.direction);
+      return { tags: paginate(tags, args.filter), count: tags.length };
+    },
+
+    // Searching by name or alias (`q`), sorted by name: what the app's search sends
+    findPerformers: (_src: unknown, args: { filter?: FindFilter | null }, ctx: MockContext) => {
+      const performers = byName(
+        [...ctx.store.performers.values()].filter((p) => matchesSearch(args.filter?.q, [p.name, ...(p.aliases ?? [])])),
+        args.filter?.direction,
+      );
+      return { performers: paginate(performers, args.filter), count: performers.length };
+    },
+
+    findStudios: (_src: unknown, args: { filter?: FindFilter | null }, ctx: MockContext) => {
+      const studios = byName(
+        [...ctx.store.studios.values()].filter((s) => matchesSearch(args.filter?.q, [s.name])),
+        args.filter?.direction,
+      );
+      return { studios: paginate(studios, args.filter), count: studios.length };
     },
 
     sceneStreams: (_src: unknown, args: { id?: string | null }, ctx: MockContext) => {

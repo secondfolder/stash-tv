@@ -147,12 +147,17 @@ export function formatKeyComboParts(combo: KeyCombo): string[] {
 
 /**
  * Whether an event comes from somewhere the user is typing or adjusting a value (a text field, a select, a slider…),
- * where keys must do what they normally do there rather than trigger a shortcut.
+ * where keys must do what they normally do there rather than trigger a shortcut. Anywhere in a command palette counts,
+ * buttons included: it's where the user types, and Tab moves between its input and buttons.
  */
 export function isTypingTarget(event: Pick<Event, "target">): boolean {
   const target = event.target;
   return target instanceof HTMLInputElement
     || target instanceof HTMLTextAreaElement
     || target instanceof HTMLSelectElement
-    || (target instanceof HTMLElement && (target.isContentEditable || target.getAttribute("role") === "slider"));
+    || (target instanceof HTMLElement && (
+      target.isContentEditable
+      || target.getAttribute("role") === "slider"
+      || target.closest(".CommandPalette") !== null
+    ));
 }

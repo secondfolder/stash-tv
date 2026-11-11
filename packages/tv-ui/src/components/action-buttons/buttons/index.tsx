@@ -20,6 +20,7 @@ import { buttonDefinition as playbackRateButtonDefinition } from "./PlaybackRate
 import { buttonDefinition as quickTagButtonDefinition } from "./QuickTagActionButton";
 import { buttonDefinition as rateSceneButtonDefinition } from "./RateSceneActionButton";
 import { buttonDefinition as resolutionButtonDefinition } from "./ResolutionActionButton";
+import { buttonDefinition as searchButtonDefinition } from "./SearchActionButton";
 import { buttonDefinition as setOrganizedButtonDefinition } from "./SetOrganizedActionButton";
 import { buttonDefinition as settingsButtonDefinition } from "./SettingsActionButton";
 import { buttonDefinition as showSceneInfoButtonDefinition } from "./ShowSceneInfoActionButton";
@@ -79,6 +80,7 @@ export const allButtonDefinition = [
   startPositionButtonDefinition,
   endPositionButtonDefinition,
   pictureInPictureButtonDefinition,
+  searchButtonDefinition,
 ] as const
 
 export type ActionButtonDefinition = typeof allButtonDefinition[number]

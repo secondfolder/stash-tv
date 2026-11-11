@@ -25,6 +25,8 @@ type GlobalState = {
   /** What the scene info panel's editor's pills show. Shared, like the draft, so it's kept moving to another slide */
   sceneInfoEditorPillContent: SceneInfoEditorPillContent;
   keyboardShortcutsOpen: boolean;
+  /** Whether the search palette is open */
+  searchOpen: boolean;
   /** Whether a keyboard shortcut's key is being recorded in the settings, when no shortcut may fire */
   recordingShortcut: boolean;
   /**
@@ -58,6 +60,7 @@ const defaults = {
   sceneInfoDraft: null,
   sceneInfoEditorPillContent: "names",
   keyboardShortcutsOpen: false,
+  searchOpen: false,
   recordingShortcut: false,
   ratingSystem: RatingSystemType.Stars,
   currentMediaItemId: null,

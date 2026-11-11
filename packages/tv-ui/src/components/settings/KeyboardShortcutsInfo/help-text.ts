@@ -45,6 +45,7 @@ const afterRatingKey = ({ keyLabels }: HelpContext, suffix: string) =>
 
 const HELP_ENTRIES: HelpEntry[] = [
   single("General", "show-shortcuts", "Show keyboard shortcuts"),
+  single("General", "search", "Search for scenes, markers, performers, tags, studios or channels"),
 
   single("Playback", "play-pause", "Play/pause player"),
   {

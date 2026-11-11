@@ -110,11 +110,19 @@ saved filter in Stash first, by putting the filter straight in Stash TV's own pa
 
 `src/components/channels/temporary-filter.ts` makes the temporary channel's filters from entities (tags, performers and studios):
 
-- `makeEntityFilter(entityType, entity)`: every scene with it. It's in the shape Stash saves filters in, its criterion in Stash's UI shape (`{ value: { items: [{ id, label }], excluded, depth }, modifier }`), which is what `ListFilterModel.configureFromSavedFilter` reads. A tag's depth is 0: just that tag, not its sub-tags. Performers aren't hierarchical, so have no depth. A studio's depth is -1, its sub-studios too: the info panel shows a studio's parents, and a network's scenes are mostly its studios'.
+- `makeEntityFilter(entityType, entity, mode?)`: every scene with it, or with `mode` `SceneMarkers`, every marker with it (the search's "Markers by tag"). Stash's marker filters have the same `tags` and `performers` criteria as its scene filters. It's in the shape Stash saves filters in, its criterion in Stash's UI shape (`{ value: { items: [{ id, label }], excluded, depth }, modifier }`), which is what `ListFilterModel.configureFromSavedFilter` reads. A tag's depth is 0: just that tag, not its sub-tags. Performers aren't hierarchical, so have no depth. A studio's depth is -1, its sub-studios too: the info panel shows a studio's parents, and a network's scenes are mostly its studios'.
 - `addEntityToFilter` adds an entity to the filter, which then shows scenes with it as well as what the filter already required. A filter not filtering by that kind of entity yet gets a criterion for it, as `makeEntityFilter` makes (a filter's criteria all have to match, so a performer's filter plus a tag shows that performer's scenes with that tag). One already filtering by that kind gets it added to that criterion, requiring all of them (`INCLUDES_ALL`). `canAddEntityToFilter` says whether that's possible: the filter mustn't already require it, and if it already filters by that kind, it must require all of them (a single one with `INCLUDES` is the same), and the kind must be one a filter can require more than one of: not studios (`combinable: false`), as a scene has only one and Stash only allows `INCLUDES` for them.
 - `removeEntityFromFilter` takes one out, dropping the criterion once there's none left. `canRemoveEntityFromFilter` allows it only if the filter would still filter by something.
 - A filter's name is what it requires, joined with " & " (e.g. "Alpha & Beta"), so the channel is listed as "Scenes: Alpha & Beta".
 - Each kind of entity's criterion is in `entityCriteria`: adding a kind of entity to filter by is adding it there.
+
+### Searching
+
+The [search](search.md) palette shows what's picked in the temporary channel, always replacing what it showed (never adding to it, as a popover's "Add to channel filter" does):
+
+- Searching for text: `makeSearchFilter(mode, text)`, a scene or marker filter with just `find_filter.q`, as Stash's own search field sets it, and Stash's default sort. Named after the text in quotes, so the channel is listed as "Scenes: “sunset”". Stash searches a scene's title, details, file paths and markers' titles, and a marker's title, its scene's title and its tags.
+- A performer, tag or studio: `makeEntityFilter()`, as their popovers' "Show scenes with…" makes. A tag's markers: the same, for markers.
+- A channel isn't shown in the temporary channel: the feed switches to it.
 
 ## Startup channel
 

@@ -7,7 +7,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import React, { useState } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CommandPalette, CommandPaletteToken, type CommandPaletteProps } from "../../../src/components/CommandPalette";
 
@@ -61,6 +61,51 @@ describe("CommandPalette", () => {
 
     // Down past the last wraps round to the first, then up to the last
     expect(onPick).toHaveBeenCalledWith("Cherry");
+  });
+
+  it("keeps the result moved to highlighted when more results arrive, but starts from the first when the text changes", async () => {
+    const onPick = vi.fn();
+    const item = (name: string) => ({ id: name, label: name, onSelect: () => onPick(name) });
+    /** Results for the text, and once `arrived`, more of them before those already there */
+    function LateResults({ arrived }: { arrived: boolean }) {
+      const [query, setQuery] = useState("a");
+      return <CommandPalette
+        show
+        onClose={() => {}}
+        label="Fruit"
+        placeholder="Search fruit"
+        query={query}
+        onQueryChange={setQuery}
+        items={[item(`Search for ${query}`), ...(arrived ? [item("Apricot")] : []), item("Apple")]}
+      />;
+    }
+    const { rerender } = render(<LateResults arrived={false} />);
+    screen.getByPlaceholderText("Search fruit").focus();
+
+    await userEvent.keyboard("{ArrowDown}");
+    rerender(<LateResults arrived />);
+    expect(screen.getByRole("option", { name: "Apple" })).toHaveAttribute("aria-selected", "true");
+
+    await userEvent.keyboard("p{Enter}");
+    expect(onPick).toHaveBeenCalledWith("Search for ap");
+  });
+
+  it("lists results under their groups' headings", () => {
+    const item = (name: string, group?: string) => ({ id: name, label: name, group, onSelect: () => {} });
+    render(<CommandPalette
+      show
+      onClose={() => {}}
+      label="Food"
+      placeholder="Search food"
+      items={[item("Anything"), item("Apple", "Fruit"), item("Banana", "Fruit"), item("Carrot", "Vegetables")]}
+    />);
+
+    const optionsIn = (group: string) =>
+      within(screen.getByRole("group", { name: group })).getAllByRole("option").map((option) => option.textContent);
+    expect(optionsIn("Fruit")).toEqual(["Apple", "Banana"]);
+    expect(optionsIn("Vegetables")).toEqual(["Carrot"]);
+    // Every result is still one of the list's, in order, moved through with the arrow keys
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(["Anything", "Apple", "Banana", "Carrot"]);
   });
 
   it("picks a result clicked", async () => {
@@ -149,6 +194,23 @@ describe("CommandPalette", () => {
 
     expect(save).toHaveBeenCalled();
     expect(cancel).not.toHaveBeenCalled();
+  });
+
+  it("shows a button with an icon as just its icon, named by its label", async () => {
+    const clear = vi.fn();
+    render(<CommandPalette
+      show
+      onClose={() => {}}
+      label="Search"
+      placeholder="Search"
+      actions={[{ label: "Clear", icon: <svg data-testid="clear-icon" />, onClick: clear }]}
+    />);
+
+    const button = screen.getByRole("button", { name: "Clear" });
+    expect(button).not.toHaveTextContent("Clear");
+    expect(within(button).getByTestId("clear-icon")).toBeInTheDocument();
+    await userEvent.click(button);
+    expect(clear).toHaveBeenCalled();
   });
 
   it("closes with Escape", async () => {

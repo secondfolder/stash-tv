@@ -1,0 +1,109 @@
+.SearchPalette {
+  .command-palette-input-field {
+    // At least 16px, or iOS zooms the page in when the field is focused
+    font-size: 1rem;
+  }
+
+  // Tall enough to tap easily
+  .command-palette-item {
+    min-height: 44px;
+  }
+
+  .search-suggestion {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .search-suggestion-name,
+  .search-suggestion-details {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .search-suggestion-details {
+    font-size: 0.8em;
+  }
+
+  // Where what's typed is in a name
+  .search-match {
+    color: #fff;
+    font-weight: 700;
+  }
+
+  // A tag's name is its badge, as everywhere else. What's typed is bold in it, but in the badge's own colour
+  .tag-item {
+    margin: 0;
+
+    .search-match {
+      color: inherit;
+    }
+  }
+
+  .search-favorite {
+    color: #ff7373;
+    font-size: 0.75em;
+    margin-left: 0.35em;
+    vertical-align: 0;
+  }
+
+  .search-thumbnail {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    overflow: hidden;
+    border-radius: 0.2rem;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    // An icon in place of an image
+    &.icon {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+
+      svg {
+        width: 1.1rem;
+        height: 1.1rem;
+      }
+    }
+
+    &.performer {
+      height: 2.75rem;
+    }
+
+    // Studios' images are logos, usually dark on a transparent background, so they're shown whole on a light tile
+    &.studio:not(.icon) {
+      width: 3rem;
+      height: 1.75rem;
+      background-color: #e4e9ed;
+      padding: 0.15rem;
+
+      img {
+        object-fit: contain;
+      }
+    }
+
+    &.tag.icon,
+    &.studio.icon {
+      background-color: rgba(255, 255, 255, 0.08);
+    }
+  }
+
+  // The studio's tile is wider, so the others' column is as wide, keeping names lined up
+  .command-palette-item-icon {
+    width: 3rem;
+  }
+
+  .search-palette-loading {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+  }
+}

@@ -6,6 +6,7 @@ import {
   canAddEntityToFilter,
   canRemoveEntityFromFilter,
   makeEntityFilter,
+  makeSearchFilter,
   removeEntityFromFilter,
 } from "../../../src/components/channels/temporary-filter";
 import type { TemporaryFilter } from "../../../src/components/channels/channel-config";
@@ -52,6 +53,27 @@ describe("temporary filters", () => {
     expect(sceneFilterOf(filter)).toEqual({
       studios: { value: ["studio-prism"], excludes: [], modifier: GQL.CriterionModifier.Includes, depth: -1 },
     });
+  });
+
+  it("filters markers by an entity as Stash reads it: markers with the tag", () => {
+    const filter = makeEntityFilter("tag", alpha, GQL.FilterMode.SceneMarkers);
+
+    expect(filter.mode).toBe(GQL.FilterMode.SceneMarkers);
+    expect(sceneFilterOf(filter)).toEqual({
+      tags: { value: ["tag-alpha"], excludes: [], modifier: GQL.CriterionModifier.IncludesAll, depth: 0 },
+    });
+  });
+
+  // @see docs/channels.md § "Searching"
+  it("searches for text as Stash's own search field does, named after it", () => {
+    const filter = makeSearchFilter(GQL.FilterMode.SceneMarkers, "sunset beach");
+
+    expect(filter.mode).toBe(GQL.FilterMode.SceneMarkers);
+    expect(filter.name).toBe("“sunset beach”");
+    const model = new ListFilterModel(filter.mode);
+    model.configureFromSavedFilter({ ...filter, id: "" });
+    expect(model.makeFindFilter().q).toBe("sunset beach");
+    expect(sceneFilterOf(filter)).toEqual({});
   });
 
   it("offers adding an entity of a kind the filter doesn't have, so it requires that too", () => {

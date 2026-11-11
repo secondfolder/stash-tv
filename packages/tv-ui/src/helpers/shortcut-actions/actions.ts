@@ -27,6 +27,7 @@ export type ShortcutAction<ActionId extends string = ShortcutActionId> = {
 
 export const SHORTCUT_ACTIONS = {
   "show-shortcuts": { group: "General", title: "Show keyboard shortcuts", shortTitle: "Shortcuts" },
+  "search": { group: "General", title: "Search", shortTitle: "Search" },
   "play-pause": { group: "Playback", title: "Play/pause", shortTitle: "Play/pause" },
   "seek-backwards": { group: "Playback", title: "Jump backwards (hold to rewind)", shortTitle: "Jump back" },
   "seek-forwards": { group: "Playback", title: "Jump forwards (hold to fast forward)", shortTitle: "Jump fwd" },

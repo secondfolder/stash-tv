@@ -8,6 +8,7 @@ import { LoadingIndicator } from "stash-ui/wrappers/components/shared/LoadingInd
 import { useMediaItemFilters } from "../../hooks/useMediaItemFilters";
 import GuideOverlay from "../../components/GuideOverlay";
 import { KeyboardShortcutsInfo } from "../../components/settings/KeyboardShortcutsInfo";
+import { SearchPalette } from "../../components/SearchPalette";
 import { ErrorMessage } from "stash-ui/dist/src/components/Shared/ErrorMessage";
 import cx from "classnames";
 import { SettingsActionButton } from "../../components/action-buttons/buttons/SettingsActionButton";
@@ -140,6 +141,7 @@ const FeedPage: React.FC<FeedPageProps> = memo(({className}) => {
       show={keyboardShortcutsOpen}
       onHide={() => setGlobalState("keyboardShortcutsOpen", false)}
     />
+    <SearchPalette />
   </main>
   );
 });

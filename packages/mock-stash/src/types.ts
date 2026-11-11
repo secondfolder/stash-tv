@@ -93,6 +93,8 @@ export interface PerformerRecord {
   birthdate: string | null;
   ethnicity: string | null;
   country: string | null;
+  /** Other names they go by (Stash's `alias_list`) */
+  aliases?: string[];
   /** Whether they have an image of their own, rather than Stash's default one */
   has_image?: boolean;
   created_at: string;

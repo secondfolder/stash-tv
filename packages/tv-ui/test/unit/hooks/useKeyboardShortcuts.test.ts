@@ -135,6 +135,27 @@ describe("matching shortcuts", () => {
 
     expect(press("m", ["toggle-mute"])).toBeNull();
   });
+
+  // @see docs/keyboard-shortcuts.md § "Matching"
+  it("matches nothing pressed in a command palette, even on one of its buttons rather than its field", () => {
+    const pressOn = (element: HTMLElement) => {
+      let match: ShortcutActionId | null = null;
+      element.addEventListener("keydown", (event) => { match = matchShortcut(event, ["toggle-mute"]); });
+      element.dispatchEvent(new KeyboardEvent("keydown", { key: "m", bubbles: true }));
+      return match;
+    };
+    const palette = document.createElement("div");
+    palette.className = "CommandPalette";
+    const paletteButton = palette.appendChild(document.createElement("button"));
+    const otherButton = document.createElement("button");
+    document.body.append(palette, otherButton);
+
+    expect(pressOn(paletteButton)).toBeNull();
+    expect(pressOn(otherButton)).toBe("toggle-mute");
+
+    palette.remove();
+    otherButton.remove();
+  });
 });
 
 // @see docs/keyboard-shortcuts.md § "Rating shortcuts"

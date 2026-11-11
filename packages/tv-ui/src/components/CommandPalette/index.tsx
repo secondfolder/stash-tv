@@ -10,12 +10,19 @@ export type CommandPaletteItem = {
   id: string;
   label: ReactNode;
   description?: ReactNode;
+  /** Shown before its label, e.g. a thumbnail */
+  icon?: ReactNode;
+  /** A heading it's listed under. Items in a group must be next to each other: a heading starts each run of them */
+  group?: string;
   disabled?: boolean;
   onSelect: () => void;
 };
 
 export type CommandPaletteAction = {
+  /** Its text, or with `icon`, its accessible name */
   label: string;
+  /** Shown in place of its label */
+  icon?: ReactNode;
   onClick: () => void;
   variant?: ButtonVariant;
   disabled?: boolean;
@@ -43,13 +50,18 @@ export type CommandPaletteProps = {
   onInputKeyDown?: (event: React.KeyboardEvent<HTMLElement>) => void;
   /** Every key let go of in the input */
   onInputKeyUp?: (event: React.KeyboardEvent<HTMLElement>) => void;
+  /** Read-only content before the input's own, e.g. an icon */
+  inputPrefix?: ReactNode;
   /** Read-only content after the input's own */
   inputSuffix?: ReactNode;
-  /** Results under the input, already filtered by the caller. ↑ and ↓ move between them, Enter or a click picks one */
+  /**
+   * Results under the input, already filtered by the caller. ↑ and ↓ move between them, Enter or a click picks one. The
+   * first is highlighted to begin with, and again whenever what's typed changes
+   */
   items?: CommandPaletteItem[];
   /** Shown when `items` is empty */
   emptyText?: ReactNode;
-  /** Notes under the bar */
+  /** Notes in the panel under the bar, after any results */
   status?: ReactNode;
   /** Buttons at the end of the bar */
   actions?: CommandPaletteAction[];
@@ -57,6 +69,17 @@ export type CommandPaletteProps = {
   backdrop?: boolean;
   className?: string;
 };
+
+/** The items, split into runs of the same group (or of none) */
+function groupRuns(items: CommandPaletteItem[]) {
+  const runs: { group?: string; items: CommandPaletteItem[] }[] = [];
+  for (const item of items) {
+    const last = runs[runs.length - 1];
+    if (last && last.group === item.group) last.items.push(item);
+    else runs.push({ group: item.group, items: [item] });
+  }
+  return runs;
+}
 
 const isEmpty = (content: ReactNode) =>
   content === null || content === undefined || content === false || content === "" || (Array.isArray(content) && content.length === 0);
@@ -113,6 +136,7 @@ export function CommandPalette({
   inputContent,
   onInputKeyDown,
   onInputKeyUp,
+  inputPrefix,
   inputSuffix,
   items,
   emptyText,
@@ -123,14 +147,22 @@ export function CommandPalette({
 }: CommandPaletteProps) {
   const id = `CommandPalette-${useId()}`;
   const inputRef = useRef<HTMLInputElement & HTMLDivElement>(null);
-  const [highlighted, setHighlighted] = useState(0);
+  const [highlightedId, setHighlightedId] = useState<string>();
   const customInput = inputContent !== undefined;
   const selectable = items?.filter((item) => !item.disabled) ?? [];
-  const highlightedItem = selectable[Math.min(highlighted, selectable.length - 1)];
+  // The first result, unless another's been moved to. Results changing keep the one highlighted while it's still there,
+  // so results arriving late (e.g. from a server) don't move the highlight off the one the user moved to
+  const highlightedItem = selectable.find((item) => item.id === highlightedId) ?? selectable[0];
 
-  // The first result is highlighted whenever the results change
-  const itemIds = items?.map((item) => item.id).join("\n");
-  useEffect(() => setHighlighted(0), [itemIds]);
+  // What's typed changing starts again from the first result
+  useEffect(() => setHighlightedId(undefined), [query]);
+
+  const optionId = (item: CommandPaletteItem) => `${id}-option-${item.id}`;
+
+  // Keeps the highlighted result in view when the arrow keys move past the end of what the list shows
+  useEffect(() => {
+    if (highlightedItem) document.getElementById(optionId(highlightedItem))?.scrollIntoView?.({ block: "nearest" });
+  }, [highlightedItem?.id]);
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
     onInputKeyDown?.(event);
@@ -138,7 +170,8 @@ export function CommandPalette({
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       const step = event.key === "ArrowDown" ? 1 : -1;
-      setHighlighted((index) => (Math.min(index, selectable.length - 1) + step + selectable.length) % selectable.length);
+      const index = highlightedItem ? selectable.indexOf(highlightedItem) : 0;
+      setHighlightedId(selectable[(index + step + selectable.length) % selectable.length].id);
     } else if (event.key === "Enter" && highlightedItem) {
       event.preventDefault();
       highlightedItem.onSelect();
@@ -164,7 +197,6 @@ export function CommandPalette({
     focusable[event.shiftKey ? focusable.length - 1 : 0].focus();
   };
 
-  const optionId = (item: CommandPaletteItem) => `${id}-option-${item.id}`;
   const inputProps = {
     ref: inputRef,
     className: "command-palette-input-field",
@@ -199,6 +231,7 @@ export function CommandPalette({
       }}
     >
       <div className="command-palette-bar form-control">
+        {!isEmpty(inputPrefix) && <span className="command-palette-input-prefix">{inputPrefix}</span>}
         {customInput
           ? <div {...inputProps} role="textbox" tabIndex={0} aria-placeholder={placeholder} aria-readonly>
             {isEmpty(inputContent) ? <span className="command-palette-placeholder">{placeholder}</span> : inputContent}
@@ -217,40 +250,51 @@ export function CommandPalette({
         {actions?.map((action) => (
           <Button
             key={action.label}
-            className="command-palette-action"
+            className={cx("command-palette-action", { "icon-only": action.icon })}
             size="sm"
             variant={action.variant ?? "secondary"}
             disabled={action.disabled}
+            aria-label={action.icon ? action.label : undefined}
+            title={action.icon ? action.label : undefined}
             onClick={() => {
               action.onClick();
               if (action.focusInput) inputRef.current?.focus();
             }}
           >
-            {action.label}
+            {action.icon ?? action.label}
           </Button>
         ))}
       </div>
       {showPanel && <div className="command-palette-panel">
-        {!isEmpty(status) && <div className="command-palette-status" role="status">{status}</div>}
         {items && (items.length
           ? <ul className="command-palette-items" role="listbox" id={`${id}-listbox`} aria-label={label}>
-            {items.map((item) => (
-              <li
-                key={item.id}
-                id={optionId(item)}
-                role="option"
-                aria-selected={item === highlightedItem}
-                aria-disabled={item.disabled || undefined}
-                className={cx("command-palette-item", { highlighted: item === highlightedItem, disabled: item.disabled })}
-                onMouseMove={() => !item.disabled && setHighlighted(selectable.indexOf(item))}
-                onClick={() => !item.disabled && item.onSelect()}
-              >
-                <span className="command-palette-item-label">{item.label}</span>
-                {item.description && <span className="command-palette-item-description text-muted">{item.description}</span>}
-              </li>
-            ))}
+            {groupRuns(items).map((run, index) => {
+              const renderedItems = run.items.map((item) => (
+                <li
+                  key={item.id}
+                  id={optionId(item)}
+                  role="option"
+                  aria-selected={item === highlightedItem}
+                  aria-disabled={item.disabled || undefined}
+                  className={cx("command-palette-item", { highlighted: item === highlightedItem, disabled: item.disabled })}
+                  onMouseMove={() => !item.disabled && setHighlightedId(item.id)}
+                  onClick={() => !item.disabled && item.onSelect()}
+                >
+                  {item.icon && <span className="command-palette-item-icon">{item.icon}</span>}
+                  <span className="command-palette-item-label">{item.label}</span>
+                  {item.description && <span className="command-palette-item-description text-muted">{item.description}</span>}
+                </li>
+              ));
+              if (run.group === undefined) return renderedItems;
+              const headingId = `${id}-group-${index}`;
+              return <li key={`group-${index}`} role="presentation" className="command-palette-group">
+                <div className="command-palette-group-heading" id={headingId}>{run.group}</div>
+                <ul role="group" aria-labelledby={headingId}>{renderedItems}</ul>
+              </li>;
+            })}
           </ul>
           : <div className="command-palette-empty text-muted">{emptyText}</div>)}
+        {!isEmpty(status) && <div className="command-palette-status" role="status">{status}</div>}
       </div>}
     </div>
   </Modal>;

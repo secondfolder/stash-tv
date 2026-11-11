@@ -31,6 +31,7 @@ Feature-specific documentation lives under `docs/`. Read the one that covers wha
 | [stash-ui package](docs/stash-ui-package.md) | Integrating or modifying Stash frontend components, understanding wrappers vs patches                  |
 | [State & config](docs/state-and-config.md) | Touching state, adding a config option, or changing how settings persist (Zustand stores, hybrid storage) |
 | [Channels](docs/channels.md)             | Touching the user's channel list, channel sources, the startup channel, or how the feed picks what to show  |
+| [Search](docs/search.md)                 | Touching the search palette (`src/components/SearchPalette/`), the `search` button or shortcut, its suggestions, or what a search shows |
 | [Action buttons](docs/action-buttons.md) | Adding an action button or touching `src/components/action-buttons/` (schemas, config, folders)           |
 | [Release process](docs/release-process.md) | Writing commits, preparing releases, or understanding versioning/deployment flow                          |
 | [Testing](docs/testing.md)              | Writing or modifying any test, or running the suites: the tiers, where tests and helpers go, the standards every test follows |
@@ -177,7 +178,7 @@ Semantic Release, Commitlint, Yarn Workspaces.
 Three Zustand stores, each exposing the same typed `set` / `get` / `setToDefault` / `getDefault` API. Always mutate through these — never `useStore.setState`, which bypasses type safety and, for tvConfig, the persistence routing. 🚫 Never modify state before `tvConfigLoaded` is true. Full details (hybrid storage, adding config options): [state & config](docs/state-and-config.md)
 
 - `tvConfig.ts` — persisted user preferences/plugin settings (hybrid Stash-config + localStorage storage)
-- `globalState.ts` — transient UI state (settings panel and its open section, fullscreen, keyboard shortcuts modal, whether a shortcut's key is being recorded, Stash's rating system for the shortcuts, the current slide's media item, which slide's UI is auto-hidden, `tvConfigLoaded`)
+- `globalState.ts` — transient UI state (settings panel and its open section, fullscreen, keyboard shortcuts modal, the search palette, whether a shortcut's key is being recorded, Stash's rating system for the shortcuts, the current slide's media item, which slide's UI is auto-hidden, `tvConfigLoaded`)
 - `mediaItemState.tsx` — per-slide UI state provided via context (e.g. open action-button folder, o-counter display). Feed pagination is a separate store inside `useMediaItems` (see [media loading](docs/media-loading.md))
 
 ### Key Hooks (`src/hooks/`)
@@ -202,6 +203,7 @@ App.tsx (main entry point)
 
 Settings & UI Overlays:
 ├── CommandPalette (generic palette: text search with results, or custom input like ShortcutRecorder's keys typed)
+├── SearchPalette (the search: suggests channels, performers, tags and studios, shown in the temporary channel)
 ├── GuideOverlay (help/tutorial)
 ├── EditTagsContents (tag editing interface)
 ├── SceneInfo (scene metadata panel, user-customisable layout)
@@ -247,6 +249,7 @@ Settings & UI Overlays:
 ## Notable Features
 
 - **Channels**: a user-curated, reorderable list of what the feed shows (every scene/marker or a saved Stash filter), each source with its own randomise option, plus a temporary channel that is never saved ([channels](docs/channels.md))
+- **Search** — the `search` button or `/` opens a palette suggesting a search for what's typed and the channels, performers, tags and studios it matches; picking one shows it in the temporary channel ([search](docs/search.md))
 - **Feed of scenes/markers**, with lazy pagination and accumulation ([media loading](docs/media-loading.md))
 - **Video player** built on Stash's ScenePlayer/Video.js — requires many workarounds; see [video player](docs/video-player.md) before touching playback
 - **Gestures** — tap, hold and drag on the video to play/pause, skip and seek (`useGestureControls()`, sharing `useSeeking()` with the arrow keys' and gamepads' `useShortcutSeeking()`); see [video player](docs/video-player.md) § "Gestures"

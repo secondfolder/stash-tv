@@ -1,7 +1,7 @@
 import { defineConfig, loadEnv, ProxyOptions, UserConfig } from "vite";
 import svgr from 'vite-plugin-svgr';
 import pkg from "../../package.json" with { type: "json" };
-import { ClientRequest, ServerResponse } from "http";
+import { ClientRequest } from "http";
 import escapeStringRegexp from 'escape-string-regexp';
 import { proxyPrefix } from "./src/constants";
 
@@ -52,14 +52,16 @@ export default defineConfig(({mode}) => {
 
         let body = Buffer.from('');
 
-        function shouldRewrite(res: ServerResponse) {
-          const contentType = [res.getHeader("content-type") || ""].flat()[0].toString().toLowerCase();
-          return contentType.startsWith("text/") || contentType.endsWith("json");
-        }
+        const contentType = (proxyRes.headers["content-type"] || "").toLowerCase();
+        const rewriteBody = contentType.startsWith("text/") || contentType.endsWith("json");
+        // Rewriting Stash's URLs changes the body's length, so Stash's Content-Length would be wrong: the browser would
+        // stop reading early, or wait for bytes that never come and fail (ERR_CONTENT_LENGTH_MISMATCH). Without it the
+        // response is sent chunked. http-proxy copies Stash's headers onto the response after this event.
+        if (rewriteBody) delete proxyRes.headers["content-length"];
 
         res.write = function(...args) {
           const [chunk] = args;
-          if (shouldRewrite(res)) {
+          if (rewriteBody) {
             body = Buffer.concat([body, Buffer.from(chunk)]);
           } else {
             // @ts-expect-error - We should see if we can fix this type error
@@ -71,7 +73,7 @@ export default defineConfig(({mode}) => {
         // @ts-expect-error - We should see if we can fix this type error
         res.end = function(...args) {
           const [chunk] = args;
-          if (!shouldRewrite(res)) {
+          if (!rewriteBody) {
             // @ts-expect-error - We should see if we can fix this type error
             originalEnd.call(res, ...args)
             return

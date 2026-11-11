@@ -65,11 +65,29 @@ function makeEntityCriterion(entityType: FilterEntityType, entity: FilterEntity)
   return { modifier, value: { items: [toLabeledId(entity)], excluded: [], ...(depth !== undefined ? { depth } : {}) } }
 }
 
-/** A filter showing the scenes that have the entity (e.g. every scene with a tag) */
-export function makeEntityFilter(entityType: FilterEntityType, entity: FilterEntity): TemporaryFilter {
-  return withObjectFilter({ mode: GQL.FilterMode.Scenes, name: "" }, {
+/**
+ * A filter showing the scenes that have the entity (e.g. every scene with a tag), or with `mode` `SceneMarkers`, the
+ * markers that have it (Stash's marker filters have the same criteria for tags and performers, but not for studios)
+ */
+export function makeEntityFilter(
+  entityType: FilterEntityType,
+  entity: FilterEntity,
+  mode: GQL.FilterMode.Scenes | GQL.FilterMode.SceneMarkers = GQL.FilterMode.Scenes,
+): TemporaryFilter {
+  return withObjectFilter({ mode, name: "" }, {
     [entityCriteria[entityType].criterion]: makeEntityCriterion(entityType, entity),
   })
+}
+
+/**
+ * A filter showing the scenes or markers matching text, as Stash's own search field does (its `q`: for scenes, their
+ * title, details, file paths and markers' titles; for markers, their title, their scene's title and their tags). Named
+ * after the text, in quotes.
+ *
+ * @see docs/channels.md § "Searching"
+ */
+export function makeSearchFilter(mode: GQL.FilterMode.Scenes | GQL.FilterMode.SceneMarkers, query: string): TemporaryFilter {
+  return { mode, name: `“${query}”`, find_filter: { q: query }, object_filter: {} }
 }
 
 /**

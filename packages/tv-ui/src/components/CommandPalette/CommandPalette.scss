@@ -71,13 +71,38 @@ $palette-bg: #30404d;
     opacity: 0.6;
   }
 
+  .command-palette-input-prefix,
   .command-palette-input-suffix {
     flex: 0 0 auto;
     opacity: 0.6;
   }
 
+  .command-palette-input-prefix {
+    display: flex;
+    align-items: center;
+  }
+
   .command-palette-action {
     flex: 0 0 auto;
+
+    // Just its icon, with no button around it until it's hovered over or focused
+    &.icon-only {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 2rem;
+      min-height: 2rem;
+      background: none;
+      border-color: transparent;
+      color: inherit;
+      opacity: 0.6;
+
+      &:hover,
+      &:focus-visible {
+        background-color: rgba(255, 255, 255, 0.1);
+        opacity: 1;
+      }
+    }
   }
 
   // Hanging from the bottom of the bar with no gap, a little narrower than it
@@ -105,16 +130,50 @@ $palette-bg: #30404d;
     margin: 0 -0.5rem;
     max-height: 50vh;
     overflow-y: auto;
+    // Scrolling past its end doesn't scroll the page behind (the feed) on to another video
+    overscroll-behavior: contain;
     padding: 0;
+
+    ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+  }
+
+  .command-palette-group-heading {
+    color: var(--text-muted);
+    font-size: 0.75em;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    padding: 0.75em 0.8em 0.25em;
+    text-transform: uppercase;
   }
 
   .command-palette-item {
     display: flex;
-    justify-content: space-between;
-    gap: 1em;
+    align-items: center;
+    gap: 0.75em;
     border-radius: 0.25rem;
     cursor: pointer;
     padding: 0.4em 0.6em;
+
+    .command-palette-item-icon {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .command-palette-item-label {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .command-palette-item-description {
+      flex: 0 0 auto;
+      text-align: right;
+    }
 
     &.highlighted {
       background-color: rgba(255, 255, 255, 0.1);

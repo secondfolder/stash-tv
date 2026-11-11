@@ -1,6 +1,12 @@
 import { parse } from "graphql";
 import * as GQL from "stash-ui/dist/src/core/generated-graphql";
 import type { ConformanceCase, OperationCase, Step } from "./case";
+import {
+  searchVariables,
+  SearchPerformersForTvDocument,
+  SearchStudiosForTvDocument,
+  SearchTagsForTvDocument,
+} from "../../../tv-ui/src/components/SearchPalette/search-queries";
 
 /**
  * Every conformance case, in the order the session runs them. Each group leaves both servers as it found them, so a
@@ -110,6 +116,30 @@ export const CASES: ConformanceCase[] = [
     name: "findTags, searching",
     document: GQL.FindTagsForSelectDocument,
     variables: () => ({ filter: { q: "ta", per_page: -1, sort: "name", direction: "ASC" } }),
+  },
+  {
+    group: "queries",
+    name: "findTags, as the search suggests them",
+    document: SearchTagsForTvDocument,
+    variables: () => searchVariables("a"),
+  },
+  {
+    group: "queries",
+    name: "findPerformers, as the search suggests them",
+    document: SearchPerformersForTvDocument,
+    variables: () => searchVariables("a"),
+  },
+  {
+    group: "queries",
+    name: "findPerformers, searching for words in any order",
+    document: SearchPerformersForTvDocument,
+    variables: () => searchVariables("amaze ali"),
+  },
+  {
+    group: "queries",
+    name: "findStudios, as the search suggests them",
+    document: SearchStudiosForTvDocument,
+    variables: () => searchVariables("pris"),
   },
   {
     group: "queries",
