@@ -14,6 +14,16 @@ import "./video.js/pause-loading-plugin"
 import { usePlayerManager } from "./video.js/usePlayerManager";
 import { MediaItem } from "../../hooks/useMediaItems";
 
+declare module "video.js" {
+  interface VideoJsPlayer {
+    /**
+     * Where a marker's clip starts in its scene, for players with the videojs-offset plugin. It adds this to every
+     * player once one has it, returning `undefined` for those without it, and is missing before then.
+     */
+    startOffset?: () => number | undefined;
+  }
+}
+
 const mountCount = new Map<string, number>();
 
 
@@ -360,6 +370,24 @@ const ScenePlayer = forwardRef<
         playerRef.current?.currentTime(initialTimestamp);
     }
     useEffect(handleInitialTimestamp, [initialTimestamp]);
+
+    /* Before the player is ready, `player.currentTime()` only moves the video once it can play, by which point it has
+    shown (and when autoplaying, played) the start of the scene. The videojs-offset plugin, which plays a marker's clip,
+    doesn't move it at all: it changes what `currentTime()` means but leaves the video to load from the start of the
+    scene. So as the video starts loading we set where it starts on the <video> element itself, which then loads and
+    shows it from there. See docs/video-player.md § "Marker clips"
+    */
+    const initialTimestampRef = useRef(initialTimestamp);
+    initialTimestampRef.current = initialTimestamp;
+    playerSetupHook((player) => {
+      player.one("loadstart", () => {
+        if (player.isDisposed()) return;
+        const start = (player.startOffset?.() ?? 0) + (initialTimestampRef.current ?? 0);
+        const videoElm = player.tech(true)?.el();
+        if (!start || !(videoElm instanceof HTMLVideoElement) || videoElm.currentTime >= start) return;
+        videoElm.currentTime = start;
+      });
+    });
 
     // Options to inject into wrapped ScenePlayer's Video.js instance when it's being created
     modifyPlayerSetupOptions({

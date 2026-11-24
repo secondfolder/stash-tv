@@ -82,6 +82,18 @@ Tests: `test/e2e/gesture-controls*.test.ts` and `test/e2e/keyboard-seeking.test.
 
 ---
 
+## Marker clips
+
+A marker plays its clip of the scene's video with the `videojs-offset` plugin (its `offset` options are set by `MediaSlide`). The plugin makes the player's `currentTime()` and `duration()` the clip's, so the progress bar and everything reading the time see only the clip.
+
+- ⚠️ **The plugin doesn't move the video to the clip's start.** It only corrects the time on the first `timeupdate` after the video plays, so it used to show, and briefly play, the start of the whole scene first (issue #1). `ScenePlayer` sets where the video starts on the `<video>` element itself when it starts loading (its first `loadstart`): the clip's start plus `initialTimestamp`, which also covers a scene's own start position (resume time or random start). It can't use `player.currentTime()`: until the player is ready, that only moves the video once it can play, by when it has shown its first frame.
+- **The scene's markers aren't shown on a marker's progress bar** (`markers={false}`): it's the clip's progress bar, so the scene's markers would be in the wrong places, and those past the clip's length missing.
+- Looping: the plugin pauses at the end of the clip and goes back to its start but doesn't play again, so `MediaSlide` plays it again from an `ended` handler.
+
+Tests: `test/e2e/marker-clips.test.ts`, and `test/e2e/gesture-controls-markers.test.ts` for gestures on a clip.
+
+---
+
 ## Unloading videos that aren't current
 
 When a slide stops being current, `MediaSlide` calls `player.cancelLoading()` (`ScenePlayer/video.js/pause-loading-plugin.ts`) so the rendered slides around it stop downloading. It pauses the video, shows its current frame as the poster, then clears the video's `src`. Playing or seeking it through Video.js loads it again (the plugin's middleware calls `enableLoading()`).
