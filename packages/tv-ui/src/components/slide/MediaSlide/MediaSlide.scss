@@ -184,6 +184,10 @@
       transition: opacity 1s;
     }
   }
+  // Fading it in as it's scrolled to stops it popping in, but one jumped to (e.g. with a shortcut) is just shown
+  &.current-video.jumped-to {
+    transition: none;
+  }
 
   .currently-playing-marker .joiner {
     color: var(--text-muted);

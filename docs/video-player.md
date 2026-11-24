@@ -123,6 +123,9 @@ Moving from one slide to the next should go straight from one video to the other
 
 - ⚠️ **A video that hasn't started is hidden only while there's a poster** (`ScenePlayer.scss`, for an iOS bug where the video shows over the poster). It used to be hidden whenever it hadn't started, and with autoplay on there's no poster, so the next slide's loaded frame was hidden until it played: the black background flashed up between the videos.
 
+- **The slides either side of the current one are dimmed** (`MediaSlide.scss`), as their edges can show, e.g. under a mobile browser's controls. A slide scrolled to fades the dimming out over 1s as it becomes current, so it doesn't pop in, but one jumped to (an instant `scrollToIndex()`, as the shortcuts do) loses it straight away: `VideoScroller` gives that slide the `jumped-to` class, which turns the transition off. Scrolling to another slide clears it.
+- ⚠️ The dimming's selector has `:not(.currentlyScrolling)`, but nothing sets that class: the fade comes from the slide becoming current part way through the scroll.
+
 Tests: `test/e2e/next-slide.test.ts`.
 
 ---

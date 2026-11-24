@@ -189,6 +189,9 @@ const VideoScroller: React.FC<VideoScrollerProps> = memo(() => {
     window.addEventListener('scroll', scrollHandler);
     return () => window.removeEventListener('scroll', scrollHandler);
   }, []);
+  // The slide last scrolled to instantly, so it can skip the transitions it has when it's scrolled to (see MediaSlide.scss)
+  const [jumpedToIndex, setJumpedToIndex] = useState<number>();
+
   const scrollToIndex = useCallback(
     (index: React.SetStateAction<number>, options?: ScrollToIndexOptions) => {
       index = typeof index === 'function' ? index(currentIndexRef.current) : index;
@@ -201,14 +204,11 @@ const VideoScroller: React.FC<VideoScrollerProps> = memo(() => {
       const newScrollTop = index * itemHeight
       temporarilyDisableScrollSnapping();
       logger.debug(`Scrolling to index ${index} at height ${newScrollTop}`);
-      rowVirtualizer.scrollElement?.scrollTo({
-        top: newScrollTop,
-        behavior: "smooth",
-        ...options,
-        // A smooth scroll may never finish while the page is hidden (e.g. watching in picture-in-picture from another
-        // tab) which would stop the rendered slides keeping up with currentIndex as the feed auto-advances
-        ...(document.hidden ? { behavior: "instant" } : {}),
-      });
+      // A smooth scroll may never finish while the page is hidden (e.g. watching in picture-in-picture from another
+      // tab) which would stop the rendered slides keeping up with currentIndex as the feed auto-advances
+      const behavior = document.hidden ? "instant" : (options?.behavior ?? "smooth");
+      setJumpedToIndex(behavior === "instant" ? index : undefined);
+      rowVirtualizer.scrollElement?.scrollTo({ top: newScrollTop, behavior });
     },
     [rowVirtualizer]
   );
@@ -306,6 +306,7 @@ const VideoScroller: React.FC<VideoScrollerProps> = memo(() => {
 
         // Only update if we found a valid entry with enough visibility
         if (maxVisibility > 0.3) {
+          setJumpedToIndex(undefined);
           setCurrentIndex(mostVisibleIndex);
         }
       },
@@ -444,6 +445,7 @@ const VideoScroller: React.FC<VideoScrollerProps> = memo(() => {
               changeItemHandler={changeItemHandler}
               removeMediaItem={removeMediaItem}
               isCurrentVideo={i === currentIndex}
+              className={cx({ "jumped-to": i === jumpedToIndex })}
               currentIndex={currentIndex}
               index={i}
               key={hashObject([mediaItemRef.id, scenePreviewOnly, markerPreviewOnly])}
