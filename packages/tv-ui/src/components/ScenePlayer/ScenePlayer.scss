@@ -33,9 +33,10 @@
   }
 
   .video-js {
-    &:not(.vjs-has-started):not(.vjs-using-native-controls) video {
+    &:not(.vjs-has-started):not(.vjs-using-native-controls):has(.vjs-poster:not(.vjs-hidden)) video {
       // The DOM order should mean that the poster is always on top if visible but there's a weird iOS bug that
-      // causes the video to appear on top of the poster when the video is over halfway off screen;
+      // causes the video to appear on top of the poster when the video is over halfway off screen. Only while there's
+      // a poster though, as without one (when autoplaying) this hid the frame the next slide had loaded until it played
       opacity: 0;
     }
     // Set by the hideStaleFrames plugin until the video shows a frame from where it's meant to be

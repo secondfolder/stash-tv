@@ -117,6 +117,16 @@ When a slide stops being current, `MediaSlide` calls `player.cancelLoading()` (`
 
 ---
 
+## Moving to the next or previous slide
+
+Moving from one slide to the next should go straight from one video to the other, with nothing between them. The next slide's video loads its metadata ahead of time (`preload`), so it usually has a frame to show before the slide is moved to.
+
+- ⚠️ **A video that hasn't started is hidden only while there's a poster** (`ScenePlayer.scss`, for an iOS bug where the video shows over the poster). It used to be hidden whenever it hadn't started, and with autoplay on there's no poster, so the next slide's loaded frame was hidden until it played: the black background flashed up between the videos.
+
+Tests: `test/e2e/next-slide.test.ts`.
+
+---
+
 ## Picture-in-picture
 
 The `picture-in-picture` action button (and the `p` shortcut) puts the current slide's video into the browser's PiP window, and PiP then follows the feed. Helpers live in `src/helpers/picture-in-picture.ts`, hooks in `src/hooks/usePictureInPicture.ts`.
