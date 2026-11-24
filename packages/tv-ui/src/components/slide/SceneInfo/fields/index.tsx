@@ -15,6 +15,7 @@ import { fieldDefinition as duration } from "./duration";
 import { fieldDefinition as resolution } from "./resolution";
 import { fieldDefinition as frameRate } from "./frame-rate";
 import { fieldDefinition as playCount } from "./play-count";
+import { fieldDefinition as videoCodec } from "./video-codec";
 import { fieldDefinition as oCount } from "./o-count";
 import { fieldDefinition as path } from "./path";
 import { fieldDefinition as urls } from "./urls";
@@ -39,6 +40,7 @@ export const sceneInfoFields = [
   resolution,
   frameRate,
   playCount,
+  videoCodec,
   oCount,
   path,
   urls,
