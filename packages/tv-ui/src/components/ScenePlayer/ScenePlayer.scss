@@ -39,15 +39,81 @@
       opacity: 0;
     }
     .vjs-progress-control {
-      &:has(.vjs-marker-dot:hover) .vjs-mouse-display {
-        // Workaround for weird bug in videojs or marker plugin where the mouse display dot shifts a little bit to
-        // the right when hovering over a marker. Seems like it might have to do with the width property of
-        // .vjs-play-progress shrinking slightly as the mouse passes over a marker.
-        translate: -4px;
+      .vjs-marker-range,
+      .vjs-marker {
+        transition: bottom 0.3s ease, margin-bottom 0.3s ease, opacity 0.3s ease;
+
+        /**
+         * If a range partly overlaps with other ranges then part of it can
+         * potentially have gap with no markers between it and the progress
+         * bar. Since ranges are shown if either the progress control or any
+         * range is hovered over this means if the user moves the cursor up
+         * to hover over a range and see it's name then it could disappear
+         * as the cursor travels though the gap. To fix this we use a
+         * pseudo-element to extend the hitbox down to the progress bar.
+         */
+        &::before {
+          position: absolute;
+          content: '';
+          // Defined here: https://github.com/stashapp/stash/blob/987c211ca4acf4c62c2b77850b01d97c8b987755/ui/v2.5/src/components/ScenePlayer/markers.ts#L25
+          --layer-height: 9px;
+          --hitbox-top-offset: calc(2 * var(--layer-height));
+          top: calc(-1 * var(--hitbox-top-offset));
+          left: 0;
+          width: 100%;
+          /**
+           * We use sibling-index() since the highest range is also the last in
+           * the DOM order meaning it's hitbox will cover other range's hitboxes.
+           * To deal with this we use sibling-index() to give later ranges lower
+           * a z-index and thus not cover ranges that are visually below it.
+           */
+          height: calc(100% + var(--hitbox-top-offset) + calc(var(--layer-height) * sibling-index()));
+          z-index: -1000
+        }
+        &::after {
+          position: absolute;
+          content: '';
+          // Defined here: https://github.com/stashapp/stash/blob/987c211ca4acf4c62c2b77850b01d97c8b987755/ui/v2.5/src/components/ScenePlayer/markers.ts#L25
+          --layer-height: 9px;
+          top: 0;
+          left: 0;
+          width: 100%;
+          /**
+           * We use sibling-index() since the highest range is also the last in
+           * the DOM order meaning it's hitbox will cover other range's hitboxes.
+           * To deal with this we use sibling-index() to give later ranges lower
+           * a z-index and thus not cover ranges that are visually below it.
+           */
+          height: calc(100% + calc(var(--layer-height) * sibling-index()));
+          z-index: calc(-1 * sibling-index());
+        }
       }
-      .vjs-marker-dot {
-        &:hover {
-          scale: 1.1;
+      /**
+       * We have to be very careful not to make .vjs-marker-range
+       * create it's own stacking context as that would mean the top
+       * marker range's after pseudo-element hitbox could never be placed
+       * under other ranges so if the cursor is on top of it the over
+       * would go to that top element even though visualy we're over a
+       * different range.
+       */
+      .vjs-marker-range:nth-child(n) {
+        opacity: 1;
+        transform: unset;
+        margin-bottom: 28px;
+      }
+      .vjs-marker {
+        margin-bottom: 17px;
+        position: absolute;
+      }
+      &:not(:hover) {
+        .vjs-marker-range:not(:hover) {
+          bottom: 50% !important;
+          margin-bottom: 0;
+          opacity: 0;
+        }
+        .vjs-marker:not(:hover) {
+          margin-bottom: 0;
+          opacity: 0;
         }
       }
     }
