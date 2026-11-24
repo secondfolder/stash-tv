@@ -763,7 +763,9 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
             onVideojsPlayerCreated={handleVideojsPlayerCreated}
             trackActivity={!scenePreviewOnly && props.mediaItem.entityType !== "marker"}
             scrubberThumbnail={!scenePreviewOnly && props.mediaItem.entityType !== "marker"}
-            markers={!scenePreviewOnly}
+            // A marker's progress bar is its clip's, so its scene's markers would be in the wrong places (see
+            // docs/video-player.md § "Marker clips")
+            markers={!scenePreviewOnly && props.mediaItem.entityType !== "marker"}
             optionsToMerge={{
               plugins: {
                 styledBigPlayButton: {},
