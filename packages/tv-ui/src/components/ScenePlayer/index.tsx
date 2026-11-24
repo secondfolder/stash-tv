@@ -11,6 +11,7 @@ import { useTvConfig } from "../../store/tvConfig";
 import 'videojs-offset'
 import { getLogger } from "@logtape/logtape";
 import "./video.js/pause-loading-plugin"
+import "./video.js/hide-stale-frames-plugin"
 import { usePlayerManager } from "./video.js/usePlayerManager";
 import { MediaItem } from "../../hooks/useMediaItems";
 
@@ -397,6 +398,7 @@ const ScenePlayer = forwardRef<
       ...optionsToMerge,
       plugins: {
         pauseLoading: {},
+        hideStaleFrames: {},
         ...(!trackActivity ? { trackActivity: undefined } : {}),
         ...(!scrubberThumbnail ? { vttThumbnails: undefined } : {}),
         ...(!markers ? { markers: undefined } : {}),

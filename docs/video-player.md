@@ -86,7 +86,7 @@ Tests: `test/e2e/gesture-controls*.test.ts` and `test/e2e/keyboard-seeking.test.
 
 A marker plays its clip of the scene's video with the `videojs-offset` plugin (its `offset` options are set by `MediaSlide`). The plugin makes the player's `currentTime()` and `duration()` the clip's, so the progress bar and everything reading the time see only the clip.
 
-- ⚠️ **The plugin doesn't move the video to the clip's start.** It only corrects the time on the first `timeupdate` after the video plays, so it used to show, and briefly play, the start of the whole scene first (issue #1). `ScenePlayer` sets where the video starts on the `<video>` element itself when it starts loading (its first `loadstart`): the clip's start plus `initialTimestamp`, which also covers a scene's own start position (resume time or random start). It can't use `player.currentTime()`: until the player is ready, that only moves the video once it can play, by when it has shown its first frame.
+- ⚠️ **The plugin doesn't move the video to the clip's start.** It only corrects the time on the first `timeupdate` after the video plays, so it used to show, and briefly play, the start of the whole scene first (issue #1). `ScenePlayer` sets where the video starts on the `<video>` element itself when it starts loading (its first `loadstart`): the clip's start plus `initialTimestamp`, which also covers a scene's own start position (resume time or random start). It can't use `player.currentTime()`: until the player is ready, that only moves the video once it can play, by when it has shown its first frame. ⚠️ That's enough for Chrome, but Firefox (and Safari, at least for a plain `<video>`) shows the scene's first frame anyway, so the video is also hidden until it gets there (see [Hiding the frames shown while loading](#hiding-the-frames-shown-while-loading)).
 - **The scene's markers aren't shown on a marker's progress bar** (`markers={false}`): it's the clip's progress bar, so the scene's markers would be in the wrong places, and those past the clip's length missing.
 - Looping: the plugin pauses at the end of the clip and goes back to its start but doesn't play again, so `MediaSlide` plays it again from an `ended` handler.
 
@@ -94,9 +94,23 @@ Tests: `test/e2e/marker-clips.test.ts`, and `test/e2e/gesture-controls-markers.t
 
 ---
 
+## Hiding the frames shown while loading
+
+⚠️ **Firefox always shows a video's first frame once it has loaded, before seeking to where it's meant to start**, and Safari has been seen doing the same with a plain `<video src="…#t=45">`, however the start is set: on the `<video>` element before it loads (as `ScenePlayer` does), once it has its metadata, or with a `#t=` media fragment in its URL. It fires `loadeddata` with frame 0 showing, then seeks, so a marker or a scene with a start position showed the start of its scene for a moment (around 0.4s). Chrome shows the frame at the start first, and so did Playwright's WebKit, despite what Safari did. No way of setting the time avoids it, including Video.js middleware on `currentTime`.
+
+So the `hideStaleFrames` plugin (`ScenePlayer/video.js/hide-stale-frames-plugin.ts`) hides the `<video>` (the `hide-stale-frame` class on the player, `opacity: 0`) from each `loadstart` until a frame shown (`requestVideoFrameCallback`) is from within 0.5s of the video's current time. A seek yet to happen already shows as the current time, so Firefox's frame 0 doesn't count. The player's black background shows instead, or the poster. When the video is shown again it fires `videoshown`, and `player.videoHidden()` says whether it's hidden.
+
+- It covers every load: the first, and the pause-loading plugin's reload of a video that was unloaded (below). A browser without `requestVideoFrameCallback` doesn't hide it.
+- In Chrome the first frame shown is the right one, so it's shown straight away.
+- To check which frames a browser shows, log each frame's `mediaTime` from `requestVideoFrameCallback` along with the video's `currentTime`. Screenshots are too slow to catch it.
+
+Tests: `test/unit/components/hideStaleFramesPlugin.test.ts`, and `test/e2e/marker-clips.test.ts` that the video is shown once it plays (the E2E tests run only in Chromium, which doesn't show the stale frame).
+
+---
+
 ## Unloading videos that aren't current
 
-When a slide stops being current, `MediaSlide` calls `player.cancelLoading()` (`ScenePlayer/video.js/pause-loading-plugin.ts`) so the rendered slides around it stop downloading. It pauses the video, shows its current frame as the poster, then clears the video's `src`. Playing or seeking it through Video.js loads it again (the plugin's middleware calls `enableLoading()`).
+When a slide stops being current, `MediaSlide` calls `player.cancelLoading()` (`ScenePlayer/video.js/pause-loading-plugin.ts`) so the rendered slides around it stop downloading. It pauses the video, shows its current frame as the poster, then clears the video's `src`. Playing or seeking it through Video.js loads it again (the plugin's middleware calls `enableLoading()`). The frame stays as the poster until the video is playing and shown again (`videoshown`, see [Hiding the frames shown while loading](#hiding-the-frames-shown-while-loading)), so neither Firefox's first frame nor the black background shows in between.
 
 - ⚠️ **The source is unloaded a moment after `cancelLoading()`**, once the frame is showing as the poster. Enabling loading in the meantime calls the unload off. It used not to, so going back to a slide straight after leaving it unloaded the video while it was current, stopping it.
 - ⚠️ Calling the `<video>` element's own `play()` bypasses the middleware, so it doesn't load an unloaded video ("The element has no supported sources").

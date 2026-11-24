@@ -70,6 +70,20 @@ test.describe('Marker clips', () => {
     expect(Math.min(...times)).toBeGreaterThanOrEqual(start);
   });
 
+  /** @see docs/video-player.md § "Hiding the frames shown while loading" */
+  test('show the video once it plays, and again once it plays after being unloaded', async ({ page }) => {
+    const videoOpacity = () => currentSlide(page).locator('video').first().evaluate((video) => getComputedStyle(video).opacity);
+    await waitForPlayback(page);
+    await expect.poll(videoOpacity).toBe('1');
+
+    await changeSlideWithKeyboard(page, 'next');
+    // Wait for the first slide's video to be unloaded, as its slide is no longer current
+    await expect(page.locator('[data-index="0"] video').first()).not.toHaveAttribute('src', /./);
+    await changeSlideWithKeyboard(page, 'previous');
+    await waitForPlayback(page);
+    await expect.poll(videoOpacity).toBe('1');
+  });
+
   test("don't show their scene's markers on the progress bar", async ({ page }) => {
     // Let Stash's ScenePlayer add the scene's markers, as it does once the video's metadata has loaded
     await page.waitForTimeout(500);

@@ -96,7 +96,12 @@ class PauseLoadingPlugin extends videojs.getPlugin("plugin") {
             }, 500)
           }
         }
-        player.one("playing", () => hideFramePoster?.())
+        // Once it's playing again, and showing where it left off rather than a frame from while it reloaded (see the
+        // hideStaleFrames plugin), so the player's black background doesn't show between the two
+        player.one("playing", () => {
+          if (player.videoHidden?.()) player.one("videoshown", () => hideFramePoster?.())
+          else hideFramePoster?.()
+        })
         // Wait till opacity transition is complete
         await new Promise(resolve => setTimeout(resolve, fadeToPosterTime * 1000))
       } else {

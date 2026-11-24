@@ -38,6 +38,10 @@
       // causes the video to appear on top of the poster when the video is over halfway off screen;
       opacity: 0;
     }
+    // Set by the hideStaleFrames plugin until the video shows a frame from where it's meant to be
+    &.hide-stale-frame video {
+      opacity: 0;
+    }
     .vjs-progress-control {
       .vjs-marker-range,
       .vjs-marker {
