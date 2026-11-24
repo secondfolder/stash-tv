@@ -143,6 +143,7 @@ export type ScenePlayerProps = Omit<React.ComponentProps<typeof ScenePlayerOrigi
     playbackRate?: number;
     showPoster?: boolean;
     loop?: boolean;
+    preload?: "auto" | "metadata" | "none";
     trackActivity?: boolean;
     scrubberThumbnail?: boolean;
     markers?: boolean;
@@ -171,6 +172,7 @@ const ScenePlayer = forwardRef<
     playbackRate,
     showPoster = true,
     loop,
+    preload,
     trackActivity = true,
     scrubberThumbnail = true,
     markers = true,
@@ -395,6 +397,7 @@ const ScenePlayer = forwardRef<
       muted,
       loop: loop, // Unfortunately this doesn't seem to work since the stash ScenePlayer component seems immediately set
       // the loop value itself after initialization so we have to set it the player ready callback
+      ...(!preload ? { preload } : {}),
       ...optionsToMerge,
       plugins: {
         pauseLoading: {},
@@ -433,6 +436,14 @@ const ScenePlayer = forwardRef<
         if (loop === undefined || !player || player.isDisposed() || loop === player.loop()) return;
         player.loop(loop);
     }, [loop]);
+
+    // On preload prop change update Video.js player state. We also set preload on player creation via the options.
+    useEffect(() => {
+        const player = playerRef.current
+        if (preload === undefined || !player || player.isDisposed() || preload === player.preload()) return;
+        // @ts-expect-error - Video.js preload method seems to be incorrectly typed as not accepting a string argument
+        player.preload(preload);
+    }, [preload]);
 
     // Fix bug in wrapped ScenePlayer that some times results in an error being thrown on unmount
     useEffect(() => {

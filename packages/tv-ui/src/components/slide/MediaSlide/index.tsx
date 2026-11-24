@@ -754,6 +754,7 @@ export const MediaSlideContent: React.FC<MediaSlideContentProps> = (props) => {
             playbackRate={playbackRate}
             autoplay={autoplay}
             loop={effectiveLooping}
+            preload={props.index >= props.currentIndex && props.index <= props.currentIndex + 1 ? "metadata" : "none"}
             initialTimestamp={initialTimestamp}
             sendSetTimestamp={() => {}}
             onNext={() => {}}
